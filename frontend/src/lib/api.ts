@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { clearAuthSession, getAccessToken } from './auth';
 
 // Global Axios instance pointing to the Fastify backend
 const api = axios.create({
@@ -12,7 +13,12 @@ const api = axios.create({
 // Request interceptor — attach JWT bearer token if present
 api.interceptors.request.use(
   (config) => {
-    // Token will be read from a context/store in real implementation
+    const accessToken = getAccessToken();
+
+    if (accessToken) {
+      config.headers.Authorization = `Bearer ${accessToken}`;
+    }
+
     return config;
   },
   (error) => Promise.reject(error)
@@ -23,8 +29,8 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Redirect to login page on token expiry
       if (typeof window !== 'undefined') {
+        clearAuthSession();
         window.location.href = '/login';
       }
     }
