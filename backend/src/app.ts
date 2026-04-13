@@ -1,13 +1,16 @@
+import 'dotenv/config';
+import './shared/types/fastify-auth';
 import Fastify from 'fastify';
+import authPlugin from './plugins/auth';
+import identityRoutes from './modules/identity/identity.routes';
 
 const buildApp = async () => {
   const app = Fastify({
     logger: true,
   });
 
-  // Example: Register routes from modules
-  // await app.register(import('./modules/identity/identity.routes'));
-  // await app.register(import('./modules/cosaf/cosaf.routes'));
+  await app.register(authPlugin);
+  await app.register(identityRoutes);
 
   app.get('/health', async (request, reply) => {
     return { status: 'ok', timestamp: new Date().toISOString() };
