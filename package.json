@@ -1,14 +1,22 @@
 {
-  "name": "client-reassignment-system",
+  "name": "a1-prime-branch-management",
+  "version": "1.0.0",
+  "description": "PRU Life UK — A1 Prime Branch Management & Agent Performance System",
   "private": true,
-  "workspaces": [
-    "client",
-    "server"
-  ],
   "scripts": {
-    "dev:client": "npm run dev --workspace client",
-    "dev:server": "npm run dev --workspace server",
-    "build": "npm run build --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "dev:backend": "npm run dev --workspace=backend",
+    "install:frontend": "npm install --workspace=frontend",
+    "install:backend": "npm install --workspace=backend",
+    "typecheck:all": "npm run typecheck --workspaces --if-present",
+    "lint:all": "npm run lint --workspaces --if-present"
+  },
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
   }
 }
