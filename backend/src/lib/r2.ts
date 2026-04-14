@@ -16,10 +16,12 @@ type UploadPrivateObjectResult = {
  * Provides a minimal Cloudflare R2 abstraction for private object storage.
  */
 export class R2Service {
-  private readonly client: S3Client;
-  private readonly bucketName: string;
+  private client: S3Client | undefined;
+  private bucketName: string | undefined;
 
-  constructor() {
+  private ensureInitialized() {
+    if (this.client) return;
+
     const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
     const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
     const region = process.env.AWS_REGION;
@@ -49,9 +51,10 @@ export class R2Service {
    * @throws {Error} When the upload fails.
    */
   async uploadPrivateObject(input: UploadPrivateObjectInput): Promise<UploadPrivateObjectResult> {
-    await this.client.send(
+    this.ensureInitialized();
+    await this.client!.send(
       new PutObjectCommand({
-        Bucket: this.bucketName,
+        Bucket: this.bucketName!,
         Key: input.key,
         Body: input.body,
         ContentType: input.contentType,
@@ -59,7 +62,7 @@ export class R2Service {
     );
 
     return {
-      bucket: this.bucketName,
+      bucket: this.bucketName!,
       key: input.key,
     };
   }
@@ -73,10 +76,11 @@ export class R2Service {
    * @throws {Error} When the URL cannot be generated.
    */
   async getSignedObjectUrl(key: string, expiresInSeconds: number): Promise<string> {
+    this.ensureInitialized();
     return getSignedUrl(
-      this.client,
+      this.client!,
       new GetObjectCommand({
-        Bucket: this.bucketName,
+        Bucket: this.bucketName!,
         Key: key,
       }),
       {
