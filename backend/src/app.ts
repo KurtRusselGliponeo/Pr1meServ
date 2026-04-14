@@ -37,7 +37,7 @@ const buildApp = async () => {
 
   await app.register(identityRoutes);
 
-  app.get('/health', async (request, reply) => {
+  app.get('/health', async (_request, _reply) => {
     return { status: 'ok', timestamp: new Date().toISOString() };
   });
 

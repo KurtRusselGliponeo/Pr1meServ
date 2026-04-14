@@ -1,12 +1,12 @@
-"use client"
+'use client';
 
-import * as React from "react"
-import Link from "next/link"
-import axios from "axios"
-import { LoaderCircle, LockKeyhole, Mail } from "lucide-react"
-import { useForm } from "react-hook-form"
+import * as React from 'react';
+import Link from 'next/link';
+import axios from 'axios';
+import { LoaderCircle, LockKeyhole, Mail } from 'lucide-react';
+import { useForm } from 'react-hook-form';
 
-import { Button } from "@/components/ui/button"
+import { Button } from '@/components/ui/button';
 import {
   Form,
   FormControl,
@@ -14,37 +14,37 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { useAuth } from "../context/auth-context"
-import { loginSchema, type LoginFormValues } from "../lib/login-schema"
-import { zodResolver } from "../lib/zod-resolver"
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { useAuth } from '../context/auth-context';
+import { loginSchema, type LoginFormValues } from '../lib/login-schema';
+import { zodResolver } from '../lib/zod-resolver';
 
 export function LoginForm() {
-  const { login } = useAuth()
-  const [submitError, setSubmitError] = React.useState<string | null>(null)
+  const { login } = useAuth();
+  const [submitError, setSubmitError] = React.useState<string | null>(null);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: "",
-      password: "",
+      email: '',
+      password: '',
     },
-  })
+  });
 
   async function onSubmit(values: LoginFormValues) {
-    setSubmitError(null)
+    setSubmitError(null);
 
     try {
-      await login(values)
+      await login(values);
     } catch (error) {
       if (axios.isAxiosError(error)) {
-        const message = (error.response?.data as { message?: string } | undefined)?.message
-        setSubmitError(message ?? "Unable to sign in. Please check your credentials.")
-        return
+        const message = (error.response?.data as { message?: string } | undefined)?.message;
+        setSubmitError(message ?? 'Unable to sign in. Please check your credentials.');
+        return;
       }
 
-      setSubmitError("Unable to sign in right now. Please try again.")
+      setSubmitError('Unable to sign in right now. Please try again.');
     }
   }
 
@@ -122,10 +122,10 @@ export function LoginForm() {
               Signing in
             </>
           ) : (
-            "Sign in"
+            'Sign in'
           )}
         </Button>
       </form>
     </Form>
-  )
+  );
 }

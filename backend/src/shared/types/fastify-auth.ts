@@ -1,5 +1,5 @@
 import '@fastify/jwt';
-import type { FastifyReply, FastifyRequest } from 'fastify';
+import type { FastifyReply } from 'fastify';
 import type { AuthTokenPayload } from '../lib/auth';
 
 declare module '@fastify/jwt' {
@@ -15,6 +15,6 @@ declare module 'fastify' {
   }
 
   interface FastifyInstance {
-    authenticate(request: FastifyRequest, reply: FastifyReply): Promise<void>;
+    authenticate(request: import('fastify').FastifyRequest, reply: FastifyReply): Promise<void>;
   }
 }

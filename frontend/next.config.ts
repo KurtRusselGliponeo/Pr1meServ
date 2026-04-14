@@ -3,6 +3,7 @@ import type { NextConfig } from 'next';
 const nextConfig: NextConfig = {
   // Server Components by default (App Router)
   reactStrictMode: true,
+  transpilePackages: ['@a1prime/schemas'],
   // Absolute imports from /src
   experimental: {
     typedRoutes: true,

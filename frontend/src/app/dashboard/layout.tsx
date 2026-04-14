@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from 'next/link';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -6,7 +6,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <header className="border-b border-border/70 bg-background/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary/70">A1 Prime</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary/70">
+              A1 Prime
+            </p>
             <h1 className="text-lg font-semibold text-foreground">Branch Dashboard</h1>
           </div>
           <nav className="flex items-center gap-4 text-sm text-muted-foreground">

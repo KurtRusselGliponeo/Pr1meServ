@@ -1,4 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
+import type { SystemRole } from '@a1prime/schemas';
 import { IdentityService } from './identity.service';
 
 const identityRoutes: FastifyPluginAsync = async (app) => {
@@ -10,7 +11,7 @@ const identityRoutes: FastifyPluginAsync = async (app) => {
       password?: string;
       firstName?: string;
       lastName?: string;
-      role?: string;
+      role?: SystemRole;
     };
 
     const result = await identityService.registerUser(app, {

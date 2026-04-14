@@ -1,8 +1,8 @@
 'use client';
 
-import { ShieldCheck } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LoginForm } from "@/features/identity";
+import { ShieldCheck } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { LoginForm } from '@/features/identity';
 
 export default function LoginPage() {
   return (
@@ -20,7 +20,8 @@ export default function LoginPage() {
           </div>
         </div>
         <CardDescription>
-          Sign in to access PRU Life UK branch management, performance monitoring, and protected dashboard data.
+          Sign in to access PRU Life UK branch management, performance monitoring, and protected
+          dashboard data.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">

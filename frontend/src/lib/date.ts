@@ -16,7 +16,6 @@ export const formatDate = (date: string | Date, format = 'MMM D, YYYY') =>
 export const formatDateTime = (date: string | Date) =>
   dayjs(date).tz(PH_TIMEZONE).format('MMM D, YYYY h:mm A');
 
-export const fromNow = (date: string | Date) =>
-  dayjs(date).tz(PH_TIMEZONE).fromNow();
+export const fromNow = (date: string | Date) => dayjs(date).tz(PH_TIMEZONE).fromNow();
 
 export default dayjs;

@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import type { SystemRole } from '@a1prime/schemas';
 import { and, eq, isNull } from 'drizzle-orm';
 import { userAccounts } from './identity.schema';
 import { db } from '../../shared/db/client';
@@ -9,12 +10,7 @@ import {
   verifyPassword,
   verifyRefreshToken,
 } from '../../shared/lib/auth';
-import {
-  decryptEmail,
-  encryptEmail,
-  hashEmail,
-  normalizeEmail,
-} from '../../shared/lib/encryption';
+import { decryptEmail, encryptEmail, hashEmail, normalizeEmail } from '../../shared/lib/encryption';
 
 type UserAccountRecord = typeof userAccounts.$inferSelect;
 type NewUserAccountRecord = typeof userAccounts.$inferInsert;
@@ -30,7 +26,7 @@ interface RegisterUserInput {
   password: string;
   firstName: string;
   lastName: string;
-  role: string;
+  role: SystemRole;
 }
 
 interface LoginInput {
@@ -147,7 +143,7 @@ export class IdentityService {
       passwordHash: await hashPassword(input.password),
       firstName: input.firstName.trim(),
       lastName: input.lastName.trim(),
-      role: input.role.trim(),
+      role: input.role,
       updatedAt: new Date(),
     });
 

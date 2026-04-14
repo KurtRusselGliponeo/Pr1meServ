@@ -8,12 +8,15 @@
     "dev:backend": "npm run dev --workspace=backend",
     "install:frontend": "npm install --workspace=frontend",
     "install:backend": "npm install --workspace=backend",
+    "format:check": "prettier --check .",
+    "format:write": "prettier --write .",
     "typecheck:all": "npm run typecheck --workspaces --if-present",
     "lint:all": "npm run lint --workspaces --if-present"
   },
   "workspaces": [
     "frontend",
-    "backend"
+    "backend",
+    "packages/*"
   ],
   "engines": {
     "node": ">=20.0.0",
