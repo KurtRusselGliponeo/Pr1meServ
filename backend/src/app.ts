@@ -3,12 +3,18 @@ import './shared/types/fastify-auth';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import fastifyJwt from '@fastify/jwt';
+import rateLimit from '@fastify/rate-limit';
+import { ZodError } from 'zod';
 import identityRoutes from './modules/identity/identity.routes';
+import { assertRedisConnection, redis } from './lib/redis';
+import { logger } from './lib/logger';
+import { BusinessRuleError, ForbiddenError, NotFoundError, UnauthorizedError } from './lib/errors';
 import { getJwtSecret } from './shared/lib/auth';
+import { assertDatabaseConnection } from './shared/db/client';
 
 const buildApp = async () => {
   const app = Fastify({
-    logger: true,
+    loggerInstance: logger,
   });
 
   await app.register(cors, {
@@ -20,25 +26,125 @@ const buildApp = async () => {
     secret: getJwtSecret(),
   });
 
-  app.decorate('authenticate', async function authenticate(request, reply) {
+  app.decorate('authenticate', async function authenticate(request, _reply) {
     try {
       await request.jwtVerify();
 
       if (request.user.tokenType !== 'access') {
-        reply.code(401).send({ message: 'Invalid access token.' });
-        return;
+        throw new UnauthorizedError('Invalid access token.');
       }
 
       request.authUser = request.user;
-    } catch {
-      reply.code(401).send({ message: 'Unauthorized' });
+    } catch (error) {
+      if (error instanceof UnauthorizedError) {
+        throw error;
+      }
+
+      throw new UnauthorizedError('Unauthorized');
     }
   });
+  await assertRedisConnection();
 
-  await app.register(identityRoutes);
+  await app.register(rateLimit, {
+    global: true,
+    max: 100,
+    timeWindow: '1 minute',
+    redis,
+    keyGenerator: (request) => request.ip,
+    skipOnError: false,
+    errorResponseBuilder: (_request, _context) => ({
+      statusCode: 429,
+      error: 'RateLimitExceeded',
+      message: 'Too many requests. Please try again later.',
+      details: [],
+    }),
+  });
 
-  app.get('/health', async (_request, _reply) => {
-    return { status: 'ok', timestamp: new Date().toISOString() };
+  app.setNotFoundHandler(
+    {
+      preHandler: app.rateLimit() as never,
+    },
+    async () => {
+      throw new NotFoundError();
+    },
+  );
+
+  app.setErrorHandler((error, request, reply) => {
+    let statusCode = 500;
+    let errorType = 'InternalServerError';
+    let message = 'An unexpected error occurred.';
+    let details: string[] = [];
+
+    if (error instanceof NotFoundError) {
+      statusCode = 404;
+      errorType = error.name;
+      message = error.message;
+    } else if (error instanceof BusinessRuleError) {
+      statusCode = 422;
+      errorType = error.name;
+      message = error.message;
+    } else if (error instanceof ZodError) {
+      statusCode = 400;
+      errorType = 'ValidationError';
+      message = 'Request validation failed.';
+      details = error.issues.map((issue) => `${issue.path.join('.') || 'body'}: ${issue.message}`);
+    } else if (error instanceof UnauthorizedError) {
+      statusCode = 401;
+      errorType = error.name;
+      message = error.message;
+    } else if (error instanceof ForbiddenError) {
+      statusCode = 403;
+      errorType = error.name;
+      message = error.message;
+    } else if (
+      typeof error === 'object' &&
+      error !== null &&
+      'statusCode' in error &&
+      error.statusCode === 429
+    ) {
+      statusCode = 429;
+      errorType = 'RateLimitExceeded';
+      message = 'Too many requests. Please try again later.';
+    }
+
+    if (statusCode === 500) {
+      request.log.error({ err: error }, 'Unhandled request error.');
+    } else if (
+      statusCode === 404 ||
+      statusCode === 422 ||
+      statusCode === 400 ||
+      statusCode === 403
+    ) {
+      request.log.warn({ err: error }, 'Handled request error.');
+    } else {
+      request.log.warn({ err: error }, 'Request rejected.');
+    }
+
+    reply.code(statusCode).send({
+      error: errorType,
+      message,
+      details,
+    });
+  });
+
+  await app.register(identityRoutes, { prefix: '/api/v1' });
+
+  app.get('/health', async (_request, reply) => {
+    try {
+      await Promise.all([assertDatabaseConnection(), assertRedisConnection()]);
+
+      return {
+        db: 'ok',
+        redis: 'ok',
+      };
+    } catch (error) {
+      app.log.error({ err: error }, 'Health check failed.');
+
+      return reply.code(503).send({
+        db: 'down',
+        redis: redis.status === 'ready' ? 'ok' : 'down',
+      });
+    }
   });
 
   return app;

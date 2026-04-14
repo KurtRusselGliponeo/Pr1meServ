@@ -79,9 +79,7 @@
         "UserAccounts_EmailHash_unique": {
           "name": "UserAccounts_EmailHash_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "EmailHash"
-          ]
+          "columns": ["EmailHash"]
         }
       },
       "policies": {},
@@ -144,12 +142,8 @@
           "name": "AgentProfiles_UserId_UserAccounts_Id_fk",
           "tableFrom": "AgentProfiles",
           "tableTo": "UserAccounts",
-          "columnsFrom": [
-            "UserId"
-          ],
-          "columnsTo": [
-            "Id"
-          ],
+          "columnsFrom": ["UserId"],
+          "columnsTo": ["Id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -159,16 +153,12 @@
         "AgentProfiles_UserId_unique": {
           "name": "AgentProfiles_UserId_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "UserId"
-          ]
+          "columns": ["UserId"]
         },
         "AgentProfiles_AgentCode_unique": {
           "name": "AgentProfiles_AgentCode_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "AgentCode"
-          ]
+          "columns": ["AgentCode"]
         }
       },
       "policies": {},
@@ -273,12 +263,8 @@
           "name": "ClientProfiles_AssignedAgentId_AgentProfiles_Id_fk",
           "tableFrom": "ClientProfiles",
           "tableTo": "AgentProfiles",
-          "columnsFrom": [
-            "AssignedAgentId"
-          ],
-          "columnsTo": [
-            "Id"
-          ],
+          "columnsFrom": ["AssignedAgentId"],
+          "columnsTo": ["Id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -288,9 +274,7 @@
         "ClientProfiles_PolicyNumber_unique": {
           "name": "ClientProfiles_PolicyNumber_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "PolicyNumber"
-          ]
+          "columns": ["PolicyNumber"]
         }
       },
       "policies": {},
@@ -365,12 +349,8 @@
           "name": "PerformanceMetrics_AgentId_AgentProfiles_Id_fk",
           "tableFrom": "PerformanceMetrics",
           "tableTo": "AgentProfiles",
-          "columnsFrom": [
-            "AgentId"
-          ],
-          "columnsTo": [
-            "Id"
-          ],
+          "columnsFrom": ["AgentId"],
+          "columnsTo": ["Id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -442,12 +422,8 @@
           "name": "SystemAuditLogs_ActorUserId_UserAccounts_Id_fk",
           "tableFrom": "SystemAuditLogs",
           "tableTo": "UserAccounts",
-          "columnsFrom": [
-            "ActorUserId"
-          ],
-          "columnsTo": [
-            "Id"
-          ],
+          "columnsFrom": ["ActorUserId"],
+          "columnsTo": ["Id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }

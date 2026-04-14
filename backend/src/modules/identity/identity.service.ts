@@ -4,6 +4,7 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { userAccounts } from './identity.schema';
 import { db } from '../../shared/db/client';
 import { logSystemAudit, type AuditLogPayload } from '../../shared/lib/audit';
+import { BusinessRuleError, UnauthorizedError } from '../../lib/errors';
 import {
   generateTokenPair,
   hashPassword,
@@ -61,18 +62,6 @@ const identityRepository: IdentityRepository = {
     return createdUser;
   },
 };
-
-function createUnauthorizedError(message: string): Error & { statusCode: number } {
-  const error = new Error(message) as Error & { statusCode: number };
-  error.statusCode = 401;
-  return error;
-}
-
-function createConflictError(message: string): Error & { statusCode: number } {
-  const error = new Error(message) as Error & { statusCode: number };
-  error.statusCode = 409;
-  return error;
-}
 
 function createValidationError(message: string): Error & { statusCode: number } {
   const error = new Error(message) as Error & { statusCode: number };
@@ -134,7 +123,7 @@ export class IdentityService {
     const existingUser = await this.repository.findByEmailHash(emailHashValue);
 
     if (existingUser) {
-      throw createConflictError('A user with this email already exists.');
+      throw new BusinessRuleError('A user with this email already exists.');
     }
 
     const createdUser = await this.repository.createUser({
@@ -176,13 +165,13 @@ export class IdentityService {
     const existingUser = await this.repository.findByEmailHash(emailHashValue);
 
     if (!existingUser) {
-      throw createUnauthorizedError('Invalid email or password.');
+      throw new UnauthorizedError('Invalid email or password.');
     }
 
     const isPasswordValid = await verifyPassword(input.password, existingUser.passwordHash);
 
     if (!isPasswordValid) {
-      throw createUnauthorizedError('Invalid email or password.');
+      throw new UnauthorizedError('Invalid email or password.');
     }
 
     await this.auditLogger({
@@ -214,7 +203,7 @@ export class IdentityService {
     const existingUser = await this.repository.findById(payload.sub);
 
     if (!existingUser || existingUser.emailHash !== payload.emailHash) {
-      throw createUnauthorizedError('Refresh token is invalid.');
+      throw new UnauthorizedError('Refresh token is invalid.');
     }
 
     await this.auditLogger({
@@ -241,11 +230,21 @@ export class IdentityService {
     const existingUser = await this.repository.findById(userId);
 
     if (!existingUser) {
-      throw createUnauthorizedError('User not found.');
+      throw new UnauthorizedError('User not found.');
     }
 
     return {
       user: sanitizeUser(existingUser),
+    };
+  }
+
+  async requestPasswordReset(email: string) {
+    if (!email.trim()) {
+      throw createValidationError('Email is required.');
+    }
+
+    return {
+      message: 'If an account exists for that email, a reset link will be sent.',
     };
   }
 }

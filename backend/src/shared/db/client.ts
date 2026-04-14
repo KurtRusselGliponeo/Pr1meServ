@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { drizzle } from 'drizzle-orm/postgres-js';
+import { sql } from 'drizzle-orm';
 import postgres from 'postgres';
 import * as schema from '../../schema';
 
@@ -18,3 +19,15 @@ const client = postgres(connectionString, {
 });
 
 export const db = drizzle(client, { schema });
+export const dbClient = client;
+
+/**
+ * Checks whether the database connection is responsive.
+ *
+ * @param No parameters are required.
+ * @returns A promise that resolves when the database is reachable.
+ * @throws Rethrows any database connectivity error.
+ */
+export async function assertDatabaseConnection(): Promise<void> {
+  await db.execute(sql`select 1`);
+}

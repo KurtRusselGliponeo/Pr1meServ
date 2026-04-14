@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import type { FastifyInstance } from 'fastify';
+import type { UserRole } from '@a1prime/schemas';
 
 const DEFAULT_ACCESS_TOKEN_EXPIRES_IN = '15m';
 const DEFAULT_REFRESH_TOKEN_EXPIRES_IN = '7d';
@@ -8,7 +9,7 @@ const DEFAULT_BCRYPT_ROUNDS = 12;
 export interface AuthTokenPayload {
   sub: string;
   emailHash: string;
-  role: string;
+  role: UserRole;
   tokenType: 'access' | 'refresh';
 }
 
