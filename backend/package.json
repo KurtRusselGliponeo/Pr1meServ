@@ -13,7 +13,9 @@
     "start": "node dist/app.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --max-warnings=0",
-    "test": "jest --passWithNoTests"
+    "test": "jest --passWithNoTests",
+    "test:unit": "vitest --configLoader native run src/services/__tests__",
+    "test:api": "vitest --configLoader native run src/routes/__tests__"
   },
   "dependencies": {
     "@a1prime/schemas": "file:../packages/schemas",

@@ -109,9 +109,11 @@ describe('Phase 2 app behavior', () => {
   it('rejects an authenticated agent from an admin-only route', async () => {
     const app = await buildApp();
     const token = await app.jwt.sign({
+      id: 'agent-1',
       sub: 'agent-1',
-      emailHash: 'hash',
       role: 'Agent',
+      agentId: 'agent-profile-1',
+      agentCode: 'AG-001',
       tokenType: 'access',
     });
 

@@ -9,6 +9,8 @@ const upStatements = [
     "EmailHash" varchar(64) NOT NULL,
     "Email" text NOT NULL,
     "PasswordHash" varchar(255) NOT NULL,
+    "RefreshTokenHash" varchar(64),
+    "RefreshTokenExpiresAtUtc" timestamptz,
     "FirstName" varchar(100) NOT NULL,
     "LastName" varchar(100) NOT NULL,
     "SystemRole" varchar(32) NOT NULL,

@@ -19,7 +19,7 @@ export function requireRole(roles: UserRole[]): preHandlerHookHandler {
       throw new UnauthorizedError('Authentication is required.');
     }
 
-    if (!roles.includes(request.authUser.role as UserRole)) {
+    if (!roles.includes(request.authUser.role)) {
       request.log.warn(
         {
           userId: request.authUser.sub,

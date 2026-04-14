@@ -5,12 +5,26 @@ import cors from '@fastify/cors';
 import fastifyJwt from '@fastify/jwt';
 import rateLimit from '@fastify/rate-limit';
 import { ZodError } from 'zod';
-import identityRoutes from './modules/identity/identity.routes';
+import authRoutes from './routes/auth.routes';
+import clientProfilesRoutes from './routes/client-profiles.routes';
 import { assertRedisConnection, redis } from './lib/redis';
 import { logger } from './lib/logger';
 import { BusinessRuleError, ForbiddenError, NotFoundError, UnauthorizedError } from './lib/errors';
 import { getJwtSecret } from './shared/lib/auth';
 import { assertDatabaseConnection } from './shared/db/client';
+
+function isZodLikeError(
+  error: unknown,
+): error is { issues: Array<{ path: Array<string | number>; message: string }> } {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'name' in error &&
+    error.name === 'ZodError' &&
+    'issues' in error &&
+    Array.isArray(error.issues)
+  );
+}
 
 const buildApp = async () => {
   const app = Fastify({
@@ -83,7 +97,7 @@ const buildApp = async () => {
       statusCode = 422;
       errorType = error.name;
       message = error.message;
-    } else if (error instanceof ZodError) {
+    } else if (error instanceof ZodError || isZodLikeError(error)) {
       statusCode = 400;
       errorType = 'ValidationError';
       message = 'Request validation failed.';
@@ -127,7 +141,8 @@ const buildApp = async () => {
     });
   });
 
-  await app.register(identityRoutes, { prefix: '/api/v1' });
+  await app.register(authRoutes, { prefix: '/api/v1' });
+  await app.register(clientProfilesRoutes, { prefix: '/api/v1' });
 
   app.get('/health', async (_request, reply) => {
     try {

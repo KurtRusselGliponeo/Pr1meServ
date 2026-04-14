@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import postgres from 'postgres';
 
-import { phaseOneMigrations } from '.';
+import { applicationMigrations } from '.';
 
 async function run() {
   const direction = process.argv[2];
@@ -22,7 +22,8 @@ async function run() {
   });
 
   try {
-    const migrations = direction === 'up' ? phaseOneMigrations : [...phaseOneMigrations].reverse();
+    const migrations =
+      direction === 'up' ? applicationMigrations : [...applicationMigrations].reverse();
 
     for (const migration of migrations) {
       console.log(`${direction.toUpperCase()}: ${migration.id}`);
