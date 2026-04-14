@@ -1,14 +1,21 @@
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { fileTypeFromBuffer } from 'file-type';
+import { nanoid } from 'nanoid';
+import type { MultipartFile } from '@fastify/multipart';
 
 import type {
   ClientProfile,
+  ClientProfileImportResponse,
+  ClientProfileReassign,
+  ClientProfileReassignResponse,
   ListClientProfilesQuery,
   ListClientProfilesResponse,
 } from '@a1prime/schemas';
-import { ForbiddenError } from '@/lib/errors';
-import { db } from '@/db/client';
-import { clientProfiles } from '@/schema';
+import { BusinessRuleError, ForbiddenError, NotFoundError } from '@/lib/errors';
+import { db, type DbTransaction, withDbTransaction } from '@/db/client';
+import { agentProfiles, clientProfiles, systemAuditLogs } from '@/schema';
 import type { AuthTokenPayload } from '@/shared/lib/auth';
+import { r2Service } from '@/lib/r2';
 
 type ClientProfileRow = {
   id: string;
@@ -25,6 +32,15 @@ type ClientProfileRow = {
   createdAtUtc: Date;
   updatedAtUtc: Date;
 };
+
+type AgentLookupRow = {
+  id: string;
+};
+
+const MAX_IMPORT_FILE_SIZE_BYTES = 20 * 1024 * 1024;
+const IMPORT_URL_EXPIRY_SECONDS = 15 * 60;
+const ALLOWED_IMPORT_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png'] as const;
+type AllowedImportMimeType = (typeof ALLOWED_IMPORT_MIME_TYPES)[number];
 
 /**
  * Provides scoped client profile list operations for COSAF endpoints.
@@ -111,6 +127,139 @@ export class ClientProfilesService {
     };
   }
 
+  /**
+   * Uploads a validated client profile import file to private Cloudflare R2 storage.
+   *
+   * @param file Multipart upload file from Fastify.
+   * @returns Import metadata plus a signed URL valid for 15 minutes.
+   * @throws {BusinessRuleError} If the file exceeds 20MB or is not a supported MIME type.
+   * @throws {Error} If R2 upload or signed URL generation fails.
+   */
+  async importClientProfile(file: MultipartFile): Promise<ClientProfileImportResponse> {
+    const chunks: Buffer[] = [];
+    let totalBytes = 0;
+
+    for await (const chunk of file.file) {
+      totalBytes += chunk.length;
+
+      if (totalBytes > MAX_IMPORT_FILE_SIZE_BYTES) {
+        throw new BusinessRuleError('Client profile import files must not exceed 20MB.');
+      }
+
+      chunks.push(Buffer.from(chunk));
+    }
+
+    const fileBuffer = Buffer.concat(chunks);
+    const detectedFileType = await fileTypeFromBuffer(fileBuffer);
+
+    if (
+      !detectedFileType ||
+      !ALLOWED_IMPORT_MIME_TYPES.includes(detectedFileType.mime as AllowedImportMimeType)
+    ) {
+      throw new BusinessRuleError('Client profile import files must be a PDF, JPEG, or PNG.');
+    }
+
+    const mimeType = detectedFileType.mime as AllowedImportMimeType;
+
+    const objectKey = `client-profiles/imports/${nanoid()}.${detectedFileType.ext}`;
+    await r2Service.uploadPrivateObject({
+      key: objectKey,
+      body: fileBuffer,
+      contentType: mimeType,
+    });
+
+    const signedUrl = await r2Service.getSignedObjectUrl(objectKey, IMPORT_URL_EXPIRY_SECONDS);
+    const expiresAt = new Date(Date.now() + IMPORT_URL_EXPIRY_SECONDS * 1000);
+
+    return {
+      objectKey,
+      fileName: file.filename,
+      mimeType,
+      sizeBytes: totalBytes,
+      signedUrl,
+      expiresAtUtc: expiresAt.toISOString(),
+    };
+  }
+
+  /**
+   * Reassigns a batch of client profiles from one agent to another inside a single transaction.
+   *
+   * @param input Validated reassignment payload.
+   * @param actorUser Authenticated JWT payload.
+   * @returns The total number of successfully reassigned client profiles.
+   * @throws {NotFoundError} If the source or destination agent does not exist.
+   * @throws {BusinessRuleError} If any client profile is missing or not assigned to the source agent.
+   * @throws {Error} Rethrows transaction failures so the full batch rolls back.
+   */
+  async reassignClientProfiles(
+    input: ClientProfileReassign,
+    actorUser: AuthTokenPayload,
+  ): Promise<ClientProfileReassignResponse> {
+    return withDbTransaction('cosaf.reassign-profiles', async (tx) => {
+      const [sourceAgent, destinationAgent] = await Promise.all([
+        this.findActiveAgent(tx, input.sourceAgentId),
+        this.findActiveAgent(tx, input.destinationAgentId),
+      ]);
+
+      if (!sourceAgent) {
+        throw new NotFoundError('Source agent was not found.');
+      }
+
+      if (!destinationAgent) {
+        throw new NotFoundError('Destination agent was not found.');
+      }
+
+      const rows = await tx
+        .select({
+          id: clientProfiles.id,
+          assignedAgentId: clientProfiles.assignedAgentId,
+        })
+        .from(clientProfiles)
+        .where(
+          and(
+            inArray(clientProfiles.id, input.clientProfileIds),
+            eq(clientProfiles.assignedAgentId, input.sourceAgentId),
+            isNull(clientProfiles.deletedAtUtc),
+          ),
+        );
+
+      if (rows.length !== input.clientProfileIds.length) {
+        throw new BusinessRuleError(
+          'All client profiles must exist and be assigned to the source agent.',
+        );
+      }
+
+      const updatedAt = new Date();
+
+      await tx
+        .update(clientProfiles)
+        .set({
+          assignedAgentId: input.destinationAgentId,
+          updatedAt,
+        })
+        .where(inArray(clientProfiles.id, input.clientProfileIds));
+
+      await tx.insert(systemAuditLogs).values(
+        rows.map((row) => ({
+          actorUserId: actorUser.sub,
+          action: 'client-profile.reassigned',
+          entityName: 'ClientProfile',
+          entityId: row.id,
+          oldValue: {
+            assignedAgentId: row.assignedAgentId,
+          },
+          newValue: {
+            assignedAgentId: input.destinationAgentId,
+          },
+        })),
+      );
+
+      return {
+        reassignedCount: rows.length,
+      };
+    });
+  }
+
   private mapClientProfile(row: ClientProfileRow): ClientProfile {
     return {
       id: row.id,
@@ -127,6 +276,21 @@ export class ClientProfilesService {
       createdAtUtc: row.createdAtUtc.toISOString(),
       updatedAtUtc: row.updatedAtUtc.toISOString(),
     };
+  }
+
+  private async findActiveAgent(
+    tx: DbTransaction,
+    agentId: string,
+  ): Promise<AgentLookupRow | null> {
+    const [agent] = await tx
+      .select({
+        id: agentProfiles.id,
+      })
+      .from(agentProfiles)
+      .where(and(eq(agentProfiles.id, agentId), isNull(agentProfiles.deletedAtUtc)))
+      .limit(1);
+
+    return agent ?? null;
   }
 }
 

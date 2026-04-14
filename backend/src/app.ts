@@ -3,6 +3,7 @@ import './shared/types/fastify-auth';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import fastifyJwt from '@fastify/jwt';
+import multipart from '@fastify/multipart';
 import rateLimit from '@fastify/rate-limit';
 import { ZodError } from 'zod';
 import authRoutes from './routes/auth.routes';
@@ -39,6 +40,7 @@ const buildApp = async () => {
   await app.register(fastifyJwt, {
     secret: getJwtSecret(),
   });
+  await app.register(multipart);
 
   app.decorate('authenticate', async function authenticate(request, _reply) {
     try {

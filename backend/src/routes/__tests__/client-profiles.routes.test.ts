@@ -6,13 +6,19 @@ process.env.REDIS_PORT = process.env.REDIS_PORT ?? '6379';
 process.env.DATABASE_URL =
   process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/postgres';
 
-const { listClientProfilesMock } = vi.hoisted(() => ({
-  listClientProfilesMock: vi.fn(),
-}));
+const { listClientProfilesMock, importClientProfileMock, reassignClientProfilesMock } = vi.hoisted(
+  () => ({
+    listClientProfilesMock: vi.fn(),
+    importClientProfileMock: vi.fn(),
+    reassignClientProfilesMock: vi.fn(),
+  }),
+);
 
 vi.mock('@/services/client-profiles.service', () => ({
   clientProfilesService: {
     listClientProfiles: listClientProfilesMock,
+    importClientProfile: importClientProfileMock,
+    reassignClientProfiles: reassignClientProfilesMock,
   },
 }));
 
@@ -52,6 +58,8 @@ import buildApp from '@/app';
 describe('client-profiles.routes', () => {
   beforeEach(() => {
     listClientProfilesMock.mockReset();
+    importClientProfileMock.mockReset();
+    reassignClientProfilesMock.mockReset();
   });
 
   it('returns a paginated list scoped for an Agent token', async () => {
@@ -180,6 +188,40 @@ describe('client-profiles.routes', () => {
     });
 
     expect(response.statusCode).toBe(403);
+
+    await app.close();
+  });
+
+  it('allows a BranchManager to submit a reassignment batch', async () => {
+    reassignClientProfilesMock.mockResolvedValue({
+      reassignedCount: 2,
+    });
+
+    const app = await buildApp();
+    const token = await app.jwt.sign({
+      id: 'manager-user-id',
+      sub: 'manager-user-id',
+      role: 'BranchManager',
+      agentId: null,
+      agentCode: null,
+      tokenType: 'access',
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/client-profiles/reassign',
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+      payload: {
+        sourceAgentId: 'de6beb8c-7781-43dd-b28f-3d5a07f489dc',
+        destinationAgentId: 'b13df722-f7f2-4061-b2f4-572346f3d90b',
+        clientProfileIds: ['3a3b00ff-bbdf-4a76-b0c1-9a222fce0db8'],
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ reassignedCount: 2 });
 
     await app.close();
   });
