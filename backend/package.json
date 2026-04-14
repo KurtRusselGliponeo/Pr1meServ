@@ -5,7 +5,7 @@
   "type": "commonjs",
   "main": "dist/app.js",
   "scripts": {
-    "dev": "tsx watch src/app.ts",
+    "dev": "tsx watch --env-file=../.env src/app.ts",
     "seed:admin": "ts-node-dev --transpile-only --exit-child src/scripts/seed-admin.ts",
     "migrate:phase1:up": "ts-node-dev --transpile-only --exit-child src/shared/db/migrations/runner.ts up",
     "migrate:phase1:down": "ts-node-dev --transpile-only --exit-child src/shared/db/migrations/runner.ts down",

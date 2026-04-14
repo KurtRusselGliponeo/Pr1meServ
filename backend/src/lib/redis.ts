@@ -1,9 +1,10 @@
 import IORedis from 'ioredis';
 import { logger } from './logger';
 
+const redisHost = process.env.REDIS_HOST?.trim() || '127.0.0.1';
 const redisPort = Number.parseInt(process.env.REDIS_PORT ?? '6379', 10);
 
-if (!process.env.REDIS_HOST?.trim()) {
+if (!redisHost) {
   throw new Error('REDIS_HOST environment variable is required.');
 }
 
@@ -12,7 +13,7 @@ if (Number.isNaN(redisPort)) {
 }
 
 export const redis = new IORedis({
-  host: process.env.REDIS_HOST.trim(),
+  host: redisHost,
   port: redisPort,
   password: process.env.REDIS_PASSWORD?.trim() || undefined,
   maxRetriesPerRequest: null,
