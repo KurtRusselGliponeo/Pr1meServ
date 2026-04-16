@@ -133,7 +133,12 @@ export function UserCreationForm({ onSubmit, isPending = false }: UserCreationFo
               )}
             />
             <div className="md:col-span-2">
-              <Button type="submit" size="lg" className="min-h-12 rounded-full" disabled={isPending}>
+              <Button
+                type="submit"
+                size="lg"
+                className="min-h-12 rounded-full"
+                disabled={isPending}
+              >
                 {isPending ? (
                   <>
                     <LoaderCircle className="h-4 w-4 animate-spin" />

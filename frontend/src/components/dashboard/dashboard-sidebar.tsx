@@ -94,40 +94,40 @@ export function DashboardSidebar({ collapsed, onToggleCollapsed }: DashboardSide
           collapsed && 'items-center',
         )}
       >
-      <div className="mb-6 flex items-center justify-between gap-3 px-2">
-        <div className={cn('min-w-0', collapsed && 'hidden')}>
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand/75">
-            A1 Prime
-          </p>
-          <h1 className="mt-2 text-xl font-semibold tracking-tight text-foreground">
-            Branch Workspace
-          </h1>
+        <div className="mb-6 flex items-center justify-between gap-3 px-2">
+          <div className={cn('min-w-0', collapsed && 'hidden')}>
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand/75">
+              A1 Prime
+            </p>
+            <h1 className="mt-2 text-xl font-semibold tracking-tight text-foreground">
+              Branch Workspace
+            </h1>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={onToggleCollapsed}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            className="h-11 w-11 shrink-0 rounded-full"
+          >
+            <PanelLeftClose
+              className={cn('h-5 w-5 transition-transform', collapsed && 'rotate-180')}
+              aria-hidden="true"
+            />
+          </Button>
         </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={onToggleCollapsed}
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          className="h-11 w-11 shrink-0 rounded-full"
-        >
-          <PanelLeftClose
-            className={cn('h-5 w-5 transition-transform', collapsed && 'rotate-180')}
-            aria-hidden="true"
-          />
-        </Button>
-      </div>
 
-      {!collapsed ? (
-        <p className="mb-6 rounded-3xl bg-brand-gradient-soft px-4 py-4 text-sm leading-6 text-muted-foreground">
-          Move between operational views, performance tracking, and administrative work without
-          losing context.
-        </p>
-      ) : null}
+        {!collapsed ? (
+          <p className="mb-6 rounded-3xl bg-brand-gradient-soft px-4 py-4 text-sm leading-6 text-muted-foreground">
+            Move between operational views, performance tracking, and administrative work without
+            losing context.
+          </p>
+        ) : null}
 
-      <div className="flex-1 overflow-y-auto pr-1">
-        <NavigationList collapsed={collapsed} />
-      </div>
+        <div className="flex-1 overflow-y-auto pr-1">
+          <NavigationList collapsed={collapsed} />
+        </div>
       </div>
     </aside>
   );

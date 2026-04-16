@@ -34,9 +34,7 @@ function BrandThemeProvider({ children }: { children: React.ReactNode }) {
 
     const storedTheme = window.localStorage.getItem(BRAND_STORAGE_KEY) as BrandTheme | null;
     const nextTheme =
-      storedTheme === 'madras' || storedTheme === 'burgundy'
-        ? storedTheme
-        : DEFAULT_BRAND_THEME;
+      storedTheme === 'madras' || storedTheme === 'burgundy' ? storedTheme : DEFAULT_BRAND_THEME;
 
     setBrandThemeState(nextTheme);
     applyBrandTheme(nextTheme);

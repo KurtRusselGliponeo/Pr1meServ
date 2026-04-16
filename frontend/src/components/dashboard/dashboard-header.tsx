@@ -3,10 +3,7 @@
 import { Bell, ChevronDown, LogOut, MoonStar, Palette, Search, SunMedium } from 'lucide-react';
 import { useTheme } from 'next-themes';
 
-import {
-  useBrandTheme,
-  useResolvedAppearance,
-} from '@/components/providers/theme-provider';
+import { useBrandTheme, useResolvedAppearance } from '@/components/providers/theme-provider';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -63,7 +60,7 @@ export function DashboardHeader({ navigationTrigger }: DashboardHeaderProps) {
               size="icon"
               className={cn(
                 'h-10 w-10 rounded-full text-muted-foreground transition-all duration-300 ease-smooth hover:-translate-y-0.5 hover:text-foreground',
-                appearance === 'light' && 'bg-brand-gradient text-brand-foreground shadow-soft',
+                appearance === 'light' && 'bg-brand text-brand-foreground shadow-soft',
               )}
               aria-label="Switch to light mode"
               onClick={() => setTheme('light')}
@@ -76,7 +73,7 @@ export function DashboardHeader({ navigationTrigger }: DashboardHeaderProps) {
               size="icon"
               className={cn(
                 'h-10 w-10 rounded-full text-muted-foreground transition-all duration-300 ease-smooth hover:-translate-y-0.5 hover:text-foreground',
-                appearance === 'dark' && 'bg-brand-gradient text-brand-foreground shadow-soft',
+                appearance === 'dark' && 'bg-brand text-brand-foreground shadow-soft',
               )}
               aria-label="Switch to dark mode"
               onClick={() => setTheme('dark')}
@@ -92,7 +89,7 @@ export function DashboardHeader({ navigationTrigger }: DashboardHeaderProps) {
               className={cn(
                 'h-10 rounded-full px-4 text-sm font-semibold transition-all duration-300 ease-smooth hover:-translate-y-0.5',
                 brandTheme === 'madras'
-                  ? 'bg-brand-gradient text-brand-foreground shadow-soft'
+                  ? 'bg-brand text-brand-foreground shadow-soft'
                   : 'text-muted-foreground hover:text-foreground',
               )}
               onClick={() => setBrandTheme('madras')}
@@ -105,7 +102,7 @@ export function DashboardHeader({ navigationTrigger }: DashboardHeaderProps) {
               className={cn(
                 'h-10 rounded-full px-4 text-sm font-semibold transition-all duration-300 ease-smooth hover:-translate-y-0.5',
                 brandTheme === 'burgundy'
-                  ? 'bg-brand-gradient text-brand-foreground shadow-soft'
+                  ? 'bg-brand text-brand-foreground shadow-soft'
                   : 'text-muted-foreground hover:text-foreground',
               )}
               onClick={() => setBrandTheme('burgundy')}

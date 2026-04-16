@@ -122,7 +122,7 @@ export function ClientProfileImportForm() {
                   <Input
                     type="file"
                     accept="application/pdf,image/jpeg,image/png"
-                    className="min-h-12 rounded-2xl file:mr-3 file:rounded-full file:border-0 file:bg-brand-gradient file:px-4 file:py-2 file:text-sm file:font-semibold file:text-brand-foreground"
+                    className="min-h-12 rounded-2xl file:mr-3 file:rounded-full file:border-0 file:bg-brand file:px-4 file:py-2 file:text-sm file:font-semibold file:text-brand-foreground"
                     onChange={(event) => {
                       const file = event.target.files?.[0];
                       fileRef.current = file ?? null;
@@ -156,7 +156,10 @@ export function ClientProfileImportForm() {
         ) : null}
 
         {rowErrors.length ? (
-          <section className="rounded-3xl border border-white/50 bg-background/85 p-4 shadow-soft dark:border-white/10" aria-live="polite">
+          <section
+            className="rounded-3xl border border-white/50 bg-background/85 p-4 shadow-soft dark:border-white/10"
+            aria-live="polite"
+          >
             <h3 className="text-sm font-semibold text-foreground">Rows requiring attention</h3>
             <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
               {rowErrors.map((rowError) => (

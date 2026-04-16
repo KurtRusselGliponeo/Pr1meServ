@@ -97,7 +97,10 @@ export function LineMetricChart({
         </svg>
         <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(72px,1fr))] gap-2">
           {data.map((item) => (
-            <div key={item.label} className="rounded-2xl border border-white/60 bg-background/90 px-3 py-2 text-center shadow-soft dark:border-white/10">
+            <div
+              key={item.label}
+              className="rounded-2xl border border-white/60 bg-background/90 px-3 py-2 text-center shadow-soft dark:border-white/10"
+            >
               <p className="text-xs font-semibold text-foreground">{item.label}</p>
               <p className="text-[11px] text-muted-foreground">{formatValue(item.value)}</p>
             </div>

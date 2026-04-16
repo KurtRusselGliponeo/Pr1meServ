@@ -38,9 +38,7 @@ export function CosafPageClient({ searchParams }: CosafPageClientProps) {
       <section className="floating-card bg-white/72 p-6 sm:p-8 dark:bg-card/82">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand/75">
-              COSAF
-            </p>
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand/75">COSAF</p>
             <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">
               Client profiles
             </h1>

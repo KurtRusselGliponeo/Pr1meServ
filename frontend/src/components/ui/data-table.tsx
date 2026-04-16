@@ -104,7 +104,7 @@ export function DataTable<TData, TValue>({
         ) : null}
       </div>
       <div className="overflow-x-auto px-3 pb-3">
-        <table className="min-w-full border-collapse">
+        <table className="min-w-full border-separate [border-spacing:0_12px]">
           <thead>
             <tr className="border-b border-white/40 dark:border-white/10">
               {columns.map((column, columnIndex) => (
@@ -141,12 +141,16 @@ export function DataTable<TData, TValue>({
             {sortedData.map((row, rowIndex) => (
               <tr
                 key={`row-${rowIndex}`}
-                className="border-b border-white/35 transition-colors last:border-b-0 hover:bg-brand-gradient-soft dark:border-white/10"
+                className="transition-transform duration-200 ease-smooth hover:-translate-y-0.5"
               >
                 {columns.map((column, columnIndex) => (
                   <td
                     key={`cell-${rowIndex}-${columnIndex}`}
-                    className="px-4 py-4 text-sm text-foreground"
+                    className={cn(
+                      'border-y border-white/45 bg-background/88 px-4 py-4 text-sm text-foreground shadow-soft dark:border-white/10 dark:bg-white/[0.03]',
+                      columnIndex === 0 && 'rounded-l-[24px] border-l',
+                      columnIndex === columns.length - 1 && 'rounded-r-[24px] border-r',
+                    )}
                   >
                     {renderCellContent(column, row, rowIndex)}
                   </td>
