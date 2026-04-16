@@ -49,7 +49,7 @@ const authRoutes: FastifyPluginAsync = async (app) => {
     {
       config: {
         rateLimit: {
-          max: 5,
+          max: 50, // Increased for dev testing
           timeWindow: '15 minutes',
         },
       },
