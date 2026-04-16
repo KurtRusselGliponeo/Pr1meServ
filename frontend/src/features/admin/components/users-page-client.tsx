@@ -70,7 +70,7 @@ export function UsersPageClient() {
         cell: ({ row }) => (
           <ConfirmActionDialog
             trigger={
-              <Button type="button" variant="outline" size="sm" className="min-h-9 rounded-2xl">
+              <Button type="button" variant="outline" size="sm" className="min-h-9 rounded-full">
                 <Trash2 className="h-4 w-4" />
                 Soft delete
               </Button>
@@ -105,8 +105,8 @@ export function UsersPageClient() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-3xl border border-border/70 bg-background/95 p-6 shadow-sm sm:p-8">
-        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary/70">Admin</p>
+      <section className="floating-card bg-white/72 p-6 sm:p-8 dark:bg-card/82">
+        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand/75">Admin</p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">
           User management
         </h1>

@@ -7,10 +7,10 @@ export default function CosafImportPage() {
   return (
     <RoleGuard allowedRoles={['Admin', 'BranchManager']}>
       <div className="space-y-6">
-        <section className="rounded-3xl border border-border/70 bg-background/95 p-6 shadow-sm sm:p-8">
+        <section className="floating-card bg-white/72 p-6 sm:p-8 dark:bg-card/82">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-2xl">
-              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary/70">
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand/75">
                 COSAF Import
               </p>
               <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">
@@ -22,18 +22,18 @@ export default function CosafImportPage() {
                 the backend import queue.
               </p>
             </div>
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
+            <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-brand-gradient text-brand-foreground shadow-soft">
               <FileUp className="h-6 w-6" aria-hidden="true" />
             </div>
           </div>
         </section>
 
-        <section className="rounded-3xl border border-border/70 bg-card p-6 shadow-sm sm:p-8">
+        <section className="floating-card p-6 sm:p-8">
           <ClientProfileImportForm />
         </section>
 
         <section className="grid gap-4 lg:grid-cols-2">
-          <div className="rounded-3xl border border-border/70 bg-card p-6 shadow-sm">
+          <div className="floating-card p-6">
             <h2 className="text-lg font-semibold tracking-tight text-foreground">
               Before uploading
             </h2>
@@ -42,7 +42,7 @@ export default function CosafImportPage() {
               processing.
             </p>
           </div>
-          <div className="rounded-3xl border border-border/70 bg-card p-6 shadow-sm">
+          <div className="floating-card p-6">
             <h2 className="text-lg font-semibold tracking-tight text-foreground">
               Processing expectation
             </h2>

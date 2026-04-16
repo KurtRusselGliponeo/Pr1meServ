@@ -10,11 +10,9 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        // Google Fonts loaded in layout.tsx
         sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],
       },
       colors: {
-        // PRU Life UK brand palette
         pru: {
           red: '#E3001B',
           'red-dark': '#A3001A',
@@ -49,11 +47,47 @@ module.exports = {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
+        surface: {
+          DEFAULT: 'hsl(var(--surface))',
+          foreground: 'hsl(var(--surface-foreground))',
+        },
+        brand: {
+          DEFAULT: 'hsl(var(--brand))',
+          foreground: 'hsl(var(--brand-foreground))',
+          subtle: 'hsl(var(--brand-subtle))',
+          border: 'hsl(var(--brand-border))',
+        },
+        glass: 'hsl(var(--glass))',
+        'canvas-start': 'hsl(var(--canvas-start))',
+        'canvas-end': 'hsl(var(--canvas-end))',
+        'hero-orb-1': 'hsl(var(--hero-orb-1))',
+        'hero-orb-2': 'hsl(var(--hero-orb-2))',
+        'hero-orb-3': 'hsl(var(--hero-orb-3))',
       },
       borderRadius: {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',
+        '4xl': '2rem',
+      },
+      boxShadow: {
+        soft: '0 18px 45px -22px hsl(var(--shadow-color) / 0.32)',
+        float: '0 28px 70px -30px hsl(var(--shadow-color) / 0.38)',
+        glass: '0 14px 40px -22px hsl(var(--shadow-color) / 0.24)',
+      },
+      backgroundImage: {
+        'pastel-mesh':
+          'radial-gradient(circle at top left, hsl(var(--hero-orb-1) / 0.32), transparent 34%), radial-gradient(circle at top right, hsl(var(--hero-orb-2) / 0.28), transparent 30%), radial-gradient(circle at bottom center, hsl(var(--hero-orb-3) / 0.24), transparent 34%), linear-gradient(135deg, hsl(var(--canvas-start)), hsl(var(--canvas-end)))',
+        'brand-gradient':
+          'linear-gradient(135deg, hsl(var(--brand) / 0.92), hsl(var(--brand-2) / 0.86))',
+        'brand-gradient-soft':
+          'linear-gradient(135deg, hsl(var(--brand) / 0.14), hsl(var(--brand-2) / 0.08))',
+      },
+      backdropBlur: {
+        xs: '2px',
+      },
+      transitionTimingFunction: {
+        smooth: 'cubic-bezier(0.22, 1, 0.36, 1)',
       },
     },
   },

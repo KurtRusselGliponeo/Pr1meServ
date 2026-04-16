@@ -43,10 +43,10 @@ export function MetricsPageClient() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-3xl border border-border/70 bg-background/95 p-6 shadow-sm sm:p-8">
+      <section className="floating-card bg-white/72 p-6 sm:p-8 dark:bg-card/82">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary/70">
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand/75">
               Performance
             </p>
             <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">
@@ -68,25 +68,25 @@ export function MetricsPageClient() {
 
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
         <Card>
-          <CardHeader>
+          <CardHeader className="rounded-[28px] bg-brand-gradient-soft">
             <CardDescription>Active agents</CardDescription>
             <CardTitle>{metrics.summary.activeAgents}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
-          <CardHeader>
+          <CardHeader className="rounded-[28px] bg-brand-gradient-soft">
             <CardDescription>Total API</CardDescription>
             <CardTitle>{formatCurrency(metrics.summary.totalApi)}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
-          <CardHeader>
+          <CardHeader className="rounded-[28px] bg-brand-gradient-soft">
             <CardDescription>Total premium</CardDescription>
             <CardTitle>{formatCurrency(metrics.summary.totalModalPremium)}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
-          <CardHeader>
+          <CardHeader className="rounded-[28px] bg-brand-gradient-soft">
             <CardDescription>Total commission</CardDescription>
             <CardTitle>{formatCurrency(metrics.summary.totalCommission)}</CardTitle>
           </CardHeader>

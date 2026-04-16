@@ -63,7 +63,7 @@ export function LoginForm() {
                   <Input
                     autoComplete="email"
                     placeholder="agent@a1prime.com"
-                    className="pl-9"
+                    className="pl-10"
                     {...field}
                   />
                 </div>
@@ -82,7 +82,7 @@ export function LoginForm() {
                 <FormLabel>Password</FormLabel>
                 <Link
                   href="#"
-                  className="text-xs font-medium text-primary transition-colors hover:text-primary/80"
+                  className="text-xs font-medium text-brand transition-colors hover:text-brand/80"
                 >
                   Reset later
                 </Link>
@@ -94,7 +94,7 @@ export function LoginForm() {
                     type="password"
                     autoComplete="current-password"
                     placeholder="Enter your password"
-                    className="pl-9"
+                    className="pl-10"
                     {...field}
                   />
                 </div>
@@ -105,7 +105,7 @@ export function LoginForm() {
         />
 
         {submitError ? (
-          <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+          <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive shadow-soft">
             {submitError}
           </div>
         ) : null}
@@ -113,7 +113,7 @@ export function LoginForm() {
         <Button
           type="submit"
           size="lg"
-          className="h-11 w-full rounded-xl"
+          className="h-12 w-full rounded-full"
           disabled={form.formState.isSubmitting}
         >
           {form.formState.isSubmitting ? (

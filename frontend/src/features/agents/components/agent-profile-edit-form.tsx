@@ -43,7 +43,7 @@ export function AgentProfileEditForm({
     <Card>
       <CardHeader>
         <div className="flex items-center gap-3">
-          <div className="rounded-2xl bg-primary/10 p-3 text-primary">
+          <div className="rounded-3xl bg-brand-gradient-soft p-3 text-brand">
             <PencilLine className="h-5 w-5" />
           </div>
           <div>
@@ -70,7 +70,7 @@ export function AgentProfileEditForm({
                 </FormItem>
               )}
             />
-            <div className="rounded-3xl border border-border/70 bg-muted/20 p-4">
+            <div className="rounded-3xl border border-white/50 bg-brand-gradient-soft p-5 shadow-soft dark:border-white/10">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                 Agent code
               </p>
@@ -116,7 +116,7 @@ export function AgentProfileEditForm({
               )}
             />
             <div className="md:col-span-2">
-              <Button type="submit" size="lg" className="min-h-11 rounded-2xl" disabled={isPending}>
+              <Button type="submit" size="lg" className="min-h-12 rounded-full" disabled={isPending}>
                 {isPending ? (
                   <>
                     <LoaderCircle className="h-4 w-4 animate-spin" />

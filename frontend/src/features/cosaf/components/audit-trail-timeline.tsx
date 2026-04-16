@@ -25,7 +25,7 @@ export function AuditTrailTimeline({ items }: AuditTrailTimelineProps) {
     <Card>
       <CardHeader>
         <div className="flex items-center gap-3">
-          <div className="rounded-2xl bg-primary/10 p-3 text-primary">
+          <div className="rounded-3xl bg-brand-gradient-soft p-3 text-brand">
             <Activity className="h-5 w-5" />
           </div>
           <div>
@@ -39,13 +39,13 @@ export function AuditTrailTimeline({ items }: AuditTrailTimelineProps) {
           {items.map((item) => (
             <div
               key={item.id}
-              className="flex gap-4 rounded-3xl border border-border/70 bg-background/80 p-4"
+              className="flex gap-4 rounded-3xl border border-white/50 bg-background/80 p-4 shadow-soft dark:border-white/10"
             >
               <div className="flex flex-col items-center">
-                <div className="rounded-full bg-primary/10 p-2 text-primary">
+                <div className="rounded-full bg-brand-gradient-soft p-2 text-brand">
                   <ArrowRightLeft className="h-4 w-4" />
                 </div>
-                <div className="mt-2 h-full w-px bg-border" />
+                <div className="mt-2 h-full w-px bg-brand/20" />
               </div>
               <div className="min-w-0 space-y-1">
                 <p className="font-medium text-foreground">{item.title}</p>

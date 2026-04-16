@@ -40,7 +40,7 @@ export function UserCreationForm({ onSubmit, isPending = false }: UserCreationFo
     <Card>
       <CardHeader>
         <div className="flex items-center gap-3">
-          <div className="rounded-2xl bg-primary/10 p-3 text-primary">
+          <div className="rounded-3xl bg-brand-gradient-soft p-3 text-brand">
             <UserPlus className="h-5 w-5" />
           </div>
           <div>
@@ -121,7 +121,7 @@ export function UserCreationForm({ onSubmit, isPending = false }: UserCreationFo
                     <select
                       {...field}
                       value={String(field.value ?? 'Agent')}
-                      className="min-h-11 w-full rounded-2xl border border-border bg-background px-4 text-sm text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/30"
+                      className="min-h-12 w-full rounded-2xl border border-white/55 bg-background/88 px-4 text-sm text-foreground shadow-soft outline-none transition-all duration-300 ease-smooth focus:border-brand focus:ring-4 focus:ring-brand/15 dark:border-white/10 dark:bg-white/5"
                     >
                       <option value="Admin">Admin</option>
                       <option value="BranchManager">Branch manager</option>
@@ -133,7 +133,7 @@ export function UserCreationForm({ onSubmit, isPending = false }: UserCreationFo
               )}
             />
             <div className="md:col-span-2">
-              <Button type="submit" size="lg" className="min-h-11 rounded-2xl" disabled={isPending}>
+              <Button type="submit" size="lg" className="min-h-12 rounded-full" disabled={isPending}>
                 {isPending ? (
                   <>
                     <LoaderCircle className="h-4 w-4 animate-spin" />

@@ -35,10 +35,10 @@ export function CosafPageClient({ searchParams }: CosafPageClientProps) {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-3xl border border-border/70 bg-background/95 p-6 shadow-sm sm:p-8">
+      <section className="floating-card bg-white/72 p-6 sm:p-8 dark:bg-card/82">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary/70">
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand/75">
               COSAF
             </p>
             <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">
@@ -49,7 +49,7 @@ export function CosafPageClient({ searchParams }: CosafPageClientProps) {
               fast even while paging through larger datasets.
             </p>
           </div>
-          <div className="rounded-2xl border border-border/70 bg-card px-4 py-3 text-sm text-muted-foreground">
+          <div className="rounded-full border border-white/50 bg-brand-gradient-soft px-4 py-3 text-sm text-muted-foreground shadow-soft dark:border-white/10">
             {isPlaceholderData
               ? 'Refreshing the next page in the background.'
               : 'Live data from the protected COSAF endpoint.'}
@@ -61,7 +61,7 @@ export function CosafPageClient({ searchParams }: CosafPageClientProps) {
 
       {!isPending && errorMessage ? (
         <section
-          className="rounded-3xl border border-destructive/30 bg-destructive/5 p-5 text-sm text-destructive"
+          className="rounded-3xl border border-destructive/30 bg-destructive/10 p-5 text-sm text-destructive shadow-soft"
           role="alert"
         >
           <div className="flex items-start gap-3">

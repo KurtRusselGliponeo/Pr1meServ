@@ -76,7 +76,7 @@ export function ClientReassignmentForm({
               Move batches of client records between agents and keep a clear branch audit trail.
             </CardDescription>
           </div>
-          <div className="rounded-2xl border border-border/70 bg-background/80 px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+          <div className="rounded-full border border-white/50 bg-brand-gradient-soft px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground shadow-soft dark:border-white/10">
             {clients.length} profiles loaded
           </div>
         </div>
@@ -130,7 +130,7 @@ export function ClientReassignmentForm({
                       rows={6}
                       value={clientProfileIdsText}
                       placeholder="Paste one UUID per line or separate them with commas."
-                      className="min-h-32 w-full rounded-3xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/30"
+                      className="min-h-32 w-full rounded-3xl border border-white/55 bg-background/88 px-4 py-3 text-sm text-foreground shadow-soft outline-none transition-all duration-300 ease-smooth focus:border-brand focus:ring-4 focus:ring-brand/15 dark:border-white/10 dark:bg-white/5"
                       onChange={(event) => {
                         const nextText = event.target.value;
                         setClientProfileIdsText(nextText);
@@ -152,9 +152,9 @@ export function ClientReassignmentForm({
               )}
             />
 
-            <div className="rounded-3xl border border-border/70 bg-muted/20 p-4">
+            <div className="rounded-3xl border border-white/50 bg-brand-gradient-soft p-4 shadow-soft dark:border-white/10">
               <div className="flex items-center gap-3">
-                <RefreshCw className="h-4 w-4 text-primary" />
+                <RefreshCw className="h-4 w-4 text-brand" />
                 <div>
                   <p className="text-sm font-semibold text-foreground">Ready to submit</p>
                   <p className="text-sm text-muted-foreground">
@@ -170,7 +170,7 @@ export function ClientReassignmentForm({
                 <Button
                   type="button"
                   size="lg"
-                  className="min-h-11 rounded-2xl"
+                  className="min-h-12 rounded-full"
                   disabled={!parsed.success || isPending}
                 >
                   {isPending ? (

@@ -104,9 +104,9 @@ export function ClientProfileImportForm() {
             <FormItem>
               <FormLabel>Import file</FormLabel>
               <FormControl>
-                <div className="rounded-3xl border border-dashed border-border/80 bg-card p-5">
+                <div className="rounded-[28px] border-2 border-dashed border-brand/30 bg-brand-gradient-soft p-5 shadow-soft">
                   <div className="mb-4 flex items-start gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-3xl bg-white/70 text-brand shadow-soft dark:bg-white/10">
                       <FileSpreadsheet className="h-6 w-6" aria-hidden="true" />
                     </div>
                     <div className="min-w-0">
@@ -122,7 +122,7 @@ export function ClientProfileImportForm() {
                   <Input
                     type="file"
                     accept="application/pdf,image/jpeg,image/png"
-                    className="min-h-12 rounded-2xl"
+                    className="min-h-12 rounded-2xl file:mr-3 file:rounded-full file:border-0 file:bg-brand-gradient file:px-4 file:py-2 file:text-sm file:font-semibold file:text-brand-foreground"
                     onChange={(event) => {
                       const file = event.target.files?.[0];
                       fileRef.current = file ?? null;
@@ -156,11 +156,11 @@ export function ClientProfileImportForm() {
         ) : null}
 
         {rowErrors.length ? (
-          <section className="rounded-2xl border border-border/70 bg-card p-4" aria-live="polite">
+          <section className="rounded-3xl border border-white/50 bg-background/85 p-4 shadow-soft dark:border-white/10" aria-live="polite">
             <h3 className="text-sm font-semibold text-foreground">Rows requiring attention</h3>
             <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
               {rowErrors.map((rowError) => (
-                <li key={rowError} className="rounded-xl bg-muted/50 px-3 py-2">
+                <li key={rowError} className="rounded-2xl bg-brand-gradient-soft px-3 py-2">
                   {rowError}
                 </li>
               ))}
@@ -171,7 +171,7 @@ export function ClientProfileImportForm() {
         <Button
           type="submit"
           size="lg"
-          className="min-h-11 rounded-2xl px-5"
+          className="min-h-12 rounded-full px-5"
           disabled={importMutation.isPending}
         >
           {importMutation.isPending ? (

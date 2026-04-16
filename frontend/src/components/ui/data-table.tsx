@@ -84,8 +84,8 @@ export function DataTable<TData, TValue>({
   }
 
   return (
-    <div className={cn('rounded-3xl border border-border/70 bg-card shadow-sm', className)}>
-      <div className="flex flex-col gap-3 border-b border-border/70 p-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className={cn('floating-card overflow-hidden', className)}>
+      <div className="flex flex-col gap-3 border-b border-white/50 bg-brand-gradient-soft p-5 dark:border-white/10 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-lg font-semibold tracking-tight text-foreground">Results</h2>
           <p className="text-sm text-muted-foreground">Sort, filter, and review records quickly.</p>
@@ -97,26 +97,26 @@ export function DataTable<TData, TValue>({
               value={searchValue}
               onChange={(event) => onSearchChange(event.target.value)}
               placeholder={searchPlaceholder}
-              className="min-h-11 rounded-2xl pl-9"
+              className="min-h-12 rounded-full pl-10"
               aria-label={searchPlaceholder}
             />
           </label>
         ) : null}
       </div>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto px-3 pb-3">
         <table className="min-w-full border-collapse">
-          <thead className="bg-muted/40">
-            <tr className="border-b border-border/70">
+          <thead>
+            <tr className="border-b border-white/40 dark:border-white/10">
               {columns.map((column, columnIndex) => (
                 <th
                   key={`header-${columnIndex}`}
-                  className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground"
+                  className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground"
                 >
                   {'accessorKey' in column && typeof column.accessorKey === 'string' ? (
                     <Button
                       type="button"
                       variant="ghost"
-                      className="-ml-3 h-auto min-h-11 rounded-2xl px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground"
+                      className="-ml-3 h-auto min-h-11 rounded-full px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground"
                       onClick={() => handleSort(column)}
                     >
                       {typeof column.header === 'function'
@@ -141,7 +141,7 @@ export function DataTable<TData, TValue>({
             {sortedData.map((row, rowIndex) => (
               <tr
                 key={`row-${rowIndex}`}
-                className="border-b border-border/60 last:border-b-0 hover:bg-muted/20"
+                className="border-b border-white/35 transition-colors last:border-b-0 hover:bg-brand-gradient-soft dark:border-white/10"
               >
                 {columns.map((column, columnIndex) => (
                   <td
@@ -179,7 +179,7 @@ export function ServerPaginationControls({
   const end = Math.min(page * pageSize, total);
 
   return (
-    <div className="flex flex-col gap-3 rounded-3xl border border-border/70 bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+    <div className="floating-card flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
       <p className="text-sm text-muted-foreground">
         Showing <span className="font-semibold text-foreground">{start}</span> to{' '}
         <span className="font-semibold text-foreground">{end}</span> of{' '}
@@ -189,7 +189,7 @@ export function ServerPaginationControls({
         <Button
           type="button"
           variant="outline"
-          className="min-h-11 rounded-2xl"
+          className="min-h-11 rounded-full"
           onClick={() => onPageChange(page - 1)}
           disabled={page <= 1}
         >
@@ -201,7 +201,7 @@ export function ServerPaginationControls({
         <Button
           type="button"
           variant="outline"
-          className="min-h-11 rounded-2xl"
+          className="min-h-11 rounded-full"
           onClick={() => onPageChange(page + 1)}
           disabled={!hasNextPage}
         >

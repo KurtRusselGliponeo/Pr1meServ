@@ -5,9 +5,7 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@a1prime/schemas'],
   // Absolute imports from /src
-  experimental: {
-    typedRoutes: true,
-  },
+  typedRoutes: true,
   // Customize environment variables exposed to the browser
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080',

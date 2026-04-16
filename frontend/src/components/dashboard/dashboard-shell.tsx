@@ -14,7 +14,12 @@ export function DashboardShell({ children }: DashboardShellProps) {
   const [isCollapsed, setIsCollapsed] = React.useState(false);
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(127,29,29,0.1),_transparent_30%),linear-gradient(180deg,_rgba(127,29,29,0.05)_0%,_transparent_18%),linear-gradient(135deg,_#fff8f8_0%,_#ffffff_48%,_#fff3eb_100%)]">
+    <div className="min-h-screen bg-background bg-pastel-mesh">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -left-20 top-0 h-72 w-72 rounded-full bg-hero-orb-1/20 blur-3xl" />
+        <div className="absolute right-0 top-20 h-80 w-80 rounded-full bg-hero-orb-2/20 blur-3xl" />
+        <div className="absolute bottom-0 left-1/3 h-72 w-72 rounded-full bg-hero-orb-3/20 blur-3xl" />
+      </div>
       <div className="mx-auto flex min-h-screen w-full max-w-[1600px]">
         <DashboardSidebar
           collapsed={isCollapsed}
