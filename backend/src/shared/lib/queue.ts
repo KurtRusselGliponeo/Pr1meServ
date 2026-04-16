@@ -9,13 +9,19 @@ import {
 } from 'bullmq';
 
 import { redis } from '../../lib/redis';
+import { logger } from '../../lib/logger';
 
-type QueueJobDefinitions = Record<string, unknown>;
+type QueueJobDefinitions = object;
 type QueueJobName<TJobs extends QueueJobDefinitions> = Extract<keyof TJobs, string>;
 
 export interface QueueDefinition {
   name: string;
   defaultJobOptions?: JobsOptions;
+}
+
+export interface WorkerDefinition {
+  queue: QueueDefinition;
+  concurrency?: number;
 }
 
 export interface QueueHandle<TJobs extends QueueJobDefinitions> {
@@ -29,6 +35,21 @@ export interface QueueHandle<TJobs extends QueueJobDefinitions> {
 
 function getQueueConnection(): ConnectionOptions {
   return redis.duplicate();
+}
+
+/**
+ * Opens and validates a dedicated BullMQ Redis connection.
+ *
+ * @returns A ready BullMQ connection options object.
+ */
+export async function createQueueConnection(): Promise<ConnectionOptions> {
+  const connection = getQueueConnection();
+
+  if ('connect' in connection && typeof connection.connect === 'function') {
+    await connection.connect();
+  }
+
+  return connection;
 }
 
 /**
@@ -86,4 +107,36 @@ export function createWorker<TJobs extends QueueJobDefinitions, TResult = void>(
       connection: getQueueConnection(),
     },
   );
+}
+
+/**
+ * Creates a BullMQ worker with standard logging for completed and failed jobs.
+ *
+ * @param definition Queue metadata and worker concurrency options.
+ * @param processor Typed BullMQ processor.
+ * @returns A configured BullMQ worker instance.
+ */
+export function createLoggedWorker<TJobs extends QueueJobDefinitions, TResult = void>(
+  definition: WorkerDefinition,
+  processor: (job: TypedJob<TJobs, QueueJobName<TJobs>>) => Promise<TResult>,
+): Worker<TJobs[QueueJobName<TJobs>], TResult, QueueJobName<TJobs>> {
+  const worker = createWorker<TJobs, TResult>(definition.queue, processor, {
+    concurrency: definition.concurrency ?? 5,
+  });
+
+  worker.on('completed', (job) => {
+    logger.info(
+      { jobId: job.id, queue: definition.queue.name, jobName: job.name },
+      'Job completed.',
+    );
+  });
+
+  worker.on('failed', (job, error) => {
+    logger.error(
+      { err: error, jobId: job?.id, queue: definition.queue.name, jobName: job?.name },
+      'Job failed.',
+    );
+  });
+
+  return worker;
 }

@@ -1,16 +1,20 @@
 import { createQueue, type QueueDefinition } from '../shared/lib/queue';
+import type {
+  ApeImportJobPayload,
+  NapImportJobPayload,
+  PerImportJobPayload,
+} from '@a1prime/schemas';
 
 export interface ImportQueueJobs {
-  placeholder: {
-    source: 'csv' | 'xlsx';
-    initiatedByUserId: string;
-  };
+  'process-nap-import': NapImportJobPayload;
+  'process-per-import': PerImportJobPayload;
+  'process-ape-import': ApeImportJobPayload;
 }
 
-const importQueueDefinition: QueueDefinition = {
+export const importQueueDefinition: QueueDefinition = {
   name: 'import-queue',
   defaultJobOptions: {
-    attempts: 2,
+    attempts: 3,
     backoff: { type: 'exponential', delay: 2000 },
     removeOnComplete: { count: 50 },
     removeOnFail: { count: 200 },
@@ -23,7 +27,7 @@ const importQueueDefinition: QueueDefinition = {
  * @returns A typed queue handle.
  */
 export function createImportQueue() {
-  return createQueue(importQueueDefinition);
+  return createQueue<ImportQueueJobs>(importQueueDefinition);
 }
 
 export const importQueue = createImportQueue();

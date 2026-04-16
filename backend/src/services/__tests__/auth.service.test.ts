@@ -71,11 +71,15 @@ describe('AuthService', () => {
           emailHash: hashEmail('agent@example.com'),
           encryptedEmail: encryptEmail('agent@example.com'),
           passwordHash,
+          firstName: 'Agent',
+          lastName: 'Prime',
           role: 'Agent',
           refreshTokenHash: null,
           refreshTokenExpiresAtUtc: null,
           agentId: 'f4e78db8-0584-4abc-8d38-a0b68cdef4fd',
           agentCode: 'AG-001',
+          createdAtUtc: new Date('2026-01-01T00:00:00.000Z'),
+          updatedAtUtc: new Date('2026-01-01T00:00:00.000Z'),
         },
       ]),
     );
@@ -87,8 +91,13 @@ describe('AuthService', () => {
     expect(result.refreshToken).toEqual(expect.any(String));
     expect(result.user).toEqual({
       id: '1fadb46d-c5e8-40dc-b592-c8f063f0f84b',
+      email: 'agent@example.com',
+      firstName: 'Agent',
+      lastName: 'Prime',
       role: 'Agent',
       agentCode: 'AG-001',
+      createdAtUtc: '2026-01-01T00:00:00.000Z',
+      updatedAtUtc: '2026-01-01T00:00:00.000Z',
     });
     expect(withDbTransactionMock).toHaveBeenCalled();
   });
@@ -113,11 +122,15 @@ describe('AuthService', () => {
           emailHash: hashEmail('agent@example.com'),
           encryptedEmail: encryptEmail('agent@example.com'),
           passwordHash,
+          firstName: 'Agent',
+          lastName: 'Prime',
           role: 'Agent',
           refreshTokenHash: null,
           refreshTokenExpiresAtUtc: null,
           agentId: 'f4e78db8-0584-4abc-8d38-a0b68cdef4fd',
           agentCode: 'AG-001',
+          createdAtUtc: new Date('2026-01-01T00:00:00.000Z'),
+          updatedAtUtc: new Date('2026-01-01T00:00:00.000Z'),
         },
       ]),
     );

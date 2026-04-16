@@ -1,13 +1,11 @@
 import { createQueue, type QueueDefinition } from '../shared/lib/queue';
+import type { EmailQueuePayload } from '@a1prime/schemas';
 
 export interface NotificationQueueJobs {
-  placeholder: {
-    channel: 'email' | 'sms';
-    recipient: string;
-  };
+  'send-email': EmailQueuePayload;
 }
 
-const notificationQueueDefinition: QueueDefinition = {
+export const notificationQueueDefinition: QueueDefinition = {
   name: 'notification-queue',
   defaultJobOptions: {
     attempts: 3,
@@ -23,7 +21,7 @@ const notificationQueueDefinition: QueueDefinition = {
  * @returns A typed queue handle.
  */
 export function createNotificationQueue() {
-  return createQueue(notificationQueueDefinition);
+  return createQueue<NotificationQueueJobs>(notificationQueueDefinition);
 }
 
 export const notificationQueue = createNotificationQueue();

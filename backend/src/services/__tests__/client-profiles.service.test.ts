@@ -63,6 +63,10 @@ vi.mock('@/db/client', () => ({
     select: selectMock,
     transaction: transactionMock,
   },
+  withDbTransaction: async (
+    _operationName: string,
+    callback: Parameters<typeof transactionMock>[0],
+  ) => transactionMock(callback),
 }));
 
 vi.mock('file-type', () => ({

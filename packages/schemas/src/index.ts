@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 export * from './auth.schema';
 export * from './agents.schema';
+export * from './background-jobs.schema';
 export * from './client-profile-import.schema';
 export * from './client-profile-reassign.schema';
 export * from './client-profiles.schema';
