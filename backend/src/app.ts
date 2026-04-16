@@ -8,7 +8,7 @@ import rateLimit from '@fastify/rate-limit';
 import { ZodError } from 'zod';
 import authRoutes from './routes/auth.routes';
 import clientProfilesRoutes from './routes/client-profiles.routes';
-import { assertRedisConnection, redis } from './lib/redis';
+import { assertRedisConnection, isRedisEnabled, redis } from './lib/redis';
 import { logger } from './lib/logger';
 import { BusinessRuleError, ForbiddenError, NotFoundError, UnauthorizedError } from './lib/errors';
 import { getJwtSecret } from './shared/lib/auth';
@@ -65,9 +65,9 @@ const buildApp = async () => {
     global: true,
     max: 100,
     timeWindow: '1 minute',
-    redis,
+    redis: isRedisEnabled ? redis : undefined,
     keyGenerator: (request) => request.ip,
-    skipOnError: false,
+    skipOnError: !isRedisEnabled,
     errorResponseBuilder: (_request, _context) => ({
       statusCode: 429,
       error: 'RateLimitExceeded',
@@ -152,14 +152,14 @@ const buildApp = async () => {
 
       return {
         db: 'ok',
-        redis: 'ok',
+        redis: isRedisEnabled ? 'ok' : 'disabled',
       };
     } catch (error) {
       app.log.error({ err: error }, 'Health check failed.');
 
       return reply.code(503).send({
         db: 'down',
-        redis: redis.status === 'ready' ? 'ok' : 'down',
+        redis: isRedisEnabled ? (redis.status === 'ready' ? 'ok' : 'down') : 'disabled',
       });
     }
   });
