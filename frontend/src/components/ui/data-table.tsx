@@ -1,19 +1,37 @@
 'use client';
 
 import * as React from 'react';
-import {
-  flexRender,
-  getCoreRowModel,
-  type ColumnDef,
-  type ColumnFiltersState,
-  type SortingState,
-  useReactTable,
-} from '@tanstack/react-table';
 import { ArrowUpDown, Search } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import type { ColumnDef } from '@tanstack/react-table';
+
+function renderCellContent<TData, TValue>(
+  column: ColumnDef<TData, TValue>,
+  row: TData,
+  rowIndex: number,
+) {
+  if (typeof column.cell === 'function') {
+    return column.cell({
+      row: {
+        id: String(rowIndex),
+        original: row,
+      },
+      getValue: () =>
+        'accessorKey' in column && typeof column.accessorKey === 'string'
+          ? ((row as Record<string, unknown>)[column.accessorKey] as TValue | undefined)
+          : undefined,
+    });
+  }
+
+  if ('accessorKey' in column && typeof column.accessorKey === 'string') {
+    return String((row as Record<string, unknown>)[column.accessorKey] ?? '');
+  }
+
+  return null;
+}
 
 interface DataTableProps<TData, TValue> {
   columns: Array<ColumnDef<TData, TValue>>;
@@ -32,21 +50,38 @@ export function DataTable<TData, TValue>({
   searchPlaceholder = 'Filter results',
   className,
 }: DataTableProps<TData, TValue>) {
-  const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
+  const [sortingColumn, setSortingColumn] = React.useState<string | null>(null);
+  const [sortingDirection, setSortingDirection] = React.useState<'asc' | 'desc'>('asc');
 
-  const table = useReactTable({
-    data,
-    columns,
-    state: {
-      sorting,
-      columnFilters,
-    },
-    onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
-    getCoreRowModel: getCoreRowModel(),
-    manualPagination: true,
-  });
+  const sortedData = React.useMemo(() => {
+    if (!sortingColumn) {
+      return data;
+    }
+
+    return [...data].sort((left, right) => {
+      const leftValue = (left as Record<string, unknown>)[sortingColumn];
+      const rightValue = (right as Record<string, unknown>)[sortingColumn];
+      const normalizedLeft = String(leftValue ?? '');
+      const normalizedRight = String(rightValue ?? '');
+      const result = normalizedLeft.localeCompare(normalizedRight, undefined, { numeric: true });
+
+      return sortingDirection === 'asc' ? result : -result;
+    });
+  }, [data, sortingColumn, sortingDirection]);
+
+  function handleSort(column: ColumnDef<TData, TValue>) {
+    if (!('accessorKey' in column) || typeof column.accessorKey !== 'string') {
+      return;
+    }
+
+    if (sortingColumn === column.accessorKey) {
+      setSortingDirection((current) => (current === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+
+    setSortingColumn(column.accessorKey);
+    setSortingDirection('asc');
+  }
 
   return (
     <div className={cn('rounded-3xl border border-border/70 bg-card shadow-sm', className)}>
@@ -71,37 +106,43 @@ export function DataTable<TData, TValue>({
       <div className="overflow-x-auto">
         <table className="min-w-full border-collapse">
           <thead className="bg-muted/40">
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id} className="border-b border-border/70">
-                {headerGroup.headers.map((header) => (
-                  <th
-                    key={header.id}
-                    className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground"
-                  >
-                    {header.isPlaceholder ? null : header.column.getCanSort() ? (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="-ml-3 h-auto min-h-11 rounded-2xl px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground"
-                        onClick={header.column.getToggleSortingHandler()}
-                      >
-                        {flexRender(header.column.columnDef.header, header.getContext())}
-                        <ArrowUpDown className="ml-2 h-4 w-4" aria-hidden="true" />
-                      </Button>
-                    ) : (
-                      flexRender(header.column.columnDef.header, header.getContext())
-                    )}
-                  </th>
-                ))}
-              </tr>
-            ))}
+            <tr className="border-b border-border/70">
+              {columns.map((column, columnIndex) => (
+                <th
+                  key={`header-${columnIndex}`}
+                  className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground"
+                >
+                  {'accessorKey' in column && typeof column.accessorKey === 'string' ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="-ml-3 h-auto min-h-11 rounded-2xl px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground"
+                      onClick={() => handleSort(column)}
+                    >
+                      {typeof column.header === 'function'
+                        ? column.header({
+                            column: {
+                              id: column.accessorKey,
+                            },
+                          })
+                        : column.header}
+                      <ArrowUpDown className="ml-2 h-4 w-4" aria-hidden="true" />
+                    </Button>
+                  ) : typeof column.header === 'function' ? (
+                    column.header({})
+                  ) : (
+                    column.header
+                  )}
+                </th>
+              ))}
+            </tr>
           </thead>
           <tbody>
-            {table.getRowModel().rows.map((row) => (
-              <tr key={row.id} className="border-b border-border/60 last:border-b-0 hover:bg-muted/20">
-                {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className="px-4 py-4 text-sm text-foreground">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+            {sortedData.map((row, rowIndex) => (
+              <tr key={`row-${rowIndex}`} className="border-b border-border/60 last:border-b-0 hover:bg-muted/20">
+                {columns.map((column, columnIndex) => (
+                  <td key={`cell-${rowIndex}-${columnIndex}`} className="px-4 py-4 text-sm text-foreground">
+                    {renderCellContent(column, row, rowIndex)}
                   </td>
                 ))}
               </tr>
