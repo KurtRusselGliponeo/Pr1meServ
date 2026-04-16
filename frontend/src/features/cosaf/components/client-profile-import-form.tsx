@@ -19,39 +19,56 @@ import {
 import { Input } from '@/components/ui/input';
 import { zodResolver } from '@/features/identity/lib/zod-resolver';
 import { getFieldErrors } from '@/lib/error-utils';
-import { clientProfileImportSchema, type ClientProfileImportFormValues } from '../lib/client-profile-import-schema';
+import {
+  clientProfileImportSchema,
+  type ClientProfileImportFormValues,
+} from '../lib/client-profile-import-schema';
 import { useImportClientProfiles } from '../hooks/use-import-client-profiles';
 
 export function ClientProfileImportForm() {
   const [submitError, setSubmitError] = React.useState<string | null>(null);
   const [rowErrors, setRowErrors] = React.useState<string[]>([]);
+  const fileRef = React.useRef<File | null>(null);
   const importMutation = useImportClientProfiles();
 
   const form = useForm<ClientProfileImportFormValues>({
-    resolver: zodResolver(clientProfileImportSchema),
+    resolver: zodResolver(clientProfileImportSchema as never),
     defaultValues: {
-      file: undefined as never,
+      fileName: '',
+      mimeType: 'application/pdf',
+      sizeBytes: 1,
     },
   });
 
-  async function onSubmit(values: ClientProfileImportFormValues) {
+  async function onSubmit(_values: ClientProfileImportFormValues) {
     setSubmitError(null);
     setRowErrors([]);
 
     try {
-      const response = await importMutation.mutateAsync(values.file);
+      const file = fileRef.current;
+
+      if (!file) {
+        form.setError('fileName', {
+          type: 'manual',
+          message: 'Please choose a file to import.',
+        });
+        return;
+      }
+
+      const response = await importMutation.mutateAsync(file);
 
       toast.success('Import file uploaded successfully.', {
         description: `${response.fileName} is ready for processing.`,
       });
 
+      fileRef.current = null;
       form.reset();
     } catch (error) {
       const fieldErrors = getFieldErrors(error);
-      const fileErrors = fieldErrors.file;
+      const fileErrors = fieldErrors.fileName;
 
       if (fileErrors?.length) {
-        form.setError('file', {
+        form.setError('fileName', {
           type: 'server',
           message: fileErrors[0],
         });
@@ -77,10 +94,13 @@ export function ClientProfileImportForm() {
   return (
     <Form {...form}>
       <form className="space-y-6" onSubmit={form.handleSubmit(onSubmit)}>
+        <input type="hidden" {...form.register('fileName')} />
+        <input type="hidden" {...form.register('mimeType')} />
+        <input type="hidden" {...form.register('sizeBytes', { valueAsNumber: true })} />
         <FormField
           control={form.control}
-          name="file"
-          render={({ field: { onChange, value: _value, ...field } }) => (
+          name="fileName"
+          render={() => (
             <FormItem>
               <FormLabel>Import file</FormLabel>
               <FormControl>
@@ -94,25 +114,32 @@ export function ClientProfileImportForm() {
                         Upload a branch import sheet
                       </p>
                       <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                        Accepted formats: CSV or XLSX. Maximum file size: 5MB.
+                        Accepted formats: PDF, JPEG, or PNG. Maximum file size: 20MB.
                       </p>
                     </div>
                   </div>
 
                   <Input
-                    {...field}
                     type="file"
-                    accept=".csv,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
+                    accept="application/pdf,image/jpeg,image/png"
                     className="min-h-12 rounded-2xl"
                     onChange={(event) => {
                       const file = event.target.files?.[0];
-                      onChange(file);
+                      fileRef.current = file ?? null;
+                      form.setValue('fileName', file?.name ?? '', { shouldValidate: true });
+                      form.setValue(
+                        'mimeType',
+                        (file?.type as 'application/pdf' | 'image/jpeg' | 'image/png') ??
+                          'application/pdf',
+                        { shouldValidate: true },
+                      );
+                      form.setValue('sizeBytes', file?.size ?? 1, { shouldValidate: true });
                     }}
                   />
                 </div>
               </FormControl>
               <FormDescription>
-                Use the latest branch template so column names match the import processor.
+                Upload the validated source document that should enter protected import processing.
               </FormDescription>
               <FormMessage />
             </FormItem>

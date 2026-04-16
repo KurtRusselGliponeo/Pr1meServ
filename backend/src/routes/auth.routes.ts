@@ -106,11 +106,7 @@ const authRoutes: FastifyPluginAsync = async (app) => {
 
   app.get('/auth/me', { preHandler: app.authenticate }, async (request) => {
     return {
-      user: {
-        id: request.authUser.id,
-        role: request.authUser.role,
-        agentCode: request.authUser.agentCode,
-      },
+      user: await authService.getCurrentUser(request.authUser.id),
     };
   });
 

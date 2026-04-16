@@ -6,15 +6,17 @@ process.env.REDIS_PORT = process.env.REDIS_PORT ?? '6379';
 process.env.DATABASE_URL =
   process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/postgres';
 
-const { loginMock, refreshTokenMock } = vi.hoisted(() => ({
+const { loginMock, refreshTokenMock, getCurrentUserMock } = vi.hoisted(() => ({
   loginMock: vi.fn(),
   refreshTokenMock: vi.fn(),
+  getCurrentUserMock: vi.fn(),
 }));
 
 vi.mock('@/services/auth.service', () => ({
   authService: {
     login: loginMock,
     refreshToken: refreshTokenMock,
+    getCurrentUser: getCurrentUserMock,
   },
 }));
 
@@ -35,6 +37,7 @@ vi.mock('@/shared/db/client', () => ({
 }));
 
 vi.mock('@/lib/redis', () => ({
+  isRedisEnabled: false,
   redis: {
     status: 'ready',
     ping: vi.fn().mockResolvedValue('PONG'),
@@ -66,6 +69,7 @@ describe('auth.routes', () => {
   beforeEach(() => {
     loginMock.mockReset();
     refreshTokenMock.mockReset();
+    getCurrentUserMock.mockReset();
     (
       globalThis as typeof globalThis & { __rateLimitCounts?: Map<string, number> }
     ).__rateLimitCounts = new Map<string, number>();
@@ -77,8 +81,13 @@ describe('auth.routes', () => {
       refreshToken: 'refresh-token',
       user: {
         id: '7f5e658f-9b80-4c98-a7ca-53d08b2b4ad2',
+        email: 'agent@example.com',
+        firstName: 'Agent',
+        lastName: 'Prime',
         role: 'Agent',
         agentCode: 'AG-001',
+        createdAtUtc: new Date().toISOString(),
+        updatedAtUtc: new Date().toISOString(),
       },
     });
 
@@ -159,14 +168,19 @@ describe('auth.routes', () => {
       refreshToken: 'refresh-token',
       user: {
         id: '7f5e658f-9b80-4c98-a7ca-53d08b2b4ad2',
+        email: 'agent@example.com',
+        firstName: 'Agent',
+        lastName: 'Prime',
         role: 'Agent',
         agentCode: 'AG-001',
+        createdAtUtc: new Date().toISOString(),
+        updatedAtUtc: new Date().toISOString(),
       },
     });
 
     const app = await buildApp();
 
-    for (let attempt = 0; attempt < 5; attempt += 1) {
+    for (let attempt = 0; attempt < 50; attempt += 1) {
       const response = await app.inject({
         method: 'POST',
         url: '/api/v1/auth/login',
@@ -191,6 +205,139 @@ describe('auth.routes', () => {
     });
 
     expect(response.statusCode).toBe(429);
+
+    await app.close();
+  });
+
+  it('returns 200 for refresh with a valid cookie', async () => {
+    refreshTokenMock.mockResolvedValue({
+      accessToken: 'next-access-token',
+      refreshToken: 'next-refresh-token',
+    });
+
+    const app = await buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/refresh',
+      headers: {
+        cookie: 'refresh_token=refresh-token',
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ accessToken: 'next-access-token' });
+    expect(response.headers['set-cookie']).toContain('refresh_token=');
+
+    await app.close();
+  });
+
+  it('returns 401 for refresh when the cookie is missing', async () => {
+    const app = await buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/refresh',
+    });
+
+    expect(response.statusCode).toBe(401);
+
+    await app.close();
+  });
+
+  it('returns 204 and clears the cookie on logout', async () => {
+    const app = await buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/logout',
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(response.headers['set-cookie']).toContain('Max-Age=0');
+
+    await app.close();
+  });
+
+  it('returns the authenticated user profile for /auth/me', async () => {
+    getCurrentUserMock.mockResolvedValue({
+      id: '7f5e658f-9b80-4c98-a7ca-53d08b2b4ad2',
+      email: 'agent@example.com',
+      firstName: 'Agent',
+      lastName: 'Prime',
+      role: 'Agent',
+      agentCode: 'AG-001',
+      createdAtUtc: new Date().toISOString(),
+      updatedAtUtc: new Date().toISOString(),
+    });
+
+    const app = await buildApp();
+    const token = await app.jwt.sign({
+      id: '7f5e658f-9b80-4c98-a7ca-53d08b2b4ad2',
+      sub: '7f5e658f-9b80-4c98-a7ca-53d08b2b4ad2',
+      role: 'Agent',
+      agentId: 'agent-id',
+      agentCode: 'AG-001',
+      tokenType: 'access',
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/auth/me',
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().user.email).toBe('agent@example.com');
+
+    await app.close();
+  });
+
+  it('returns 200 for admin-only route with an Admin token', async () => {
+    const app = await buildApp();
+    const token = await app.jwt.sign({
+      id: 'admin-user-id',
+      sub: 'admin-user-id',
+      role: 'Admin',
+      agentId: null,
+      agentCode: null,
+      tokenType: 'access',
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/auth/admin-only',
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ ok: true });
+
+    await app.close();
+  });
+
+  it('returns 200 for private health with a valid token', async () => {
+    const app = await buildApp();
+    const token = await app.jwt.sign({
+      id: 'agent-user-id',
+      sub: 'agent-user-id',
+      role: 'Agent',
+      agentId: 'agent-id',
+      agentCode: 'AG-001',
+      tokenType: 'access',
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/private/health',
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().status).toBe('authenticated');
 
     await app.close();
   });

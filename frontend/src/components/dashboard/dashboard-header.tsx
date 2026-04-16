@@ -68,7 +68,9 @@ export function DashboardHeader({ navigationTrigger }: DashboardHeaderProps) {
                 {getUserInitials(user?.firstName, user?.lastName)}
               </span>
               <span className="hidden min-w-0 text-left sm:block">
-                <span className="block truncate text-sm font-medium text-foreground">{userName}</span>
+                <span className="block truncate text-sm font-medium text-foreground">
+                  {userName}
+                </span>
                 <span className="block truncate text-xs text-muted-foreground">
                   {user?.role ?? 'No role'}
                 </span>
@@ -87,7 +89,9 @@ export function DashboardHeader({ navigationTrigger }: DashboardHeaderProps) {
             <DropdownMenuItem className="min-h-11">
               <span className="flex flex-col">
                 <span className="font-medium text-foreground">Current access</span>
-                <span className="text-xs text-muted-foreground">{user?.role ?? 'Pending role'}</span>
+                <span className="text-xs text-muted-foreground">
+                  {user?.role ?? 'Pending role'}
+                </span>
               </span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />

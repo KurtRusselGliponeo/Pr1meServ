@@ -40,6 +40,7 @@ vi.mock('@/shared/db/client', () => ({
 }));
 
 vi.mock('@/lib/redis', () => ({
+  isRedisEnabled: false,
   redis: {
     status: 'ready',
     ping: vi.fn().mockResolvedValue('PONG'),
@@ -56,6 +57,23 @@ import { ListClientProfilesResponseSchema } from '@a1prime/schemas';
 import buildApp from '@/app';
 
 describe('client-profiles.routes', () => {
+  function buildMultipartBody(
+    boundary: string,
+    fileName: string,
+    mimeType: string,
+    content: string,
+  ) {
+    return [
+      `--${boundary}`,
+      `Content-Disposition: form-data; name="file"; filename="${fileName}"`,
+      `Content-Type: ${mimeType}`,
+      '',
+      content,
+      `--${boundary}--`,
+      '',
+    ].join('\r\n');
+  }
+
   beforeEach(() => {
     listClientProfilesMock.mockReset();
     importClientProfileMock.mockReset();
@@ -222,6 +240,121 @@ describe('client-profiles.routes', () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({ reassignedCount: 2 });
+
+    await app.close();
+  });
+
+  it('accepts a valid import upload for a BranchManager token', async () => {
+    importClientProfileMock.mockResolvedValue({
+      objectKey: 'client-profiles/imports/file.pdf',
+      fileName: 'import.pdf',
+      mimeType: 'application/pdf',
+      sizeBytes: 1024,
+      signedUrl: 'https://example.com/file.pdf',
+      expiresAtUtc: new Date().toISOString(),
+    });
+
+    const app = await buildApp();
+    const token = await app.jwt.sign({
+      id: 'manager-user-id',
+      sub: 'manager-user-id',
+      role: 'BranchManager',
+      agentId: null,
+      agentCode: null,
+      tokenType: 'access',
+    });
+    const boundary = 'test-boundary';
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/client-profiles/import',
+      headers: {
+        authorization: `Bearer ${token}`,
+        'content-type': `multipart/form-data; boundary=${boundary}`,
+      },
+      payload: buildMultipartBody(boundary, 'import.pdf', 'application/pdf', 'fake-pdf-content'),
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json().fileName).toBe('import.pdf');
+
+    await app.close();
+  });
+
+  it('returns 422 when import is called without a file', async () => {
+    const app = await buildApp();
+    const token = await app.jwt.sign({
+      id: 'manager-user-id',
+      sub: 'manager-user-id',
+      role: 'BranchManager',
+      agentId: null,
+      agentCode: null,
+      tokenType: 'access',
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/client-profiles/import',
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+    });
+
+    expect(response.statusCode).toBe(422);
+
+    await app.close();
+  });
+
+  it('returns 400 when import file metadata is invalid', async () => {
+    const app = await buildApp();
+    const token = await app.jwt.sign({
+      id: 'manager-user-id',
+      sub: 'manager-user-id',
+      role: 'BranchManager',
+      agentId: null,
+      agentCode: null,
+      tokenType: 'access',
+    });
+    const boundary = 'bad-boundary';
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/client-profiles/import',
+      headers: {
+        authorization: `Bearer ${token}`,
+        'content-type': `multipart/form-data; boundary=${boundary}`,
+      },
+      payload: buildMultipartBody(boundary, '', 'text/plain', 'bad-content'),
+    });
+
+    expect(response.statusCode).toBe(400);
+
+    await app.close();
+  });
+
+  it('returns 403 when an Agent calls the import endpoint', async () => {
+    const app = await buildApp();
+    const token = await app.jwt.sign({
+      id: 'agent-user-id',
+      sub: 'agent-user-id',
+      role: 'Agent',
+      agentId: 'agent-id',
+      agentCode: 'AG-001',
+      tokenType: 'access',
+    });
+    const boundary = 'forbidden-boundary';
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/client-profiles/import',
+      headers: {
+        authorization: `Bearer ${token}`,
+        'content-type': `multipart/form-data; boundary=${boundary}`,
+      },
+      payload: buildMultipartBody(boundary, 'import.pdf', 'application/pdf', 'fake-pdf-content'),
+    });
+
+    expect(response.statusCode).toBe(403);
 
     await app.close();
   });

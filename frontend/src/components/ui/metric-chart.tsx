@@ -37,7 +37,10 @@ export function BarMetricChart({
               </span>
               <div className="flex h-full w-full items-end justify-center">
                 <div
-                  className={cn('w-full rounded-t-2xl bg-primary/85 transition-all', colorClassName)}
+                  className={cn(
+                    'w-full rounded-t-2xl bg-primary/85 transition-all',
+                    colorClassName,
+                  )}
                   style={{ height }}
                   aria-label={`${item.label}: ${formatValue(item.value)}`}
                 />

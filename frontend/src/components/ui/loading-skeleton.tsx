@@ -6,11 +6,7 @@ interface LoadingSkeletonProps {
   className?: string;
 }
 
-export function LoadingSkeleton({
-  rows = 5,
-  columns = 5,
-  className,
-}: LoadingSkeletonProps) {
+export function LoadingSkeleton({ rows = 5, columns = 5, className }: LoadingSkeletonProps) {
   return (
     <div
       className={cn('rounded-3xl border border-border/70 bg-card p-4 shadow-sm', className)}
@@ -21,9 +17,15 @@ export function LoadingSkeleton({
       <div className="space-y-3">
         <div className="h-10 w-48 animate-pulse rounded-2xl bg-muted" />
         <div className="overflow-hidden rounded-2xl border border-border/70">
-          <div className="grid gap-3 border-b border-border/70 bg-muted/50 p-4" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
+          <div
+            className="grid gap-3 border-b border-border/70 bg-muted/50 p-4"
+            style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+          >
             {Array.from({ length: columns }).map((_, index) => (
-              <div key={`head-${index}`} className="h-4 animate-pulse rounded bg-muted-foreground/15" />
+              <div
+                key={`head-${index}`}
+                className="h-4 animate-pulse rounded bg-muted-foreground/15"
+              />
             ))}
           </div>
           <div className="space-y-3 p-4">

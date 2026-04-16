@@ -3,7 +3,12 @@
 import * as React from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 
-import { clearAuthSession, getAccessToken, getStoredAuthUser, persistAuthSession } from '@/lib/auth';
+import {
+  clearAuthSession,
+  getAccessToken,
+  getStoredAuthUser,
+  persistAuthSession,
+} from '@/lib/auth';
 import {
   getCurrentUser,
   login as loginRequest,

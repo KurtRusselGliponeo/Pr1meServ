@@ -2,7 +2,10 @@ import axios from 'axios';
 
 export type ApiFieldErrors = Record<string, string[] | undefined>;
 
-export function getErrorMessage(error: unknown, fallback = 'Something went wrong. Please try again.') {
+export function getErrorMessage(
+  error: unknown,
+  fallback = 'Something went wrong. Please try again.',
+) {
   if (axios.isAxiosError(error)) {
     const data = error.response?.data as
       | {

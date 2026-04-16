@@ -36,7 +36,22 @@ const clientProfilesRoutes: FastifyPluginAsync = async (app) => {
       preHandler: [app.authenticate, requireRole(['Admin', 'BranchManager'])],
     },
     async (request, reply) => {
-      const upload = await request.file();
+      let upload;
+
+      try {
+        upload = await request.file();
+      } catch (error) {
+        if (
+          typeof error === 'object' &&
+          error !== null &&
+          'code' in error &&
+          error.code === 'FST_INVALID_MULTIPART_CONTENT_TYPE'
+        ) {
+          throw new BusinessRuleError('A client profile import file is required.');
+        }
+
+        throw error;
+      }
 
       if (!upload) {
         throw new BusinessRuleError('A client profile import file is required.');
@@ -44,6 +59,7 @@ const clientProfilesRoutes: FastifyPluginAsync = async (app) => {
 
       ClientProfileImportRequestSchema.parse({
         fileName: upload.filename,
+        mimeType: upload.mimetype,
       });
 
       const result = await clientProfilesService.importClientProfile(upload);

@@ -64,7 +64,9 @@ export function ClientProfilesTable({
             <p className="font-medium text-foreground">
               {row.original.firstName} {row.original.lastName}
             </p>
-            <p className="text-xs text-muted-foreground">Assigned agent: {row.original.assignedAgentId}</p>
+            <p className="text-xs text-muted-foreground">
+              Assigned agent: {row.original.assignedAgentId}
+            </p>
           </div>
         ),
       },

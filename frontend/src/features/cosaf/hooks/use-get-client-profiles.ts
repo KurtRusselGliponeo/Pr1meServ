@@ -40,6 +40,8 @@ export function useGetClientProfiles(page: number, filters: ClientProfilesFilter
 
   return {
     ...query,
-    errorMessage: query.error ? getErrorMessage(query.error, 'Unable to load client profiles.') : null,
+    errorMessage: query.error
+      ? getErrorMessage(query.error, 'Unable to load client profiles.')
+      : null,
   };
 }

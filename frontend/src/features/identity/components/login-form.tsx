@@ -25,7 +25,7 @@ export function LoginForm() {
   const [submitError, setSubmitError] = React.useState<string | null>(null);
 
   const form = useForm<LoginFormValues>({
-    resolver: zodResolver(loginSchema),
+    resolver: zodResolver(loginSchema as never),
     defaultValues: {
       email: '',
       password: '',

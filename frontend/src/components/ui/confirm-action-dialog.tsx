@@ -48,7 +48,12 @@ export function ConfirmActionDialog({
           <DialogDescription className="leading-6">{description}</DialogDescription>
         </DialogHeader>
         <DialogFooter className="gap-2 sm:justify-end">
-          <Button type="button" variant="outline" onClick={() => setIsOpen(false)} className="min-h-11 rounded-2xl">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setIsOpen(false)}
+            className="min-h-11 rounded-2xl"
+          >
             {cancelLabel}
           </Button>
           <Button

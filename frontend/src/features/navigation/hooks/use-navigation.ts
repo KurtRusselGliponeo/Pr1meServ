@@ -20,7 +20,8 @@ export function useNavigation(): {
       items: getNavigationItemsForRole(user?.role),
       canAccess: (href: string) =>
         dashboardNavigationItems.some(
-          (item) => item.href === href && (user?.role ? item.allowedRoles.includes(user.role) : false),
+          (item) =>
+            item.href === href && (user?.role ? item.allowedRoles.includes(user.role) : false),
         ),
     }),
     [user?.role],

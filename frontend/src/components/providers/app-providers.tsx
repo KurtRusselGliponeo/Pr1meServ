@@ -1,12 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import {
-  MutationCache,
-  QueryCache,
-  QueryClient,
-  QueryClientProvider,
-} from '@tanstack/react-query';
+import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster, toast } from 'sonner';
 
 import { AuthProvider } from '@/features/identity';

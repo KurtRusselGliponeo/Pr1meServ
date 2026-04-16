@@ -1,5 +1,5 @@
 {
-  "id": "942269c4-7d53-4352-a369-35429c1b8668",
+  "id": "0fd9d3b8-59b7-4c5a-b0f8-c724d8dcc304",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -32,6 +32,18 @@
           "type": "varchar(255)",
           "primaryKey": false,
           "notNull": true
+        },
+        "RefreshTokenHash": {
+          "name": "RefreshTokenHash",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "RefreshTokenExpiresAtUtc": {
+          "name": "RefreshTokenExpiresAtUtc",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
         },
         "FirstName": {
           "name": "FirstName",
@@ -79,7 +91,9 @@
         "UserAccounts_EmailHash_unique": {
           "name": "UserAccounts_EmailHash_unique",
           "nullsNotDistinct": false,
-          "columns": ["EmailHash"]
+          "columns": [
+            "EmailHash"
+          ]
         }
       },
       "policies": {},
@@ -136,14 +150,34 @@
           "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_agentprofiles_userid": {
+          "name": "idx_agentprofiles_userid",
+          "columns": [
+            {
+              "expression": "UserId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "AgentProfiles_UserId_UserAccounts_Id_fk": {
           "name": "AgentProfiles_UserId_UserAccounts_Id_fk",
           "tableFrom": "AgentProfiles",
           "tableTo": "UserAccounts",
-          "columnsFrom": ["UserId"],
-          "columnsTo": ["Id"],
+          "columnsFrom": [
+            "UserId"
+          ],
+          "columnsTo": [
+            "Id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -153,12 +187,16 @@
         "AgentProfiles_UserId_unique": {
           "name": "AgentProfiles_UserId_unique",
           "nullsNotDistinct": false,
-          "columns": ["UserId"]
+          "columns": [
+            "UserId"
+          ]
         },
         "AgentProfiles_AgentCode_unique": {
           "name": "AgentProfiles_AgentCode_unique",
           "nullsNotDistinct": false,
-          "columns": ["AgentCode"]
+          "columns": [
+            "AgentCode"
+          ]
         }
       },
       "policies": {},
@@ -257,14 +295,34 @@
           "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_clientprofiles_agentid": {
+          "name": "idx_clientprofiles_agentid",
+          "columns": [
+            {
+              "expression": "AssignedAgentId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "ClientProfiles_AssignedAgentId_AgentProfiles_Id_fk": {
           "name": "ClientProfiles_AssignedAgentId_AgentProfiles_Id_fk",
           "tableFrom": "ClientProfiles",
           "tableTo": "AgentProfiles",
-          "columnsFrom": ["AssignedAgentId"],
-          "columnsTo": ["Id"],
+          "columnsFrom": [
+            "AssignedAgentId"
+          ],
+          "columnsTo": [
+            "Id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -274,7 +332,9 @@
         "ClientProfiles_PolicyNumber_unique": {
           "name": "ClientProfiles_PolicyNumber_unique",
           "nullsNotDistinct": false,
-          "columns": ["PolicyNumber"]
+          "columns": [
+            "PolicyNumber"
+          ]
         }
       },
       "policies": {},
@@ -343,14 +403,34 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_perfmetrics_agentid": {
+          "name": "idx_perfmetrics_agentid",
+          "columns": [
+            {
+              "expression": "AgentId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "PerformanceMetrics_AgentId_AgentProfiles_Id_fk": {
           "name": "PerformanceMetrics_AgentId_AgentProfiles_Id_fk",
           "tableFrom": "PerformanceMetrics",
           "tableTo": "AgentProfiles",
-          "columnsFrom": ["AgentId"],
-          "columnsTo": ["Id"],
+          "columnsFrom": [
+            "AgentId"
+          ],
+          "columnsTo": [
+            "Id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -416,14 +496,34 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_auditlogs_actoruserid": {
+          "name": "idx_auditlogs_actoruserid",
+          "columns": [
+            {
+              "expression": "ActorUserId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "SystemAuditLogs_ActorUserId_UserAccounts_Id_fk": {
           "name": "SystemAuditLogs_ActorUserId_UserAccounts_Id_fk",
           "tableFrom": "SystemAuditLogs",
           "tableTo": "UserAccounts",
-          "columnsFrom": ["ActorUserId"],
-          "columnsTo": ["Id"],
+          "columnsFrom": [
+            "ActorUserId"
+          ],
+          "columnsTo": [
+            "Id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }

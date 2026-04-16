@@ -1,9 +1,13 @@
 'use client';
 
-import { z } from 'zod';
+import * as React from 'react';
 import { LoaderCircle, RefreshCw } from 'lucide-react';
 import { useForm } from 'react-hook-form';
-import { type ClientProfile } from '@a1prime/schemas';
+import {
+  ClientProfileReassignSchema,
+  type ClientProfile,
+  type ClientProfileReassign,
+} from '@a1prime/schemas';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,31 +24,9 @@ import { Input } from '@/components/ui/input';
 import { zodResolver } from '@/features/identity/lib/zod-resolver';
 import { ReassignmentConfirmDialog } from './reassignment-confirm-dialog';
 
-const reassignmentFormSchema = z
-  .object({
-    sourceAgentId: z.string().uuid('Provide a valid source agent id.'),
-    destinationAgentId: z.string().uuid('Provide a valid destination agent id.'),
-    clientProfileIds: z
-      .string()
-      .min(1, 'Enter at least one client profile id.')
-      .transform((value) =>
-        value
-          .split(/[\s,]+/)
-          .map((item) => item.trim())
-          .filter(Boolean),
-      ),
-  })
-  .refine((value) => value.sourceAgentId !== value.destinationAgentId, {
-    message: 'Source and destination agents must be different.',
-    path: ['destinationAgentId'],
-  });
-
-type ReassignmentFormValues = z.input<typeof reassignmentFormSchema>;
-type ReassignmentPayload = z.output<typeof reassignmentFormSchema>;
-
 interface ClientReassignmentFormProps {
   clients: ClientProfile[];
-  onSubmit: (payload: ReassignmentPayload) => Promise<void>;
+  onSubmit: (payload: ClientProfileReassign) => Promise<void>;
   isPending?: boolean;
 }
 
@@ -53,27 +35,35 @@ export function ClientReassignmentForm({
   onSubmit,
   isPending = false,
 }: ClientReassignmentFormProps) {
-  const form = useForm<ReassignmentFormValues>({
-    resolver: zodResolver(reassignmentFormSchema as unknown as z.ZodType<ReassignmentFormValues>),
+  const [clientProfileIdsText, setClientProfileIdsText] = React.useState(
+    clients
+      .slice(0, 3)
+      .map((item) => item.id)
+      .join('\n'),
+  );
+
+  const form = useForm<ClientProfileReassign>({
+    resolver: zodResolver(ClientProfileReassignSchema as never),
     defaultValues: {
       sourceAgentId: '',
       destinationAgentId: '',
-      clientProfileIds: clients.slice(0, 3).map((item) => item.id).join('\n'),
+      clientProfileIds: clients.slice(0, 3).map((item) => item.id),
     },
   });
 
   const values = form.watch();
-  const parsed = reassignmentFormSchema.safeParse(values);
+  const parsed = ClientProfileReassignSchema.safeParse(values);
   const selectedClientIds = parsed.success ? parsed.data.clientProfileIds : [];
 
-  async function handleSubmit(values: ReassignmentFormValues) {
-    const payload = reassignmentFormSchema.parse(values);
+  async function handleSubmit(values: ClientProfileReassign) {
+    const payload = ClientProfileReassignSchema.parse(values);
     await onSubmit(payload);
     form.reset({
       sourceAgentId: '',
       destinationAgentId: '',
-      clientProfileIds: '',
+      clientProfileIds: [],
     });
+    setClientProfileIdsText('');
   }
 
   return (
@@ -104,7 +94,9 @@ export function ClientReassignmentForm({
                     <FormControl>
                       <Input placeholder="00000000-0000-0000-0000-000000000000" {...field} />
                     </FormControl>
-                    <FormDescription>The clients must currently belong to this agent.</FormDescription>
+                    <FormDescription>
+                      The clients must currently belong to this agent.
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -118,7 +110,9 @@ export function ClientReassignmentForm({
                     <FormControl>
                       <Input placeholder="00000000-0000-0000-0000-000000000000" {...field} />
                     </FormControl>
-                    <FormDescription>This agent becomes the new owner after confirmation.</FormDescription>
+                    <FormDescription>
+                      This agent becomes the new owner after confirmation.
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -133,14 +127,25 @@ export function ClientReassignmentForm({
                   <FormLabel>Client profile ids</FormLabel>
                   <FormControl>
                     <textarea
-                      {...field}
                       rows={6}
+                      value={clientProfileIdsText}
                       placeholder="Paste one UUID per line or separate them with commas."
                       className="min-h-32 w-full rounded-3xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/30"
+                      onChange={(event) => {
+                        const nextText = event.target.value;
+                        setClientProfileIdsText(nextText);
+                        field.onChange(
+                          nextText
+                            .split(/[\s,]+/)
+                            .map((item) => item.trim())
+                            .filter(Boolean),
+                        );
+                      }}
                     />
                   </FormControl>
                   <FormDescription>
-                    Quick fill: the form preloads a few ids from the current COSAF list so you can test the flow.
+                    Quick fill: the form preloads a few ids from the current COSAF list so you can
+                    test the flow.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -153,7 +158,8 @@ export function ClientReassignmentForm({
                 <div>
                   <p className="text-sm font-semibold text-foreground">Ready to submit</p>
                   <p className="text-sm text-muted-foreground">
-                    {selectedClientIds.length} client record(s) will be reassigned after confirmation.
+                    {selectedClientIds.length} client record(s) will be reassigned after
+                    confirmation.
                   </p>
                 </div>
               </div>

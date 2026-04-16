@@ -10,13 +10,21 @@ export const LoginRequestSchema = z.object({
 });
 export type LoginRequest = z.infer<typeof LoginRequestSchema>;
 
+export const AuthenticatedUserSchema = z.object({
+  id: z.string().uuid(),
+  email: z.string().email(),
+  firstName: z.string().min(1),
+  lastName: z.string().min(1),
+  role: userRoleSchema,
+  agentCode: z.string().nullable(),
+  createdAtUtc: z.string().datetime(),
+  updatedAtUtc: z.string().datetime(),
+});
+export type AuthenticatedUser = z.infer<typeof AuthenticatedUserSchema>;
+
 export const LoginResponseSchema = z.object({
   accessToken: z.string().min(1),
-  user: z.object({
-    id: z.string().uuid(),
-    role: userRoleSchema,
-    agentCode: z.string().nullable(),
-  }),
+  user: AuthenticatedUserSchema,
 });
 export type LoginResponse = z.infer<typeof LoginResponseSchema>;
 
@@ -24,3 +32,8 @@ export const RefreshTokenResponseSchema = z.object({
   accessToken: z.string().min(1),
 });
 export type RefreshTokenResponse = z.infer<typeof RefreshTokenResponseSchema>;
+
+export const AuthMeResponseSchema = z.object({
+  user: AuthenticatedUserSchema,
+});
+export type AuthMeResponse = z.infer<typeof AuthMeResponseSchema>;

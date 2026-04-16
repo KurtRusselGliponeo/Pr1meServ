@@ -1,9 +1,12 @@
 import { z } from 'zod';
 
 export * from './auth.schema';
+export * from './agents.schema';
 export * from './client-profile-import.schema';
 export * from './client-profile-reassign.schema';
 export * from './client-profiles.schema';
+export * from './performance-metrics.schema';
+export * from './users.schema';
 
 export const systemRoles = ['Admin', 'BranchManager', 'Agent'] as const;
 export const systemRoleSchema = z.enum(systemRoles);

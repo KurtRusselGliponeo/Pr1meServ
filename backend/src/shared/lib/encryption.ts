@@ -18,14 +18,32 @@ function getEncryptionKey(): Buffer {
   return crypto.createHash('sha256').update(rawKey, 'utf8').digest();
 }
 
+/**
+ * Normalizes an email address for stable comparisons and hashing.
+ *
+ * @param email Raw email address.
+ * @returns The trimmed lowercase email address.
+ */
 export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
+/**
+ * Hashes an email address with SHA-256 for deterministic lookups.
+ *
+ * @param email Raw email address.
+ * @returns A hex-encoded SHA-256 hash of the normalized email.
+ */
 export function hashEmail(email: string): string {
   return crypto.createHash('sha256').update(normalizeEmail(email), 'utf8').digest('hex');
 }
 
+/**
+ * Encrypts plaintext using AES-256-GCM.
+ *
+ * @param text Plaintext value to encrypt.
+ * @returns Encrypted data plus IV and auth tag.
+ */
 export function encrypt(text: string): { encryptedData: string; iv: string; authTag: string } {
   const iv = crypto.randomBytes(IV_LENGTH);
   const cipher = crypto.createCipheriv(ALGORITHM, getEncryptionKey(), iv);
@@ -40,6 +58,14 @@ export function encrypt(text: string): { encryptedData: string; iv: string; auth
   };
 }
 
+/**
+ * Decrypts an AES-256-GCM payload.
+ *
+ * @param encryptedData Hex-encoded ciphertext.
+ * @param ivHex Hex-encoded initialization vector.
+ * @param authTagHex Hex-encoded auth tag.
+ * @returns The decrypted plaintext.
+ */
 export function decrypt(encryptedData: string, ivHex: string, authTagHex: string): string {
   const decipher = crypto.createDecipheriv(
     ALGORITHM,
@@ -55,6 +81,12 @@ export function decrypt(encryptedData: string, ivHex: string, authTagHex: string
   return decrypted;
 }
 
+/**
+ * Encrypts an email into a transportable payload string.
+ *
+ * @param email Raw email address.
+ * @returns A serialized encrypted email payload.
+ */
 export function encryptEmail(email: string): string {
   const normalizedEmail = normalizeEmail(email);
   const { encryptedData, iv, authTag } = encrypt(normalizedEmail);
@@ -62,6 +94,13 @@ export function encryptEmail(email: string): string {
   return [iv, authTag, encryptedData].join(ENCRYPTION_SEGMENT_SEPARATOR);
 }
 
+/**
+ * Decrypts a serialized encrypted email payload.
+ *
+ * @param payload Serialized encrypted email payload.
+ * @returns The decrypted normalized email address.
+ * @throws {Error} When the payload format is invalid.
+ */
 export function decryptEmail(payload: string): string {
   const [iv, authTag, encryptedData] = payload.split(ENCRYPTION_SEGMENT_SEPARATOR);
 

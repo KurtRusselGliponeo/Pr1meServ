@@ -7,7 +7,10 @@ import multipart from '@fastify/multipart';
 import rateLimit from '@fastify/rate-limit';
 import { ZodError } from 'zod';
 import authRoutes from './routes/auth.routes';
+import agentsRoutes from './routes/agents.routes';
 import clientProfilesRoutes from './routes/client-profiles.routes';
+import metricsRoutes from './routes/metrics.routes';
+import usersRoutes from './routes/users.routes';
 import { assertRedisConnection, isRedisEnabled, redis } from './lib/redis';
 import { logger } from './lib/logger';
 import { BusinessRuleError, ForbiddenError, NotFoundError, UnauthorizedError } from './lib/errors';
@@ -144,7 +147,10 @@ const buildApp = async () => {
   });
 
   await app.register(authRoutes, { prefix: '/api/v1' });
+  await app.register(usersRoutes, { prefix: '/api/v1' });
+  await app.register(agentsRoutes, { prefix: '/api/v1' });
   await app.register(clientProfilesRoutes, { prefix: '/api/v1' });
+  await app.register(metricsRoutes, { prefix: '/api/v1' });
 
   app.get('/health', async (_request, reply) => {
     try {

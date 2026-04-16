@@ -139,9 +139,15 @@ export function DataTable<TData, TValue>({
           </thead>
           <tbody>
             {sortedData.map((row, rowIndex) => (
-              <tr key={`row-${rowIndex}`} className="border-b border-border/60 last:border-b-0 hover:bg-muted/20">
+              <tr
+                key={`row-${rowIndex}`}
+                className="border-b border-border/60 last:border-b-0 hover:bg-muted/20"
+              >
                 {columns.map((column, columnIndex) => (
-                  <td key={`cell-${rowIndex}-${columnIndex}`} className="px-4 py-4 text-sm text-foreground">
+                  <td
+                    key={`cell-${rowIndex}-${columnIndex}`}
+                    className="px-4 py-4 text-sm text-foreground"
+                  >
                     {renderCellContent(column, row, rowIndex)}
                   </td>
                 ))}
@@ -189,7 +195,9 @@ export function ServerPaginationControls({
         >
           Previous
         </Button>
-        <span className="min-w-16 text-center text-sm font-medium text-foreground">Page {page}</span>
+        <span className="min-w-16 text-center text-sm font-medium text-foreground">
+          Page {page}
+        </span>
         <Button
           type="button"
           variant="outline"

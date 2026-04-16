@@ -37,7 +37,10 @@ export function AuditTrailTimeline({ items }: AuditTrailTimelineProps) {
       <CardContent>
         <div className="space-y-4">
           {items.map((item) => (
-            <div key={item.id} className="flex gap-4 rounded-3xl border border-border/70 bg-background/80 p-4">
+            <div
+              key={item.id}
+              className="flex gap-4 rounded-3xl border border-border/70 bg-background/80 p-4"
+            >
               <div className="flex flex-col items-center">
                 <div className="rounded-full bg-primary/10 p-2 text-primary">
                   <ArrowRightLeft className="h-4 w-4" />

@@ -1,45 +1,23 @@
 import axios from 'axios';
+import { AuthMeResponseSchema, LoginResponseSchema } from '@a1prime/schemas';
 
 import api from '@/lib/api';
 import type { AuthResponse, LoginRequest } from '../types/auth.types';
 
-interface BackendIdentityUser {
-  id: string;
-  role: AuthResponse['user']['role'];
-  agentCode: string | null;
-}
-
-interface BackendLoginResponse {
-  accessToken: string;
-  user: BackendIdentityUser;
-}
-
-interface BackendMeResponse {
-  user: BackendIdentityUser;
-}
-
-function mapAuthenticatedUser(user: BackendIdentityUser): AuthResponse['user'] {
-  const [firstName = 'A1', lastName = 'Prime'] = (user.agentCode ?? `${user.role} User`).split(
-    /[\s-]+/,
-  );
-
-  return {
-    id: user.id,
-    email: `${user.agentCode ?? user.role.toLowerCase()}@a1prime.local`,
-    firstName,
-    lastName,
-    role: user.role,
-    createdAt: new Date(0).toISOString(),
-    updatedAt: new Date(0).toISOString(),
-  };
-}
-
 export async function login(payload: LoginRequest): Promise<AuthResponse> {
-  const response = await api.post<BackendLoginResponse>('/auth/login', payload);
-  const { accessToken, user } = response.data;
+  const response = await api.post('/auth/login', payload);
+  const { accessToken, user } = LoginResponseSchema.parse(response.data);
 
   return {
-    user: mapAuthenticatedUser(user),
+    user: {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: user.role,
+      createdAt: user.createdAtUtc,
+      updatedAt: user.updatedAtUtc,
+    },
     tokens: {
       accessToken,
       refreshToken: '',
@@ -48,8 +26,18 @@ export async function login(payload: LoginRequest): Promise<AuthResponse> {
 }
 
 export async function getCurrentUser(): Promise<AuthResponse['user']> {
-  const response = await api.get<BackendMeResponse>('/auth/me');
-  return mapAuthenticatedUser(response.data.user);
+  const response = await api.get('/auth/me');
+  const { user } = AuthMeResponseSchema.parse(response.data);
+
+  return {
+    id: user.id,
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    role: user.role,
+    createdAt: user.createdAtUtc,
+    updatedAt: user.updatedAtUtc,
+  };
 }
 
 export async function refreshAccessToken(): Promise<string> {

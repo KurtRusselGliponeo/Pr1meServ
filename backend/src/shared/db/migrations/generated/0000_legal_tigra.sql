@@ -3,6 +3,8 @@ CREATE TABLE "UserAccounts" (
 	"EmailHash" varchar(64) NOT NULL,
 	"Email" text NOT NULL,
 	"PasswordHash" varchar(255) NOT NULL,
+	"RefreshTokenHash" varchar(64),
+	"RefreshTokenExpiresAtUtc" timestamp with time zone,
 	"FirstName" varchar(100) NOT NULL,
 	"LastName" varchar(100) NOT NULL,
 	"SystemRole" varchar(32) NOT NULL,
@@ -68,4 +70,8 @@ CREATE TABLE "SystemAuditLogs" (
 ALTER TABLE "AgentProfiles" ADD CONSTRAINT "AgentProfiles_UserId_UserAccounts_Id_fk" FOREIGN KEY ("UserId") REFERENCES "public"."UserAccounts"("Id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "ClientProfiles" ADD CONSTRAINT "ClientProfiles_AssignedAgentId_AgentProfiles_Id_fk" FOREIGN KEY ("AssignedAgentId") REFERENCES "public"."AgentProfiles"("Id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "PerformanceMetrics" ADD CONSTRAINT "PerformanceMetrics_AgentId_AgentProfiles_Id_fk" FOREIGN KEY ("AgentId") REFERENCES "public"."AgentProfiles"("Id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "SystemAuditLogs" ADD CONSTRAINT "SystemAuditLogs_ActorUserId_UserAccounts_Id_fk" FOREIGN KEY ("ActorUserId") REFERENCES "public"."UserAccounts"("Id") ON DELETE no action ON UPDATE no action;
+ALTER TABLE "SystemAuditLogs" ADD CONSTRAINT "SystemAuditLogs_ActorUserId_UserAccounts_Id_fk" FOREIGN KEY ("ActorUserId") REFERENCES "public"."UserAccounts"("Id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "idx_agentprofiles_userid" ON "AgentProfiles" USING btree ("UserId");--> statement-breakpoint
+CREATE INDEX "idx_clientprofiles_agentid" ON "ClientProfiles" USING btree ("AssignedAgentId");--> statement-breakpoint
+CREATE INDEX "idx_perfmetrics_agentid" ON "PerformanceMetrics" USING btree ("AgentId");--> statement-breakpoint
+CREATE INDEX "idx_auditlogs_actoruserid" ON "SystemAuditLogs" USING btree ("ActorUserId");

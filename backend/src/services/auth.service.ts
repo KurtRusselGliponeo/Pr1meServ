@@ -2,7 +2,12 @@ import crypto from 'crypto';
 import { and, eq, gt, isNull } from 'drizzle-orm';
 import { createSigner } from 'fast-jwt';
 
-import type { LoginResponse, RefreshTokenResponse, UserRole } from '@a1prime/schemas';
+import type {
+  AuthenticatedUser,
+  LoginResponse,
+  RefreshTokenResponse,
+  UserRole,
+} from '@a1prime/schemas';
 import { db, withDbTransaction } from '@/db/client';
 import { UnauthorizedError } from '@/lib/errors';
 import { agentProfiles, userAccounts } from '@/schema';
@@ -18,11 +23,15 @@ type AuthRecord = {
   emailHash: string;
   encryptedEmail: string;
   passwordHash: string;
+  firstName: string;
+  lastName: string;
   role: UserRole;
   refreshTokenHash: string | null;
   refreshTokenExpiresAtUtc: Date | null;
   agentId: string | null;
   agentCode: string | null;
+  createdAtUtc: Date;
+  updatedAtUtc: Date;
 };
 
 const INVALID_CREDENTIALS_MESSAGE = 'Invalid email or password';
@@ -59,8 +68,13 @@ function createRefreshToken() {
 function mapLoginUser(record: AuthRecord): LoginUser {
   return {
     id: record.userId,
+    email: decryptEmail(record.encryptedEmail),
+    firstName: record.firstName,
+    lastName: record.lastName,
     role: record.role,
     agentCode: record.agentCode,
+    createdAtUtc: record.createdAtUtc.toISOString(),
+    updatedAtUtc: record.updatedAtUtc.toISOString(),
   };
 }
 
@@ -71,11 +85,15 @@ async function findAuthRecordByEmailHash(emailHashValue: string): Promise<AuthRe
       emailHash: userAccounts.emailHash,
       encryptedEmail: userAccounts.encryptedEmail,
       passwordHash: userAccounts.passwordHash,
+      firstName: userAccounts.firstName,
+      lastName: userAccounts.lastName,
       role: userAccounts.role,
       refreshTokenHash: userAccounts.refreshTokenHash,
       refreshTokenExpiresAtUtc: userAccounts.refreshTokenExpiresAtUtc,
       agentId: agentProfiles.id,
       agentCode: agentProfiles.agentCode,
+      createdAtUtc: userAccounts.createdAt,
+      updatedAtUtc: userAccounts.updatedAt,
     })
     .from(userAccounts)
     .leftJoin(
@@ -97,11 +115,15 @@ async function findAuthRecordByRefreshTokenHash(
       emailHash: userAccounts.emailHash,
       encryptedEmail: userAccounts.encryptedEmail,
       passwordHash: userAccounts.passwordHash,
+      firstName: userAccounts.firstName,
+      lastName: userAccounts.lastName,
       role: userAccounts.role,
       refreshTokenHash: userAccounts.refreshTokenHash,
       refreshTokenExpiresAtUtc: userAccounts.refreshTokenExpiresAtUtc,
       agentId: agentProfiles.id,
       agentCode: agentProfiles.agentCode,
+      createdAtUtc: userAccounts.createdAt,
+      updatedAtUtc: userAccounts.updatedAt,
     })
     .from(userAccounts)
     .leftJoin(
@@ -124,6 +146,45 @@ async function findAuthRecordByRefreshTokenHash(
  * Provides authentication use cases for Phase 3 auth endpoints.
  */
 export class AuthService {
+  /**
+   * Returns the current authenticated user profile for `/auth/me`.
+   *
+   * @param userId Authenticated user id from the access token.
+   * @returns The hydrated authenticated user profile.
+   * @throws {UnauthorizedError} if the user no longer exists.
+   */
+  async getCurrentUser(userId: string): Promise<AuthenticatedUser> {
+    const [record] = await db
+      .select({
+        userId: userAccounts.id,
+        emailHash: userAccounts.emailHash,
+        encryptedEmail: userAccounts.encryptedEmail,
+        passwordHash: userAccounts.passwordHash,
+        firstName: userAccounts.firstName,
+        lastName: userAccounts.lastName,
+        role: userAccounts.role,
+        refreshTokenHash: userAccounts.refreshTokenHash,
+        refreshTokenExpiresAtUtc: userAccounts.refreshTokenExpiresAtUtc,
+        agentId: agentProfiles.id,
+        agentCode: agentProfiles.agentCode,
+        createdAtUtc: userAccounts.createdAt,
+        updatedAtUtc: userAccounts.updatedAt,
+      })
+      .from(userAccounts)
+      .leftJoin(
+        agentProfiles,
+        and(eq(agentProfiles.userId, userAccounts.id), isNull(agentProfiles.deletedAtUtc)),
+      )
+      .where(and(eq(userAccounts.id, userId), isNull(userAccounts.deletedAtUtc)))
+      .limit(1);
+
+    if (!record) {
+      throw new UnauthorizedError('Unauthorized');
+    }
+
+    return mapLoginUser(record);
+  }
+
   /**
    * Authenticates a user with an email/password pair.
    *

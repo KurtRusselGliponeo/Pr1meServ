@@ -24,8 +24,8 @@ export default function DashboardPage() {
         <section className="rounded-3xl border border-border/70 bg-card p-6 shadow-sm">
           <h2 className="text-lg font-semibold tracking-tight text-foreground">UX baseline</h2>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            Loading skeletons, role-aware navigation, empty states, and destructive-action guards are
-            available as shared primitives for the remaining modules.
+            Loading skeletons, role-aware navigation, empty states, and destructive-action guards
+            are available as shared primitives for the remaining modules.
           </p>
         </section>
       </aside>

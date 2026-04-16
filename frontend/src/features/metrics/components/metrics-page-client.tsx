@@ -53,10 +53,16 @@ export function MetricsPageClient() {
               Metrics dashboard
             </h1>
             <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              Compare production momentum, premium flow, and commission trends for the selected reporting period.
+              Compare production momentum, premium flow, and commission trends for the selected
+              reporting period.
             </p>
           </div>
-          <MonthYearPicker month={month} year={year} onMonthChange={setMonth} onYearChange={setYear} />
+          <MonthYearPicker
+            month={month}
+            year={year}
+            onMonthChange={setMonth}
+            onYearChange={setYear}
+          />
         </div>
       </section>
 

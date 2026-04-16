@@ -106,14 +106,13 @@ export function UsersPageClient() {
   return (
     <div className="space-y-6">
       <section className="rounded-3xl border border-border/70 bg-background/95 p-6 shadow-sm sm:p-8">
-        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary/70">
-          Admin
-        </p>
+        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary/70">Admin</p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">
           User management
         </h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-          Create branch accounts, review current access, and archive users while preserving the audit trail.
+          Create branch accounts, review current access, and archive users while preserving the
+          audit trail.
         </p>
       </section>
 

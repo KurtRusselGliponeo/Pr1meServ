@@ -43,7 +43,8 @@ export function AgentProfilePageClient({ agentId }: AgentProfilePageClientProps)
           {profile.displayName}
         </h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-          Review editable identity details, verify the linked agent code, and inspect recent profile activity in one place.
+          Review editable identity details, verify the linked agent code, and inspect recent profile
+          activity in one place.
         </p>
       </section>
 
