@@ -1,4 +1,5 @@
 export * from './types/client-profile.types';
-// export * from './components/case-table';
-// export * from './hooks/use-cosaf-case';
-// export * from './services/cosaf.service';
+export * from './hooks/use-get-client-profiles';
+export * from './hooks/use-import-client-profiles';
+export * from './components/client-profiles-table';
+export * from './components/client-profile-import-form';

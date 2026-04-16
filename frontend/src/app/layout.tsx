@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import { Inter, Geist } from 'next/font/google';
 import '@/styles/globals.css';
+import { AppProviders } from '@/components/providers/app-providers';
 import { cn } from '@/lib/utils';
-import { AuthProvider } from '@/features/identity';
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-sans' });
 
@@ -25,7 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning className={cn('font-sans', geist.variable)}>
       <body className={`${inter.variable} font-sans antialiased`}>
-        <AuthProvider>{children}</AuthProvider>
+        <AppProviders>{children}</AppProviders>
       </body>
     </html>
   );

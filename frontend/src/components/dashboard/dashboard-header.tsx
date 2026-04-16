@@ -1,6 +1,5 @@
 'use client';
 
-import { useMemo } from 'react';
 import { Bell, ChevronDown, LogOut, Search } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -13,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/features/identity';
+import { useLogout } from '@/features/identity/hooks/use-logout';
 
 interface DashboardHeaderProps {
   navigationTrigger: React.ReactNode;
@@ -23,15 +23,9 @@ function getUserInitials(firstName?: string, lastName?: string) {
 }
 
 export function DashboardHeader({ navigationTrigger }: DashboardHeaderProps) {
-  const { user, logout } = useAuth();
-
-  const userName = useMemo(() => {
-    if (!user) {
-      return 'Authenticated User';
-    }
-
-    return `${user.firstName} ${user.lastName}`;
-  }, [user]);
+  const { user } = useAuth();
+  const logout = useLogout();
+  const userName = user ? `${user.firstName} ${user.lastName}` : 'Authenticated User';
 
   return (
     <header className="sticky top-0 z-30 border-b border-border/70 bg-background/80 backdrop-blur-xl">
@@ -99,7 +93,7 @@ export function DashboardHeader({ navigationTrigger }: DashboardHeaderProps) {
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="min-h-11 text-destructive focus:bg-destructive/10 focus:text-destructive"
-              onSelect={() => logout()}
+              onSelect={() => void logout()}
             >
               <LogOut className="h-4 w-4" aria-hidden="true" />
               Sign out

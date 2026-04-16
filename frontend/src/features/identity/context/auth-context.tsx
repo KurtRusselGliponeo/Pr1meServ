@@ -3,13 +3,13 @@
 import * as React from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 
+import { clearAuthSession, getAccessToken, getStoredAuthUser, persistAuthSession } from '@/lib/auth';
 import {
-  clearAuthSession,
-  getAccessToken,
-  getStoredAuthUser,
-  persistAuthSession,
-} from '@/lib/auth';
-import { getCurrentUser, login as loginRequest } from '../services/auth.service';
+  getCurrentUser,
+  login as loginRequest,
+  logoutRequest,
+  refreshAccessToken,
+} from '../services/auth.service';
 import type { LoginFormValues } from '../lib/login-schema';
 import type { AuthenticatedUser } from '../types/auth.types';
 
@@ -18,7 +18,7 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   isHydrated: boolean;
   login: (values: LoginFormValues) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
 
@@ -31,12 +31,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isHydrated, setIsHydrated] = React.useState(false);
 
   const refreshUser = React.useCallback(async () => {
-    if (!getAccessToken()) {
-      setUser(null);
-      return;
-    }
-
     try {
+      if (!getAccessToken()) {
+        const nextAccessToken = await refreshAccessToken();
+        const storedUser = getStoredAuthUser<AuthenticatedUser>();
+
+        if (storedUser) {
+          persistAuthSession({
+            accessToken: nextAccessToken,
+            user: storedUser,
+          });
+        }
+      }
+
       const currentUser = await getCurrentUser();
       setUser(currentUser);
     } catch {
@@ -51,7 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   React.useEffect(() => {
-    if (!isHydrated || !getAccessToken() || user) {
+    if (!isHydrated || user) {
       return;
     }
 
@@ -64,7 +71,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       persistAuthSession({
         accessToken: session.tokens.accessToken,
-        refreshToken: session.tokens.refreshToken,
         user: session.user,
       });
 
@@ -75,13 +81,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [router],
   );
 
-  const logout = React.useCallback(() => {
-    clearAuthSession();
-    setUser(null);
-
-    if (pathname?.startsWith('/dashboard')) {
+  const logout = React.useCallback(async () => {
+    try {
+      await logoutRequest();
+    } finally {
+      clearAuthSession();
+      setUser(null);
       router.replace('/login');
-      router.refresh();
+
+      if (pathname?.startsWith('/dashboard')) {
+        router.refresh();
+      }
     }
   }, [pathname, router]);
 

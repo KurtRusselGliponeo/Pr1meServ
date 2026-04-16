@@ -1,5 +1,4 @@
 export const ACCESS_TOKEN_KEY = 'a1prime.accessToken';
-export const REFRESH_TOKEN_KEY = 'a1prime.refreshToken';
 export const AUTH_USER_KEY = 'a1prime.authUser';
 export const ACCESS_TOKEN_COOKIE = 'a1prime_access_token';
 
@@ -33,7 +32,6 @@ export function clearAuthCookie() {
 
 export function persistAuthSession(session: {
   accessToken: string;
-  refreshToken: string;
   user: unknown;
 }) {
   if (!isBrowser()) {
@@ -41,7 +39,6 @@ export function persistAuthSession(session: {
   }
 
   window.localStorage.setItem(ACCESS_TOKEN_KEY, session.accessToken);
-  window.localStorage.setItem(REFRESH_TOKEN_KEY, session.refreshToken);
   window.localStorage.setItem(AUTH_USER_KEY, JSON.stringify(session.user));
   setAuthCookie(session.accessToken);
 }
@@ -52,7 +49,6 @@ export function clearAuthSession() {
   }
 
   window.localStorage.removeItem(ACCESS_TOKEN_KEY);
-  window.localStorage.removeItem(REFRESH_TOKEN_KEY);
   window.localStorage.removeItem(AUTH_USER_KEY);
   clearAuthCookie();
 }

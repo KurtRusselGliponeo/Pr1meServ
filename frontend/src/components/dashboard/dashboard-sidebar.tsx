@@ -6,9 +6,8 @@ import { usePathname } from 'next/navigation';
 import { PanelLeftClose } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/features/identity';
+import { useNavigation } from '@/features/navigation/hooks/use-navigation';
 import { cn } from '@/lib/utils';
-import { getNavigationItemsForRole } from '@/features/navigation/config/navigation';
 
 interface DashboardSidebarProps {
   collapsed: boolean;
@@ -23,8 +22,7 @@ function NavigationList({
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
-  const { user } = useAuth();
-  const items = getNavigationItemsForRole(user?.role);
+  const { items } = useNavigation();
 
   return (
     <nav aria-label="Dashboard" className="flex flex-col gap-2">
