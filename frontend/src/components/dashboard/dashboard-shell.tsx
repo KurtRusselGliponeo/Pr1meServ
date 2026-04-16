@@ -2,11 +2,12 @@
 
 import * as React from 'react';
 
+import { DashboardHeader } from '@/components/dashboard/dashboard-header';
 import { DashboardMobileNav } from '@/components/dashboard/dashboard-mobile-nav';
 import { DashboardSidebar } from '@/components/dashboard/dashboard-sidebar';
 
 interface DashboardShellProps {
-  children: (context: { sidebarTrigger: React.ReactNode }) => React.ReactNode;
+  children: React.ReactNode;
 }
 
 export function DashboardShell({ children }: DashboardShellProps) {
@@ -20,9 +21,8 @@ export function DashboardShell({ children }: DashboardShellProps) {
           onToggleCollapsed={() => setIsCollapsed((currentValue) => !currentValue)}
         />
         <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-          {children({
-            sidebarTrigger: <DashboardMobileNav />,
-          })}
+          <DashboardHeader navigationTrigger={<DashboardMobileNav />} />
+          {children}
         </div>
       </div>
     </div>
