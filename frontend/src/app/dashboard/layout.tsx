@@ -1,29 +1,26 @@
-import Link from 'next/link';
+import { DashboardHeader } from '@/components/dashboard/dashboard-header';
+import { DashboardShell } from '@/components/dashboard/dashboard-shell';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,_rgba(127,29,29,0.06)_0%,_transparent_22%),linear-gradient(135deg,_#fff8f8_0%,_#ffffff_45%,_#fff4ea_100%)]">
-      <header className="border-b border-border/70 bg-background/80 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary/70">
-              A1 Prime
-            </p>
-            <h1 className="text-lg font-semibold text-foreground">Branch Dashboard</h1>
-          </div>
-          <nav className="flex items-center gap-4 text-sm text-muted-foreground">
-            <Link href="/dashboard" className="transition-colors hover:text-foreground">
-              Overview
-            </Link>
-            <Link href="/login" className="transition-colors hover:text-foreground">
-              Login
-            </Link>
-          </nav>
-        </div>
-      </header>
-      <main className="mx-auto flex min-h-[calc(100vh-73px)] w-full max-w-6xl flex-1 overflow-y-auto px-6 py-8">
-        {children}
-      </main>
-    </div>
+    <DashboardShell>
+      {({ sidebarTrigger }) => (
+        <>
+          <a
+            href="#dashboard-content"
+            className="sr-only z-50 rounded-md bg-background px-4 py-2 text-sm font-medium text-foreground focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:outline-none focus:ring-2 focus:ring-ring"
+          >
+            Skip to main content
+          </a>
+          <DashboardHeader navigationTrigger={sidebarTrigger} />
+          <main
+            id="dashboard-content"
+            className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8 lg:py-8"
+          >
+            {children}
+          </main>
+        </>
+      )}
+    </DashboardShell>
   );
 }

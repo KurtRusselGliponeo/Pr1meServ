@@ -1,0 +1,112 @@
+'use client';
+
+import { useMemo } from 'react';
+import { Bell, ChevronDown, LogOut, Search } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { useAuth } from '@/features/identity';
+
+interface DashboardHeaderProps {
+  navigationTrigger: React.ReactNode;
+}
+
+function getUserInitials(firstName?: string, lastName?: string) {
+  return `${firstName?.[0] ?? ''}${lastName?.[0] ?? ''}`.trim().toUpperCase() || 'AU';
+}
+
+export function DashboardHeader({ navigationTrigger }: DashboardHeaderProps) {
+  const { user, logout } = useAuth();
+
+  const userName = useMemo(() => {
+    if (!user) {
+      return 'Authenticated User';
+    }
+
+    return `${user.firstName} ${user.lastName}`;
+  }, [user]);
+
+  return (
+    <header className="sticky top-0 z-30 border-b border-border/70 bg-background/80 backdrop-blur-xl">
+      <div className="flex min-h-20 items-center gap-4 px-4 py-3 sm:px-6">
+        <div className="shrink-0">{navigationTrigger}</div>
+
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary/70">
+            Branch Dashboard
+          </p>
+          <h2 className="truncate text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+            Good to see you, {user?.firstName ?? 'team'}
+          </h2>
+        </div>
+
+        <div className="hidden items-center gap-2 rounded-2xl border border-border/70 bg-card px-3 py-2 text-sm text-muted-foreground shadow-sm md:flex">
+          <Search className="h-4 w-4" aria-hidden="true" />
+          <span className="whitespace-nowrap">Quick actions coming soon</span>
+        </div>
+
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="h-11 w-11 rounded-2xl"
+          aria-label="Notifications"
+        >
+          <Bell className="h-5 w-5" aria-hidden="true" />
+        </Button>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-12 gap-3 rounded-2xl px-3"
+              aria-label="Open user menu"
+            >
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
+                {getUserInitials(user?.firstName, user?.lastName)}
+              </span>
+              <span className="hidden min-w-0 text-left sm:block">
+                <span className="block truncate text-sm font-medium text-foreground">{userName}</span>
+                <span className="block truncate text-xs text-muted-foreground">
+                  {user?.role ?? 'No role'}
+                </span>
+              </span>
+              <ChevronDown className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-64">
+            <DropdownMenuLabel className="pb-1">
+              <span className="block text-sm font-semibold text-foreground">{userName}</span>
+              <span className="block pt-1 text-xs font-normal text-muted-foreground">
+                {user?.email ?? 'No email available'}
+              </span>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="min-h-11">
+              <span className="flex flex-col">
+                <span className="font-medium text-foreground">Current access</span>
+                <span className="text-xs text-muted-foreground">{user?.role ?? 'Pending role'}</span>
+              </span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="min-h-11 text-destructive focus:bg-destructive/10 focus:text-destructive"
+              onSelect={() => logout()}
+            >
+              <LogOut className="h-4 w-4" aria-hidden="true" />
+              Sign out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </header>
+  );
+}
