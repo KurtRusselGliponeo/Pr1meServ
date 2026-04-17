@@ -17,5 +17,8 @@ export const performanceMetrics = pgTable(
     createdAt: timestamp('CreatedAtUtc', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('UpdatedAtUtc', { withTimezone: true }).defaultNow().notNull(),
   },
-  (table) => [index('idx_perfmetrics_agentid').on(table.agentId)],
+  (table) => [
+    index('idx_perfmetrics_agentid').on(table.agentId),
+    index('idx_perfmetrics_recordmonth').on(table.recordMonth),
+  ],
 );

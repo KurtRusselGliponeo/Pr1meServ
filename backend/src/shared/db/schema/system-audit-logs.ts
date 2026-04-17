@@ -14,5 +14,8 @@ export const systemAuditLogs = pgTable(
     newValue: jsonb('NewValue').$type<Record<string, unknown> | null>(),
     createdAt: timestamp('CreatedAtUtc', { withTimezone: true }).defaultNow().notNull(),
   },
-  (table) => [index('idx_auditlogs_actoruserid').on(table.actorUserId)],
+  (table) => [
+    index('idx_auditlogs_actoruserid').on(table.actorUserId),
+    index('idx_auditlogs_entity').on(table.entityName, table.entityId),
+  ],
 );

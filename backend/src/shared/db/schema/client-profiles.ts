@@ -1,4 +1,5 @@
 import type { CaseStatus, PolicyStatus } from '@a1prime/schemas';
+import { sql } from 'drizzle-orm';
 import { decimal, index, pgTable, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
 
 import { agentProfiles } from './agent-profiles';
@@ -23,5 +24,9 @@ export const clientProfiles = pgTable(
     updatedAt: timestamp('UpdatedAtUtc', { withTimezone: true }).defaultNow().notNull(),
     deletedAtUtc: timestamp('DeletedAtUtc', { withTimezone: true }),
   },
-  (table) => [index('idx_clientprofiles_agentid').on(table.assignedAgentId)],
+  (table) => [
+    index('idx_clientprofiles_agentid')
+      .on(table.assignedAgentId)
+      .where(sql`${table.deletedAtUtc} IS NULL`),
+  ],
 );
