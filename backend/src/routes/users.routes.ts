@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 
-import { CreateUserSchema, ListUsersQuerySchema } from '@a1prime/schemas';
+import { CreateUserSchema, ListUsersQuerySchema, UpdateUserSchema } from '@a1prime/schemas';
 import { requireRole } from '@/middleware/require-role';
 import { usersService } from '@/services/users.service';
 
@@ -44,6 +44,43 @@ const usersRoutes: FastifyPluginAsync = async (app) => {
       const params = request.params as { userId: string };
       await usersService.softDeleteUser(params.userId, request.authUser.id);
       return reply.code(204).send();
+    },
+  );
+
+  app.patch(
+    '/users/:userId',
+    {
+      preHandler: [app.authenticate, requireRole(['Admin'])],
+    },
+    async (request, reply) => {
+      const params = request.params as { userId: string };
+      const body = UpdateUserSchema.parse(request.body);
+      const result = await usersService.updateUser(params.userId, body, request.authUser.id);
+      return reply.code(200).send(result);
+    },
+  );
+
+  app.post(
+    '/users/:userId/restore',
+    {
+      preHandler: [app.authenticate, requireRole(['Admin'])],
+    },
+    async (request, reply) => {
+      const params = request.params as { userId: string };
+      const result = await usersService.restoreUser(params.userId, request.authUser.id);
+      return reply.code(200).send(result);
+    },
+  );
+
+  app.post(
+    '/users/:userId/reset-password',
+    {
+      preHandler: [app.authenticate, requireRole(['Admin'])],
+    },
+    async (request, reply) => {
+      const params = request.params as { userId: string };
+      const result = await usersService.resetPassword(params.userId, request.authUser.id);
+      return reply.code(200).send(result);
     },
   );
 };

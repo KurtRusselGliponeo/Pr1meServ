@@ -20,6 +20,8 @@ import { logger } from './lib/logger';
 import { BusinessRuleError, ForbiddenError, NotFoundError, UnauthorizedError } from './lib/errors';
 import { getJwtSecret } from './shared/lib/auth';
 import { assertDatabaseConnection } from './shared/db/client';
+import { validateRequiredConstraints } from './shared/db/migrations/validation';
+import { getQueueHealthSummary } from './shared/lib/queue';
 
 function isZodLikeError(
   error: unknown,
@@ -174,6 +176,47 @@ const buildApp = async () => {
       return reply.code(503).send({
         db: 'down',
         redis: isRedisEnabled ? (redis.status === 'ready' ? 'ok' : 'down') : 'disabled',
+      });
+    }
+  });
+
+  app.get('/api/v1/diagnostics/startup', async (_request, reply) => {
+    try {
+      await assertDatabaseConnection();
+      const [queue, migrations] = await Promise.all([
+        getQueueHealthSummary(),
+        validateRequiredConstraints(),
+      ]);
+
+      const status =
+        queue.status === 'ok' && migrations.status === 'ok' ? 'ok' : 'degraded';
+
+      return reply.code(status === 'ok' ? 200 : 503).send({
+        status,
+        database: 'ok',
+        queue,
+        migrations,
+      });
+    } catch (error) {
+      app.log.error({ err: error }, 'Startup diagnostics failed.');
+
+      return reply.code(503).send({
+        status: 'down',
+        database: 'down',
+        queue: {
+          enabled: isRedisEnabled,
+          status: isRedisEnabled ? 'degraded' : 'disabled',
+          redis: isRedisEnabled ? 'down' : 'disabled',
+          workerHeartbeat: {
+            status: isRedisEnabled ? 'missing' : 'disabled',
+            timestampUtc: null,
+            ageMs: null,
+          },
+        },
+        migrations: {
+          status: 'degraded',
+          checks: [],
+        },
       });
     }
   });

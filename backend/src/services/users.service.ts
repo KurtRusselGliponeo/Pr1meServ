@@ -1,13 +1,21 @@
 import { randomUUID } from 'crypto';
 import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 
-import type { CreateUser, ListUsersQuery, ListUsersResponse, ManagedUser } from '@a1prime/schemas';
+import type {
+  CreateUser,
+  ListUsersQuery,
+  ListUsersResponse,
+  ManagedUser,
+  UpdateUser,
+  UserActionResponse,
+} from '@a1prime/schemas';
 import { db, withDbTransaction } from '@/db/client';
 import { BusinessRuleError, NotFoundError } from '@/lib/errors';
 import { agentProfiles, clientProfiles, systemAuditLogs, userAccounts } from '@/schema';
 import { hashPassword } from '@/shared/lib/auth';
 import { logSystemAudit } from '@/shared/lib/audit';
 import { encryptEmail, hashEmail, normalizeEmail, decryptEmail } from '@/shared/lib/encryption';
+import { emailQueueService } from './email-queue.service';
 
 type UserRow = {
   id: string;
@@ -35,6 +43,10 @@ function mapManagedUser(row: UserRow): ManagedUser {
 
 function buildAgentCode() {
   return `AG-${randomUUID().replace(/-/g, '').slice(0, 8).toUpperCase()}`;
+}
+
+function buildTemporaryPassword() {
+  return randomUUID().replace(/-/g, '').slice(0, 12);
 }
 
 /**
@@ -168,6 +180,136 @@ export class UsersService {
   }
 
   /**
+   * Updates an existing user's mutable profile fields.
+   *
+   * @param userId Target user id.
+   * @param input Validated update payload.
+   * @param actorUserId Authenticated admin user id.
+   * @returns The updated managed user.
+   */
+  async updateUser(userId: string, input: UpdateUser, actorUserId: string): Promise<ManagedUser> {
+    return withDbTransaction('users.update', async (tx) => {
+      const [existingUser] = await tx
+        .select({
+          id: userAccounts.id,
+          encryptedEmail: userAccounts.encryptedEmail,
+          firstName: userAccounts.firstName,
+          lastName: userAccounts.lastName,
+          role: userAccounts.role,
+          createdAtUtc: userAccounts.createdAt,
+          updatedAtUtc: userAccounts.updatedAt,
+          deletedAtUtc: userAccounts.deletedAtUtc,
+        })
+        .from(userAccounts)
+        .where(eq(userAccounts.id, userId))
+        .limit(1);
+
+      if (!existingUser) {
+        throw new NotFoundError('User account was not found.');
+      }
+
+      const updatedAtUtc = new Date();
+      const [updatedUser] = await tx
+        .update(userAccounts)
+        .set({
+          firstName: input.firstName.trim(),
+          lastName: input.lastName.trim(),
+          role: input.role,
+          updatedAt: updatedAtUtc,
+        })
+        .where(eq(userAccounts.id, userId))
+        .returning({
+          id: userAccounts.id,
+          encryptedEmail: userAccounts.encryptedEmail,
+          firstName: userAccounts.firstName,
+          lastName: userAccounts.lastName,
+          role: userAccounts.role,
+          createdAtUtc: userAccounts.createdAt,
+          updatedAtUtc: userAccounts.updatedAt,
+          deletedAtUtc: userAccounts.deletedAtUtc,
+        });
+
+      const needsAgentProfile = input.role === 'Agent';
+      const nextDisplayName = `${updatedUser.firstName} ${updatedUser.lastName}`.trim();
+      const [existingAgentProfile] = await tx
+        .select({
+          id: agentProfiles.id,
+          deletedAtUtc: agentProfiles.deletedAtUtc,
+        })
+        .from(agentProfiles)
+        .where(eq(agentProfiles.userId, userId))
+        .limit(1);
+
+      if (existingUser.role === 'Agent' && input.role !== 'Agent' && existingAgentProfile) {
+        const [assignedClientProfile] = await tx
+          .select({ id: clientProfiles.id })
+          .from(clientProfiles)
+          .where(
+            and(
+              eq(clientProfiles.assignedAgentId, existingAgentProfile.id),
+              isNull(clientProfiles.deletedAtUtc),
+            ),
+          )
+          .limit(1);
+
+        if (assignedClientProfile) {
+          throw new BusinessRuleError(
+            'Reassign the agent’s active client profiles before changing this role.',
+          );
+        }
+      }
+
+      if (needsAgentProfile && !existingAgentProfile) {
+        await tx.insert(agentProfiles).values({
+          userId,
+          agentCode: buildAgentCode(),
+          displayName: nextDisplayName,
+          updatedAt: updatedAtUtc,
+        });
+      } else if (needsAgentProfile && existingAgentProfile) {
+        await tx
+          .update(agentProfiles)
+          .set({
+            displayName: nextDisplayName,
+            deletedAtUtc: null,
+            updatedAt: updatedAtUtc,
+          })
+          .where(eq(agentProfiles.id, existingAgentProfile.id));
+      } else if (!needsAgentProfile && existingAgentProfile && !existingAgentProfile.deletedAtUtc) {
+        await tx
+          .update(agentProfiles)
+          .set({
+            deletedAtUtc: updatedAtUtc,
+            updatedAt: updatedAtUtc,
+          })
+          .where(eq(agentProfiles.id, existingAgentProfile.id));
+      }
+
+      await logSystemAudit(
+        {
+          action: 'user.updated',
+          userId: actorUserId,
+          entityName: 'UserAccount',
+          resourceId: userId,
+          oldValue: {
+            firstName: existingUser.firstName,
+            lastName: existingUser.lastName,
+            role: existingUser.role,
+          },
+          newValue: {
+            firstName: updatedUser.firstName,
+            lastName: updatedUser.lastName,
+            role: updatedUser.role,
+          },
+        },
+        tx,
+      );
+
+      return mapManagedUser(updatedUser);
+    });
+  }
+
+  /**
    * Soft-deletes a user account and any linked agent profile.
    *
    * @param userId Target user id.
@@ -176,6 +318,10 @@ export class UsersService {
    * @throws {NotFoundError} When the user does not exist.
    */
   async softDeleteUser(userId: string, actorUserId: string): Promise<void> {
+    if (userId === actorUserId) {
+      throw new BusinessRuleError('You cannot archive your own account.');
+    }
+
     await withDbTransaction('users.soft-delete', async (tx) => {
       const [existingUser] = await tx
         .select({
@@ -272,6 +418,146 @@ export class UsersService {
         tx,
       );
     });
+  }
+
+  /**
+   * Restores a soft-deleted user account and any linked agent profile.
+   *
+   * @param userId Target user id.
+   * @param actorUserId Authenticated admin user id.
+   * @returns A confirmation payload.
+   */
+  async restoreUser(userId: string, actorUserId: string): Promise<UserActionResponse> {
+    return withDbTransaction('users.restore', async (tx) => {
+      const [existingUser] = await tx
+        .select({
+          id: userAccounts.id,
+          encryptedEmail: userAccounts.encryptedEmail,
+          role: userAccounts.role,
+          deletedAtUtc: userAccounts.deletedAtUtc,
+        })
+        .from(userAccounts)
+        .where(eq(userAccounts.id, userId))
+        .limit(1);
+
+      if (!existingUser) {
+        throw new NotFoundError('User account was not found.');
+      }
+
+      if (!existingUser.deletedAtUtc) {
+        throw new BusinessRuleError('User account is already active.');
+      }
+
+      const updatedAtUtc = new Date();
+
+      await tx
+        .update(userAccounts)
+        .set({
+          deletedAtUtc: null,
+          updatedAt: updatedAtUtc,
+        })
+        .where(eq(userAccounts.id, userId));
+
+      if (existingUser.role === 'Agent') {
+        await tx
+          .update(agentProfiles)
+          .set({
+            deletedAtUtc: null,
+            updatedAt: updatedAtUtc,
+          })
+          .where(eq(agentProfiles.userId, userId));
+      }
+
+      await logSystemAudit(
+        {
+          action: 'user.restored',
+          userId: actorUserId,
+          entityName: 'UserAccount',
+          resourceId: userId,
+          oldValue: {
+            email: decryptEmail(existingUser.encryptedEmail),
+            deletedAtUtc: existingUser.deletedAtUtc.toISOString(),
+          },
+          newValue: {
+            deletedAtUtc: null,
+          },
+        },
+        tx,
+      );
+
+      return {
+        message: 'User account restored.',
+      };
+    });
+  }
+
+  /**
+   * Resets a user's password and sends the temporary password over the queued email channel.
+   *
+   * @param userId Target user id.
+   * @param actorUserId Authenticated admin user id.
+   * @returns A confirmation payload.
+   */
+  async resetPassword(userId: string, actorUserId: string): Promise<UserActionResponse> {
+    const emailPayload = await withDbTransaction('users.reset-password', async (tx) => {
+      const [existingUser] = await tx
+        .select({
+          id: userAccounts.id,
+          encryptedEmail: userAccounts.encryptedEmail,
+          firstName: userAccounts.firstName,
+          deletedAtUtc: userAccounts.deletedAtUtc,
+        })
+        .from(userAccounts)
+        .where(eq(userAccounts.id, userId))
+        .limit(1);
+
+      if (!existingUser) {
+        throw new NotFoundError('User account was not found.');
+      }
+
+      if (existingUser.deletedAtUtc) {
+        throw new BusinessRuleError('Archived users cannot receive password resets.');
+      }
+
+      const temporaryPassword = buildTemporaryPassword();
+      const updatedAtUtc = new Date();
+
+      await tx
+        .update(userAccounts)
+        .set({
+          passwordHash: await hashPassword(temporaryPassword),
+          refreshTokenHash: null,
+          refreshTokenExpiresAtUtc: null,
+          updatedAt: updatedAtUtc,
+        })
+        .where(eq(userAccounts.id, userId));
+
+      await logSystemAudit(
+        {
+          action: 'user.password-reset',
+          userId: actorUserId,
+          entityName: 'UserAccount',
+          resourceId: userId,
+          newValue: {
+            deliveredVia: 'queued-email',
+            resetAtUtc: updatedAtUtc.toISOString(),
+          },
+        },
+        tx,
+      );
+
+      return {
+        to: decryptEmail(existingUser.encryptedEmail),
+        subject: 'Your password has been reset',
+        html: `<p>Hello ${existingUser.firstName},</p><p>Your temporary password is <strong>${temporaryPassword}</strong>.</p><p>Please sign in and change it as soon as possible.</p>`,
+      };
+    });
+
+    await emailQueueService.enqueueEmail(emailPayload);
+
+    return {
+      message: 'Password reset initiated.',
+    };
   }
 }
 

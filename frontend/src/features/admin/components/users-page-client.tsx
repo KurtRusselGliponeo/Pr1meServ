@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import { ShieldCheck, Trash2 } from 'lucide-react';
+import { KeyRound, RotateCcw, ShieldCheck, Trash2 } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
@@ -14,7 +14,11 @@ import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
 import api from '@/lib/api';
 import { useCreateUser } from '../hooks/use-create-user';
 import { useGetUsers } from '../hooks/use-get-users';
+import { useResetUserPassword } from '../hooks/use-reset-user-password';
+import { useRestoreUser } from '../hooks/use-restore-user';
+import { useUpdateUser } from '../hooks/use-update-user';
 import type { ManagedUser } from '../types/user-management.types';
+import { UserEditDialog } from './user-edit-dialog';
 import { UserCreationForm } from './user-creation-form';
 
 function formatDate(value: string) {
@@ -26,6 +30,9 @@ export function UsersPageClient() {
   const queryClient = useQueryClient();
   const usersQuery = useGetUsers(page);
   const createUserMutation = useCreateUser();
+  const updateUserMutation = useUpdateUser();
+  const restoreUserMutation = useRestoreUser();
+  const resetUserPasswordMutation = useResetUserPassword();
   const softDeleteMutation = useMutation({
     mutationFn: async (userId: string) => {
       await api.delete(`/users/${userId}`);
@@ -67,26 +74,89 @@ export function UsersPageClient() {
       {
         id: 'actions',
         header: 'Actions',
-        cell: ({ row }) => (
-          <ConfirmActionDialog
-            trigger={
-              <Button type="button" variant="outline" size="sm" className="min-h-9 rounded-full">
-                <Trash2 className="h-4 w-4" />
-                Soft delete
-              </Button>
-            }
-            title="Archive user account"
-            description={`This will soft-delete ${row.original.firstName} ${row.original.lastName} and preserve their audit history.`}
-            confirmLabel="Archive user"
-            onConfirm={async () => {
-              await softDeleteMutation.mutateAsync(row.original.id);
-            }}
-            isPending={softDeleteMutation.isPending}
-          />
-        ),
+        cell: ({ row }) => {
+          const user = row.original;
+
+          return (
+            <div className="flex flex-wrap gap-2">
+              <UserEditDialog
+                user={user}
+                isPending={updateUserMutation.isPending}
+                onSubmit={async (payload) => {
+                  await updateUserMutation.mutateAsync({ userId: user.id, payload });
+                }}
+              />
+              {user.deletedAtUtc ? (
+                <ConfirmActionDialog
+                  trigger={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="min-h-9 rounded-full"
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                      Restore
+                    </Button>
+                  }
+                  title="Restore user account"
+                  description={`This will reactivate ${user.firstName} ${user.lastName}.`}
+                  confirmLabel="Restore user"
+                  onConfirm={async () => {
+                    await restoreUserMutation.mutateAsync(user.id);
+                  }}
+                  isPending={restoreUserMutation.isPending}
+                />
+              ) : (
+                <>
+                  <ConfirmActionDialog
+                    trigger={
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="min-h-9 rounded-full"
+                      >
+                        <KeyRound className="h-4 w-4" />
+                        Reset password
+                      </Button>
+                    }
+                    title="Reset user password"
+                    description={`This will generate a temporary password for ${user.firstName} ${user.lastName} and queue an email delivery.`}
+                    confirmLabel="Reset password"
+                    onConfirm={async () => {
+                      await resetUserPasswordMutation.mutateAsync(user.id);
+                    }}
+                    isPending={resetUserPasswordMutation.isPending}
+                  />
+                  <ConfirmActionDialog
+                    trigger={
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="min-h-9 rounded-full"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Archive
+                      </Button>
+                    }
+                    title="Archive user account"
+                    description={`This will soft-delete ${user.firstName} ${user.lastName} and preserve their audit history.`}
+                    confirmLabel="Archive user"
+                    onConfirm={async () => {
+                      await softDeleteMutation.mutateAsync(user.id);
+                    }}
+                    isPending={softDeleteMutation.isPending}
+                  />
+                </>
+              )}
+            </div>
+          );
+        },
       },
     ],
-    [softDeleteMutation],
+    [resetUserPasswordMutation, restoreUserMutation, softDeleteMutation, updateUserMutation],
   );
 
   if (usersQuery.isPending) {
@@ -111,8 +181,8 @@ export function UsersPageClient() {
           User management
         </h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-          Create branch accounts, review current access, and archive users while preserving the
-          audit trail.
+          Create branch accounts, review current access, edit user details, reset passwords, and
+          archive or restore users while preserving the audit trail.
         </p>
       </section>
 

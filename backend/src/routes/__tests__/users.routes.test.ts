@@ -6,10 +6,20 @@ process.env.REDIS_PORT = process.env.REDIS_PORT ?? '6379';
 process.env.DATABASE_URL =
   process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/postgres';
 
-const { listUsersMock, createUserMock, softDeleteUserMock } = vi.hoisted(() => ({
+const {
+  listUsersMock,
+  createUserMock,
+  softDeleteUserMock,
+  updateUserMock,
+  restoreUserMock,
+  resetPasswordMock,
+} = vi.hoisted(() => ({
   listUsersMock: vi.fn(),
   createUserMock: vi.fn(),
   softDeleteUserMock: vi.fn(),
+  updateUserMock: vi.fn(),
+  restoreUserMock: vi.fn(),
+  resetPasswordMock: vi.fn(),
 }));
 
 vi.mock('@/services/users.service', () => ({
@@ -17,6 +27,9 @@ vi.mock('@/services/users.service', () => ({
     listUsers: listUsersMock,
     createUser: createUserMock,
     softDeleteUser: softDeleteUserMock,
+    updateUser: updateUserMock,
+    restoreUser: restoreUserMock,
+    resetPassword: resetPasswordMock,
   },
 }));
 
@@ -59,6 +72,13 @@ vi.mock('@/shared/db/client', () => ({
   assertDatabaseConnection: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock('@/shared/db/migrations/validation', () => ({
+  validateRequiredConstraints: vi.fn().mockResolvedValue({
+    status: 'ok',
+    checks: [],
+  }),
+}));
+
 vi.mock('@/lib/redis', () => ({
   isRedisEnabled: false,
   redis: {
@@ -74,6 +94,24 @@ vi.mock('@/lib/redis', () => ({
   assertRedisConnection: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock('@/shared/lib/queue', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/shared/lib/queue')>();
+
+  return {
+    ...actual,
+    getQueueHealthSummary: vi.fn().mockResolvedValue({
+      enabled: false,
+      status: 'disabled',
+      redis: 'disabled',
+      workerHeartbeat: {
+        status: 'disabled',
+        timestampUtc: null,
+        ageMs: null,
+      },
+    }),
+  };
+});
+
 import buildApp from '@/app';
 
 describe('users.routes', () => {
@@ -81,6 +119,9 @@ describe('users.routes', () => {
     listUsersMock.mockReset();
     createUserMock.mockReset();
     softDeleteUserMock.mockReset();
+    updateUserMock.mockReset();
+    restoreUserMock.mockReset();
+    resetPasswordMock.mockReset();
   });
 
   it('returns a paginated user list for Admin tokens', async () => {
@@ -216,6 +257,113 @@ describe('users.routes', () => {
     });
 
     expect(response.statusCode).toBe(204);
+
+    await app.close();
+  });
+
+  it('updates a user for Admin tokens', async () => {
+    updateUserMock.mockResolvedValue({
+      id: 'user-id',
+      firstName: 'Updated',
+      lastName: 'Name',
+      email: 'updated.user@example.com',
+      role: 'BranchManager',
+      createdAtUtc: new Date().toISOString(),
+      updatedAtUtc: new Date().toISOString(),
+      deletedAtUtc: null,
+    });
+
+    const app = await buildApp();
+    const token = await app.jwt.sign({
+      id: 'admin-id',
+      sub: 'admin-id',
+      role: 'Admin',
+      agentId: null,
+      agentCode: null,
+      tokenType: 'access',
+    });
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/users/7f5e658f-9b80-4c98-a7ca-53d08b2b4ad2',
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        firstName: 'Updated',
+        lastName: 'Name',
+        role: 'BranchManager',
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().role).toBe('BranchManager');
+
+    await app.close();
+  });
+
+  it('restores a user for Admin tokens', async () => {
+    restoreUserMock.mockResolvedValue({
+      message: 'User account restored.',
+    });
+
+    const app = await buildApp();
+    const token = await app.jwt.sign({
+      id: 'admin-id',
+      sub: 'admin-id',
+      role: 'Admin',
+      agentId: null,
+      agentCode: null,
+      tokenType: 'access',
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/users/7f5e658f-9b80-4c98-a7ca-53d08b2b4ad2/restore',
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().message).toBe('User account restored.');
+
+    await app.close();
+  });
+
+  it('resets a user password for Admin tokens', async () => {
+    resetPasswordMock.mockResolvedValue({
+      message: 'Password reset initiated.',
+    });
+
+    const app = await buildApp();
+    const token = await app.jwt.sign({
+      id: 'admin-id',
+      sub: 'admin-id',
+      role: 'Admin',
+      agentId: null,
+      agentCode: null,
+      tokenType: 'access',
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/users/7f5e658f-9b80-4c98-a7ca-53d08b2b4ad2/reset-password',
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().message).toBe('Password reset initiated.');
+
+    await app.close();
+  });
+
+  it('returns startup diagnostics', async () => {
+    const app = await buildApp();
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/diagnostics/startup',
+    });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json().status).toBe('degraded');
 
     await app.close();
   });

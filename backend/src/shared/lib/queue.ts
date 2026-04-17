@@ -8,7 +8,7 @@ import {
   type WorkerOptions,
 } from 'bullmq';
 
-import { redis } from '../../lib/redis';
+import { isRedisEnabled, redis } from '../../lib/redis';
 import { logger } from '../../lib/logger';
 
 type QueueJobDefinitions = object;
@@ -23,6 +23,20 @@ export interface WorkerDefinition {
   queue: QueueDefinition;
   concurrency?: number;
 }
+
+export interface QueueHealthSummary {
+  enabled: boolean;
+  status: 'ok' | 'disabled' | 'degraded';
+  redis: 'ok' | 'disabled' | 'down';
+  workerHeartbeat: {
+    status: 'fresh' | 'stale' | 'missing' | 'disabled';
+    timestampUtc: string | null;
+    ageMs: number | null;
+  };
+}
+
+const WORKER_HEARTBEAT_KEY = 'ops:worker-heartbeat';
+const WORKER_HEARTBEAT_STALE_MS = 90_000;
 
 export interface QueueHandle<TJobs extends QueueJobDefinitions> {
   queue: Queue<unknown, unknown, string>;
@@ -139,4 +153,60 @@ export function createLoggedWorker<TJobs extends QueueJobDefinitions, TResult = 
   });
 
   return worker;
+}
+
+export async function updateWorkerHeartbeat(now = new Date()): Promise<void> {
+  if (!isRedisEnabled) {
+    return;
+  }
+
+  await redis.connect();
+  await redis.set(WORKER_HEARTBEAT_KEY, now.toISOString());
+}
+
+export async function getQueueHealthSummary(now = new Date()): Promise<QueueHealthSummary> {
+  if (!isRedisEnabled) {
+    return {
+      enabled: false,
+      status: 'disabled',
+      redis: 'disabled',
+      workerHeartbeat: {
+        status: 'disabled',
+        timestampUtc: null,
+        ageMs: null,
+      },
+    };
+  }
+
+  await redis.connect();
+  await redis.ping();
+  const rawHeartbeat = await redis.get(WORKER_HEARTBEAT_KEY);
+
+  if (!rawHeartbeat) {
+    return {
+      enabled: true,
+      status: 'degraded',
+      redis: 'ok',
+      workerHeartbeat: {
+        status: 'missing',
+        timestampUtc: null,
+        ageMs: null,
+      },
+    };
+  }
+
+  const heartbeatDate = new Date(rawHeartbeat);
+  const ageMs = now.getTime() - heartbeatDate.getTime();
+  const isFresh = Number.isFinite(ageMs) && ageMs <= WORKER_HEARTBEAT_STALE_MS;
+
+  return {
+    enabled: true,
+    status: isFresh ? 'ok' : 'degraded',
+    redis: 'ok',
+    workerHeartbeat: {
+      status: isFresh ? 'fresh' : 'stale',
+      timestampUtc: heartbeatDate.toISOString(),
+      ageMs,
+    },
+  };
 }

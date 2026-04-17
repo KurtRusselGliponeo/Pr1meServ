@@ -43,3 +43,15 @@ export const CreateUserSchema = z.object({
   role: userRoleSchema,
 });
 export type CreateUser = z.infer<typeof CreateUserSchema>;
+
+export const UpdateUserSchema = z.object({
+  firstName: z.string().trim().min(2, 'First name is required.'),
+  lastName: z.string().trim().min(2, 'Last name is required.'),
+  role: userRoleSchema,
+});
+export type UpdateUser = z.infer<typeof UpdateUserSchema>;
+
+export const UserActionResponseSchema = z.object({
+  message: z.string().min(1),
+});
+export type UserActionResponse = z.infer<typeof UserActionResponseSchema>;
