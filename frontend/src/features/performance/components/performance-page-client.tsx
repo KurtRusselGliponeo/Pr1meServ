@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
 import { MonthYearPicker } from '@/components/ui/month-year-picker';
 import { useGetPerformanceMetrics } from '@/features/metrics/hooks/use-get-performance-metrics';
+import { useGetPerformanceLeaderboard } from '@/features/metrics/hooks/use-get-performance-leaderboard';
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat(undefined, {
@@ -22,6 +23,7 @@ export function PerformancePageClient() {
   const [month, setMonth] = React.useState(now.getMonth() + 1);
   const [year, setYear] = React.useState(now.getFullYear());
   const metricsQuery = useGetPerformanceMetrics(month, year);
+  const leaderboardQuery = useGetPerformanceLeaderboard(month, year);
 
   if (metricsQuery.isPending) {
     return <LoadingSkeleton rows={5} columns={3} />;
@@ -38,9 +40,7 @@ export function PerformancePageClient() {
   }
 
   const metrics = metricsQuery.data;
-  const topPeriods = [...metrics.points]
-    .sort((left, right) => right.api - left.api)
-    .slice(0, 4);
+  const leaderboardRows = leaderboardQuery.data?.rows.slice(0, 5) ?? [];
 
   return (
     <div className="space-y-6">
@@ -102,15 +102,15 @@ export function PerformancePageClient() {
                 <Trophy className="h-5 w-5 text-brand" />
               </div>
               <div>
-                <CardTitle className="text-xl">Top production periods</CardTitle>
-                <CardDescription>Highest API totals from imported monthly metrics.</CardDescription>
+                <CardTitle className="text-xl">Agent leaderboard rollup</CardTitle>
+                <CardDescription>Live score built from API, premium, commission, recruitment, and lapsation.</CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {topPeriods.map((point, index) => (
+            {leaderboardRows.map((row, index) => (
               <div
-                key={point.month}
+                key={row.agentId}
                 className="flex items-center justify-between rounded-[24px] border border-white/40 bg-background/70 p-4 dark:border-white/10"
               >
                 <div className="flex items-center gap-4">
@@ -118,13 +118,13 @@ export function PerformancePageClient() {
                     #{index + 1}
                   </div>
                   <div>
-                    <p className="font-semibold text-foreground">{point.label}</p>
+                    <p className="font-semibold text-foreground">{row.agentName}</p>
                     <p className="text-sm text-muted-foreground">
-                      Commission {formatCurrency(point.commissionAmount)}
+                      Recruitment {row.recruitmentCount} | Lapsation {row.lapsationCount}
                     </p>
                   </div>
                 </div>
-                <p className="text-lg font-semibold text-foreground">{formatCurrency(point.api)}</p>
+                <p className="text-lg font-semibold text-foreground">{formatCurrency(row.score)}</p>
               </div>
             ))}
           </CardContent>

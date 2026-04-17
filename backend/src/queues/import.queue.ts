@@ -3,12 +3,14 @@ import type {
   ApeImportJobPayload,
   NapImportJobPayload,
   PerImportJobPayload,
+  RecImportJobPayload,
 } from '@a1prime/schemas';
 
 export interface ImportQueueJobs {
   'process-nap-import': NapImportJobPayload;
   'process-per-import': PerImportJobPayload;
   'process-ape-import': ApeImportJobPayload;
+  'process-rec-import': RecImportJobPayload;
 }
 
 export const importQueueDefinition: QueueDefinition = {

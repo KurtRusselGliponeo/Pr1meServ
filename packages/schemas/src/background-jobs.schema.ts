@@ -25,6 +25,11 @@ export const NapImportRowSchema = z.object({
   api: nonNegativeNumberSchema,
   sumAssured: nonNegativeNumberSchema,
   commissionAmount: nonNegativeNumberSchema,
+  policyNumberId: z.string().uuid().optional(),
+  transactionType: z.string().trim().optional(),
+  creditStatus: z.string().trim().optional(),
+  lapseDateUtc: z.string().datetime().optional(),
+  reinstatedAtUtc: z.string().datetime().optional(),
 });
 export type NapImportRow = z.infer<typeof NapImportRowSchema>;
 
@@ -71,3 +76,18 @@ export const ApeImportJobPayloadSchema = z.object({
   rows: z.array(ApeImportRowSchema).min(1),
 });
 export type ApeImportJobPayload = z.infer<typeof ApeImportJobPayloadSchema>;
+
+export const RecImportRowSchema = z.object({
+  agentId: z.string().uuid(),
+  recordMonth: recordMonthSchema,
+  recruitmentCount: z.coerce.number().int().nonnegative(),
+});
+export type RecImportRow = z.infer<typeof RecImportRowSchema>;
+
+export const RecImportJobPayloadSchema = z.object({
+  importBatchId: z.string().trim().min(1),
+  fileName: z.string().trim().min(1),
+  initiatedByUserId: z.string().uuid(),
+  rows: z.array(RecImportRowSchema).min(1),
+});
+export type RecImportJobPayload = z.infer<typeof RecImportJobPayloadSchema>;

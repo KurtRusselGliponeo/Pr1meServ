@@ -6,16 +6,20 @@ import type {
   NapImportRow,
   PerImportJobPayload,
   PerImportRow,
+  RecImportJobPayload,
+  RecImportRow,
+  CaseStatus,
 } from '@a1prime/schemas';
 import {
   ApeImportJobPayloadSchema,
   NapImportJobPayloadSchema,
   PerImportJobPayloadSchema,
+  RecImportJobPayloadSchema,
 } from '@a1prime/schemas';
 
 import { db, withDbTransaction, type DbTransaction } from '@/db/client';
 import { BusinessRuleError } from '@/lib/errors';
-import { performanceMetrics } from '@/schema';
+import { clientProfiles, lapsationRecords, performanceMetrics } from '@/schema';
 
 const IMPORT_BATCH_SIZE = 200;
 
@@ -58,9 +62,26 @@ function toMetricInsertValues(rows: MetricLikeRow[]) {
     api: row.api.toFixed(4),
     sumAssured: row.sumAssured.toFixed(4),
     commissionAmount: row.commissionAmount.toFixed(4),
+    recruitmentCount: 0,
     createdAt: timestamp,
     updatedAt: timestamp,
   }));
+}
+
+function isNapLapseRow(row: NapImportRow): boolean {
+  return (
+    row.transactionType?.trim().toUpperCase() === 'LAPSE' &&
+    row.creditStatus?.trim().toUpperCase() === 'DEBIT' &&
+    Boolean(row.policyNumberId)
+  );
+}
+
+function isNapReinstatementRow(row: NapImportRow): boolean {
+  return (
+    row.transactionType?.trim().toUpperCase() === 'REINSTATEMENT' &&
+    row.creditStatus?.trim().toUpperCase() === 'DEBIT' &&
+    Boolean(row.policyNumberId)
+  );
 }
 
 function metricKey(row: Pick<MetricLikeRow, 'agentId' | 'recordMonth'>): string {
@@ -139,11 +160,25 @@ export class PerformanceImportService {
     for (const chunk of chunkRows(parsedPayload.rows, IMPORT_BATCH_SIZE)) {
       await withDbTransaction('imports.nap.batch-insert', async (tx) => {
         await tx.insert(performanceMetrics).values(toMetricInsertValues(chunk));
+        await this.applyNapLapsationTransitions(tx, chunk);
       });
       insertedRows += chunk.length;
     }
 
     return { insertedRows };
+  }
+
+  async processRecImport(payload: RecImportJobPayload): Promise<{ updatedRows: number }> {
+    const parsedPayload = RecImportJobPayloadSchema.parse(payload);
+    let updatedRows = 0;
+
+    for (const chunk of chunkRows(parsedPayload.rows, IMPORT_BATCH_SIZE)) {
+      await withDbTransaction('imports.rec.batch-update', async (tx) => {
+        updatedRows += await this.applyRecruitmentUpdates(tx, chunk);
+      });
+    }
+
+    return { updatedRows };
   }
 
   /**
@@ -250,6 +285,113 @@ export class PerformanceImportService {
     }
 
     return updatedRows;
+  }
+
+  private async applyRecruitmentUpdates(tx: DbTransaction, rows: RecImportRow[]): Promise<number> {
+    const existingRows = await tx
+      .select({
+        id: performanceMetrics.id,
+        agentId: performanceMetrics.agentId,
+        recordMonth: performanceMetrics.recordMonth,
+      })
+      .from(performanceMetrics)
+      .where(
+        and(
+          inArray(
+            performanceMetrics.agentId,
+            [...new Set(rows.map((row) => row.agentId))],
+          ),
+          inArray(
+            performanceMetrics.recordMonth,
+            [...new Set(rows.map((row) => row.recordMonth))],
+          ),
+        ),
+      );
+    const existingMap = new Map(existingRows.map((row) => [metricKey(row), row]));
+    let updatedRows = 0;
+
+    for (const row of rows) {
+      const existing = existingMap.get(metricKey(row));
+
+      if (!existing) {
+        await tx.insert(performanceMetrics).values({
+          agentId: row.agentId,
+          recordMonth: row.recordMonth,
+          modalPremium: '0.0000',
+          api: '0.0000',
+          sumAssured: '0.0000',
+          commissionAmount: '0.0000',
+          recruitmentCount: row.recruitmentCount,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+      } else {
+        await tx
+          .update(performanceMetrics)
+          .set({
+            recruitmentCount: row.recruitmentCount,
+            updatedAt: new Date(),
+          })
+          .where(eq(performanceMetrics.id, existing.id));
+      }
+
+      updatedRows += 1;
+    }
+
+    return updatedRows;
+  }
+
+  private async applyNapLapsationTransitions(tx: DbTransaction, rows: NapImportRow[]) {
+    const lapseRows = rows.filter(isNapLapseRow);
+    const reinstatementRows = rows.filter(isNapReinstatementRow);
+
+    for (const row of lapseRows) {
+      const policyNumberId = row.policyNumberId!;
+      const lapseDateUtc = row.lapseDateUtc ? new Date(row.lapseDateUtc) : new Date();
+
+      const [existing] = await tx
+        .select({ id: lapsationRecords.id })
+        .from(lapsationRecords)
+        .where(eq(lapsationRecords.policyNumberId, policyNumberId))
+        .limit(1);
+
+      if (existing) {
+        await tx
+          .update(lapsationRecords)
+          .set({ isAtRisk: true, reinstatedAtUtc: null, lapseDateUtc })
+          .where(eq(lapsationRecords.id, existing.id));
+      } else {
+        await tx.insert(lapsationRecords).values({
+          policyNumberId,
+          isAtRisk: true,
+          lapseDateUtc,
+          reinstatedAtUtc: null,
+        });
+      }
+
+      await tx
+        .update(clientProfiles)
+        .set({ policyStatus: 'Lapsed', caseStatus: 'Returned' as CaseStatus, updatedAt: new Date() })
+        .where(eq(clientProfiles.id, policyNumberId));
+    }
+
+    for (const row of reinstatementRows) {
+      const policyNumberId = row.policyNumberId!;
+      const reinstatedAtUtc = row.reinstatedAtUtc ? new Date(row.reinstatedAtUtc) : new Date();
+
+      await tx
+        .update(lapsationRecords)
+        .set({
+          isAtRisk: false,
+          reinstatedAtUtc,
+        })
+        .where(eq(lapsationRecords.policyNumberId, policyNumberId));
+
+      await tx
+        .update(clientProfiles)
+        .set({ policyStatus: 'Active', updatedAt: new Date() })
+        .where(eq(clientProfiles.id, policyNumberId));
+    }
   }
 }
 

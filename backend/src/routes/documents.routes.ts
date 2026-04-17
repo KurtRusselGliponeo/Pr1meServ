@@ -27,6 +27,14 @@ export const documentsRoutes: FastifyPluginAsync = async (app) => {
     return reply.code(200).send(await documentsService.fetchDocuments(parsed.category));
   });
 
+  app.get('/documents/:id/history', {
+    preHandler: [app.authenticate]
+  }, async (request, reply) => {
+    const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
+    const history = await documentsService.getDocumentHistory(id);
+    return reply.code(history.length > 0 ? 200 : 404).send(history.length > 0 ? history : { message: 'Document not found' });
+  });
+
   app.patch('/documents/:id/pin', {
     preHandler: [app.authenticate, requireRole(['Admin', 'BranchManager'])]
   }, async (request, reply) => {
@@ -34,6 +42,21 @@ export const documentsRoutes: FastifyPluginAsync = async (app) => {
     const { isPinned } = z.object({ isPinned: z.boolean() }).parse(request.body);
     const result = await documentsService.updatePinnedState(id, isPinned);
     return reply.code(result ? 200 : 404).send(result ?? { message: 'Document not found' });
+  });
+
+  app.post('/documents/cosaf-upload-complete', {
+    preHandler: [app.authenticate, requireRole(['Admin', 'BranchManager', 'Agent'])]
+  }, async (request, reply) => {
+    const parsed = z.object({
+      documentId: z.string().uuid(),
+      clientProfileId: z.string().uuid(),
+    }).parse(request.body);
+    const result = await documentsService.markCosafUploadComplete(
+      parsed.documentId,
+      parsed.clientProfileId,
+      request.authUser.sub,
+    );
+    return reply.code(result ? 200 : 404).send(result ?? { message: 'COSAF document not found' });
   });
 };
 

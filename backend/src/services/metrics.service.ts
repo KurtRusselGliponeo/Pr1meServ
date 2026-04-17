@@ -1,13 +1,15 @@
-import { and, gte, lt } from 'drizzle-orm';
+import { and, eq, gte, isNull, lt } from 'drizzle-orm';
 import Decimal from 'decimal.js';
 
 import type {
   GetPerformanceMetricsQuery,
+  PerformanceLeaderboardQuery,
+  PerformanceLeaderboardResponse,
   PerformanceMetricsResponse,
   PerformanceMetricPoint,
 } from '@a1prime/schemas';
 import { db } from '@/db/client';
-import { performanceMetrics } from '@/schema';
+import { agentProfiles, clientProfiles, lapsationRecords, performanceMetrics } from '@/schema';
 
 function toNumber(value: string | number | null | undefined) {
   return new Decimal(value ?? 0).toNumber();
@@ -92,6 +94,73 @@ export class MetricsService {
         totalCommission: totalCommission.toNumber(),
       },
       points: filteredPoints,
+    };
+  }
+
+  async getLeaderboard(query: PerformanceLeaderboardQuery): Promise<PerformanceLeaderboardResponse> {
+    const recordMonth = `${query.year}-${String(query.month).padStart(2, '0')}`;
+    const rows = await db
+      .select({
+        agentId: performanceMetrics.agentId,
+        agentName: agentProfiles.displayName,
+        recordMonth: performanceMetrics.recordMonth,
+        api: performanceMetrics.api,
+        modalPremium: performanceMetrics.modalPremium,
+        commissionAmount: performanceMetrics.commissionAmount,
+        recruitmentCount: performanceMetrics.recruitmentCount,
+      })
+      .from(performanceMetrics)
+      .innerJoin(
+        agentProfiles,
+        and(eq(agentProfiles.id, performanceMetrics.agentId), isNull(agentProfiles.deletedAtUtc)),
+      )
+      .where(eq(performanceMetrics.recordMonth, recordMonth));
+
+    const lapsationRows = await db
+      .select({
+        agentId: clientProfiles.assignedAgentId,
+      })
+      .from(lapsationRecords)
+      .innerJoin(clientProfiles, eq(clientProfiles.id, lapsationRecords.policyNumberId))
+      .where(and(isNull(lapsationRecords.reinstatedAtUtc), eq(lapsationRecords.isAtRisk, true)));
+
+    const lapsationCountByAgent = new Map<string, number>();
+    for (const row of lapsationRows) {
+      if (!row.agentId) {
+        continue;
+      }
+      lapsationCountByAgent.set(row.agentId, (lapsationCountByAgent.get(row.agentId) ?? 0) + 1);
+    }
+
+    const leaderboardRows = rows
+      .map((row) => {
+        const api = toNumber(row.api);
+        const commissionAmount = toNumber(row.commissionAmount);
+        const modalPremium = toNumber(row.modalPremium);
+        const lapsationCount = lapsationCountByAgent.get(row.agentId) ?? 0;
+        const recruitmentCount = row.recruitmentCount ?? 0;
+        const lapsationRate = api > 0 ? lapsationCount / api : 0;
+        const score = api + commissionAmount + modalPremium + recruitmentCount * 1000 - lapsationCount * 500;
+
+        return {
+          agentId: row.agentId,
+          agentName: row.agentName,
+          recordMonth: row.recordMonth,
+          api,
+          modalPremium,
+          commissionAmount,
+          recruitmentCount,
+          lapsationCount,
+          lapsationRate,
+          score,
+        };
+      })
+      .sort((left, right) => right.score - left.score);
+
+    return {
+      generatedAtUtc: new Date().toISOString(),
+      recordMonth,
+      rows: leaderboardRows,
     };
   }
 }

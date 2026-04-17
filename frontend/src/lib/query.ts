@@ -8,6 +8,8 @@ export const queryKeys = {
   updateAgent: ['update-agent'] as const,
   metrics: (filterRole: string, month: number, year: number) =>
     ['metrics', filterRole, month, year] as const,
+  performanceLeaderboard: (month: number, year: number) =>
+    ['performance-leaderboard', month, year] as const,
   documents: (category?: string) => ['documents', category ?? 'all'] as const,
   lapsation: ['lapsation'] as const,
   notificationLogs: ['notification-logs'] as const,

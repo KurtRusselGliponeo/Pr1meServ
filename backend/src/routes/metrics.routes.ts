@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 
-import { GetPerformanceMetricsQuerySchema } from '@a1prime/schemas';
+import { GetPerformanceMetricsQuerySchema, PerformanceLeaderboardQuerySchema } from '@a1prime/schemas';
 import { requireRole } from '@/middleware/require-role';
 import { metricsService } from '@/services/metrics.service';
 
@@ -19,6 +19,18 @@ const metricsRoutes: FastifyPluginAsync = async (app) => {
     async (request, reply) => {
       const query = GetPerformanceMetricsQuerySchema.parse(request.query);
       const result = await metricsService.getPerformanceMetrics(query);
+      return reply.code(200).send(result);
+    },
+  );
+
+  app.get(
+    '/metrics/leaderboard',
+    {
+      preHandler: [app.authenticate, requireRole(['Admin', 'BranchManager', 'Agent'])],
+    },
+    async (request, reply) => {
+      const query = PerformanceLeaderboardQuerySchema.parse(request.query);
+      const result = await metricsService.getLeaderboard(query);
       return reply.code(200).send(result);
     },
   );
