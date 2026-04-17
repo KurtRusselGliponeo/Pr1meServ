@@ -4,7 +4,7 @@ import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import type { CreateUser, ListUsersQuery, ListUsersResponse, ManagedUser } from '@a1prime/schemas';
 import { db, withDbTransaction } from '@/db/client';
 import { BusinessRuleError, NotFoundError } from '@/lib/errors';
-import { agentProfiles, userAccounts } from '@/schema';
+import { agentProfiles, clientProfiles, systemAuditLogs, userAccounts } from '@/schema';
 import { hashPassword } from '@/shared/lib/auth';
 import { logSystemAudit } from '@/shared/lib/audit';
 import { encryptEmail, hashEmail, normalizeEmail, decryptEmail } from '@/shared/lib/encryption';
@@ -181,6 +181,7 @@ export class UsersService {
         .select({
           id: userAccounts.id,
           encryptedEmail: userAccounts.encryptedEmail,
+          role: userAccounts.role,
           deletedAtUtc: userAccounts.deletedAtUtc,
         })
         .from(userAccounts)
@@ -201,6 +202,14 @@ export class UsersService {
         })
         .where(eq(userAccounts.id, userId));
 
+      const [linkedAgent] = await tx
+        .select({
+          id: agentProfiles.id,
+        })
+        .from(agentProfiles)
+        .where(and(eq(agentProfiles.userId, userId), isNull(agentProfiles.deletedAtUtc)))
+        .limit(1);
+
       await tx
         .update(agentProfiles)
         .set({
@@ -208,6 +217,43 @@ export class UsersService {
           updatedAt: deletedAtUtc,
         })
         .where(and(eq(agentProfiles.userId, userId), isNull(agentProfiles.deletedAtUtc)));
+
+      if (existingUser.role === 'Agent' && linkedAgent) {
+        const orphanedProfiles = await tx
+          .select({
+            id: clientProfiles.id,
+            assignedAgentId: clientProfiles.assignedAgentId,
+          })
+          .from(clientProfiles)
+          .where(and(eq(clientProfiles.assignedAgentId, linkedAgent.id), isNull(clientProfiles.deletedAtUtc)));
+
+        if (orphanedProfiles.length > 0) {
+          await tx
+            .update(clientProfiles)
+            .set({
+              assignedAgentId: null,
+              caseStatus: 'Orphan',
+              updatedAt: deletedAtUtc,
+            })
+            .where(eq(clientProfiles.assignedAgentId, linkedAgent.id));
+
+          await tx.insert(systemAuditLogs).values(
+            orphanedProfiles.map((profile) => ({
+              actorUserId: actorUserId,
+              action: 'client-profile.orphaned',
+              entityName: 'ClientProfile',
+              entityId: profile.id,
+              oldValue: {
+                assignedAgentId: profile.assignedAgentId,
+              },
+              newValue: {
+                assignedAgentId: null,
+                caseStatus: 'Orphan',
+              },
+            })),
+          );
+        }
+      }
 
       await logSystemAudit(
         {

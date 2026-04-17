@@ -11,6 +11,11 @@ import { useGetDocuments } from '../hooks/use-get-documents';
 import { useUpdateDocumentPin } from '../hooks/use-update-document-pin';
 
 const categories = ['All', 'COSAF', 'Compliance', 'Performance', 'Recruitment'] as const;
+const moduleQuickLinks = [
+  { href: '/dashboard/cosaf', label: 'COSAF' },
+  { href: '/dashboard/lapsation', label: 'Lapsation' },
+  { href: '/dashboard/performance', label: 'Performance' },
+] as const;
 
 function formatCreatedAt(value: string) {
   return new Intl.DateTimeFormat(undefined, {
@@ -80,6 +85,19 @@ export function DocumentsPageClient() {
           );
         })}
       </div>
+
+      <section className="floating-card bg-white/72 p-5 dark:bg-card/82">
+        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-brand/75">
+          Module Quick Links
+        </p>
+        <div className="mt-4 flex flex-wrap gap-3">
+          {moduleQuickLinks.map((link) => (
+            <Button key={link.href} type="button" variant="outline" size="sm" asChild>
+              <a href={link.href}>{link.label}</a>
+            </Button>
+          ))}
+        </div>
+      </section>
 
       {documentsQuery.data.length === 0 ? (
         <EmptyState

@@ -7,6 +7,13 @@ import { requireRole } from '@/middleware/require-role';
  * Registers BM Workflow routers catching Approved and Rejected hooks
  */
 export const cosafApprovalsRoutes: FastifyPluginAsync = async (app) => {
+  app.get('/cosaf-approvals', {
+    preHandler: [app.authenticate, requireRole(['Admin', 'BranchManager'])]
+  }, async (_request, reply) => {
+    const result = await cosafApprovalsService.listPendingApprovals();
+    return reply.code(200).send(result);
+  });
+
   app.post('/cosaf-approvals/:id/approve', {
     preHandler: [app.authenticate, requireRole(['Admin', 'BranchManager'])]
   }, async (request, reply) => {

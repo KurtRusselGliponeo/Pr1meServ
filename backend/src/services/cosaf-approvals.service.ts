@@ -2,14 +2,42 @@ import { db, withDbTransaction } from '@/db/client';
 import { agentProfiles, clientProfiles, cosafApprovals, systemAuditLogs, userAccounts } from '@/shared/db/schema';
 import { emailQueueService } from '@/services/email-queue.service';
 import { NotFoundError } from '@/lib/errors';
-import { and, eq, isNull } from 'drizzle-orm';
-import type { CaseStatus } from '@a1prime/schemas';
+import { and, desc, eq, isNull } from 'drizzle-orm';
+import type { CaseStatus, CosafApprovalListResponse } from '@a1prime/schemas';
 import { decryptEmail } from '@/shared/lib/encryption';
 
 /**
  * Orchestrates cross-table mutations mapping Branch Manager Approvals securely
  */
 export class CosafApprovalsService {
+  async listPendingApprovals(): Promise<CosafApprovalListResponse> {
+    const rows = await db
+      .select({
+        id: cosafApprovals.id,
+        clientProfileId: cosafApprovals.clientProfileId,
+        policyNumber: clientProfiles.policyNumber,
+        assignedAgentName: agentProfiles.displayName,
+        status: cosafApprovals.status,
+        createdAtUtc: cosafApprovals.createdAtUtc,
+      })
+      .from(cosafApprovals)
+      .innerJoin(clientProfiles, eq(clientProfiles.id, cosafApprovals.clientProfileId))
+      .leftJoin(agentProfiles, eq(agentProfiles.id, clientProfiles.assignedAgentId))
+      .where(eq(cosafApprovals.status, 'PENDING'))
+      .orderBy(desc(cosafApprovals.createdAtUtc));
+
+    return {
+      data: rows.map((row) => ({
+        id: row.id,
+        clientProfileId: row.clientProfileId,
+        policyNumber: row.policyNumber,
+        assignedAgentName: row.assignedAgentName ?? 'Unassigned',
+        status: row.status,
+        createdAtUtc: row.createdAtUtc.toISOString(),
+      })),
+    };
+  }
+
   /**
    * Executes atomic locking approving reassignment states and dispatching emails.
    */

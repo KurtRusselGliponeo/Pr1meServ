@@ -6,6 +6,7 @@ export * from './background-jobs.schema';
 export * from './client-profile-import.schema';
 export * from './client-profile-reassign.schema';
 export * from './client-profiles.schema';
+export * from './cosaf-approvals.schema';
 export * from './lapsation.schema';
 export * from './notifications.schema';
 export * from './performance-metrics.schema';

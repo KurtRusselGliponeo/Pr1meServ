@@ -1,6 +1,7 @@
 export const queryKeys = {
   clientProfiles: (page: number, filters: Record<string, string | number | undefined>) =>
     ['client-profiles', page, filters] as const,
+  cosafApprovals: ['cosaf-approvals'] as const,
   importProfiles: ['import-profiles'] as const,
   reassignClients: ['reassign-clients'] as const,
   agentProfile: (agentId: string) => ['agent-profile', agentId] as const,
