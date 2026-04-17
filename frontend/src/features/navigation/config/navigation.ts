@@ -1,5 +1,14 @@
 import type { LucideIcon } from 'lucide-react';
-import { BarChart3, LayoutDashboard, ShieldCheck, Users, AlertTriangle, Trophy, Library } from 'lucide-react';
+import {
+  BarChart3,
+  BellRing,
+  LayoutDashboard,
+  ShieldCheck,
+  Users,
+  AlertTriangle,
+  Trophy,
+  Library,
+} from 'lucide-react';
 import type { SystemRole } from '@a1prime/schemas';
 
 export interface NavigationItem {
@@ -41,6 +50,14 @@ export const dashboardNavigationItems: readonly NavigationItem[] = [
     label: 'User Management',
     description: 'Manage system access, roles, and account lifecycle.',
     icon: ShieldCheck,
+    allowedRoles: ['Admin'],
+    matchMode: 'startsWith',
+  },
+  {
+    href: '/dashboard/admin/notifications',
+    label: 'Notifications',
+    description: 'Review Gmail queue and delivery audit logs.',
+    icon: BellRing,
     allowedRoles: ['Admin'],
     matchMode: 'startsWith',
   },

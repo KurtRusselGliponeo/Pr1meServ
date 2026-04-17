@@ -9,7 +9,11 @@ import { ZodError } from 'zod';
 import authRoutes from './routes/auth.routes';
 import agentsRoutes from './routes/agents.routes';
 import clientProfilesRoutes from './routes/client-profiles.routes';
+import cosafApprovalsRoutes from './routes/cosaf-approvals.routes';
+import documentsRoutes from './routes/documents.routes';
+import lapsationRoutes from './routes/lapsation.routes';
 import metricsRoutes from './routes/metrics.routes';
+import notificationsRoutes from './routes/notifications.routes';
 import usersRoutes from './routes/users.routes';
 import { assertRedisConnection, isRedisEnabled, redis } from './lib/redis';
 import { logger } from './lib/logger';
@@ -150,7 +154,11 @@ const buildApp = async () => {
   await app.register(usersRoutes, { prefix: '/api/v1' });
   await app.register(agentsRoutes, { prefix: '/api/v1' });
   await app.register(clientProfilesRoutes, { prefix: '/api/v1' });
+  await app.register(cosafApprovalsRoutes, { prefix: '/api/v1' });
+  await app.register(documentsRoutes, { prefix: '/api/v1' });
+  await app.register(lapsationRoutes, { prefix: '/api/v1' });
   await app.register(metricsRoutes, { prefix: '/api/v1' });
+  await app.register(notificationsRoutes, { prefix: '/api/v1' });
 
   app.get('/health', async (_request, reply) => {
     try {

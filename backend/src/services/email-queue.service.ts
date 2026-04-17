@@ -1,6 +1,7 @@
 import { EmailQueuePayloadSchema, type EmailQueuePayload } from '@a1prime/schemas';
 
 import { notificationQueue } from '@/queues/notification.queue';
+import { logSystemAudit } from '@/shared/lib/audit';
 import { sendQueuedEmail } from '@/shared/mail/mailer';
 
 /**
@@ -14,7 +15,16 @@ export class EmailQueueService {
    * @returns A promise that resolves once the queue accepts the job.
    */
   async enqueueEmail(payload: EmailQueuePayload): Promise<void> {
-    await notificationQueue.add('send-email', EmailQueuePayloadSchema.parse(payload));
+    const parsedPayload = EmailQueuePayloadSchema.parse(payload);
+    await notificationQueue.add('send-email', parsedPayload);
+    await logSystemAudit({
+      action: 'email.enqueued',
+      entityName: 'NotificationEmail',
+      newValue: {
+        to: parsedPayload.to,
+        subject: parsedPayload.subject,
+      },
+    });
   }
 
   /**
@@ -25,7 +35,27 @@ export class EmailQueueService {
    */
   async processEmailJob(payload: EmailQueuePayload): Promise<void> {
     const parsedPayload = EmailQueuePayloadSchema.parse(payload);
-    await sendQueuedEmail(parsedPayload);
+    try {
+      await sendQueuedEmail(parsedPayload);
+      await logSystemAudit({
+        action: 'email.sent',
+        entityName: 'NotificationEmail',
+        newValue: {
+          to: parsedPayload.to,
+          subject: parsedPayload.subject,
+        },
+      });
+    } catch (error) {
+      await logSystemAudit({
+        action: 'email.failed',
+        entityName: 'NotificationEmail',
+        newValue: {
+          to: parsedPayload.to,
+          subject: parsedPayload.subject,
+        },
+      });
+      throw error;
+    }
   }
 }
 

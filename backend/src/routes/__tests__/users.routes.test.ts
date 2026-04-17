@@ -65,6 +65,7 @@ vi.mock('@/lib/redis', () => ({
     status: 'ready',
     ping: vi.fn().mockResolvedValue('PONG'),
     on: vi.fn(),
+    duplicate: vi.fn(() => ({ on: vi.fn() })),
     defineCommand: vi.fn(),
     rateLimit: vi.fn((key, timeWindow, _max, _continueExceeding, _exponentialBackoff, callback) => {
       callback(null, [1, Number(timeWindow)]);
