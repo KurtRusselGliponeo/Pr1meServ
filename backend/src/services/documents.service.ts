@@ -2,7 +2,7 @@ import { nanoid } from 'nanoid';
 import { r2Service } from '@/lib/r2';
 import { db } from '@/db/client';
 import { documentLibrary } from '@/shared/db/schema';
-import { eq } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 
 const PRESIGNED_URL_EXPIRES_IN = 3600; // 1 hr
 
@@ -23,9 +23,10 @@ export class DocumentsService {
     const [insertedDoc] = await db.insert(documentLibrary).values({
       uploadedByUserId: uploaderId,
       fileUrl: objectKey,
+      fileName,
       category,
       mimeType,
-      version: '1.0'
+      version: '1.0',
     }).returning();
     
     return { signedUrl, documentId: insertedDoc.id };
@@ -35,11 +36,28 @@ export class DocumentsService {
    * Safe fetch queries enforcing Enum Category mapping logic (e.g. filter by 'COSAF')
    */
   async fetchDocuments(category?: string) {
-    let query = db.select().from(documentLibrary);
     if (category) {
-      query = query.where(eq(documentLibrary.category, category));
+      return db
+        .select()
+        .from(documentLibrary)
+        .where(eq(documentLibrary.category, category))
+        .orderBy(desc(documentLibrary.isPinned), desc(documentLibrary.createdAtUtc));
     }
-    return query;
+
+    return db
+      .select()
+      .from(documentLibrary)
+      .orderBy(desc(documentLibrary.isPinned), desc(documentLibrary.createdAtUtc));
+  }
+
+  async updatePinnedState(documentId: string, isPinned: boolean) {
+    const [updatedDoc] = await db
+      .update(documentLibrary)
+      .set({ isPinned })
+      .where(eq(documentLibrary.id, documentId))
+      .returning();
+
+    return updatedDoc ?? null;
   }
 }
 

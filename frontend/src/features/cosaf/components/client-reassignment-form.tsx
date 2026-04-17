@@ -46,7 +46,7 @@ export function ClientReassignmentForm({
     resolver: zodResolver(ClientProfileReassignSchema as never),
     defaultValues: {
       sourceAgentId: '',
-      destinationAgentId: '',
+      destinationAgentId: null,
       clientProfileIds: clients.slice(0, 3).map((item) => item.id),
     },
   });
@@ -60,7 +60,7 @@ export function ClientReassignmentForm({
     await onSubmit(payload);
     form.reset({
       sourceAgentId: '',
-      destinationAgentId: '',
+      destinationAgentId: null,
       clientProfileIds: [],
     });
     setClientProfileIdsText('');
@@ -108,10 +108,19 @@ export function ClientReassignmentForm({
                   <FormItem>
                     <FormLabel>Destination agent id</FormLabel>
                     <FormControl>
-                      <Input placeholder="00000000-0000-0000-0000-000000000000" {...field} />
+                      <Input
+                        placeholder="Leave blank to orphan these clients"
+                        {...field}
+                        value={field.value ?? ''}
+                        onChange={(event) => {
+                          const nextValue = event.target.value.trim();
+                          field.onChange(nextValue.length > 0 ? nextValue : null);
+                        }}
+                      />
                     </FormControl>
                     <FormDescription>
-                      This agent becomes the new owner after confirmation.
+                      This agent becomes the new owner after confirmation. Leave it blank to move
+                      the records into an orphan queue.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -184,7 +193,7 @@ export function ClientReassignmentForm({
                 </Button>
               }
               sourceAgentId={values.sourceAgentId}
-              destinationAgentId={values.destinationAgentId}
+              destinationAgentId={values.destinationAgentId ?? 'Orphan queue'}
               totalClients={selectedClientIds.length}
               isPending={isPending}
               onConfirm={() =>

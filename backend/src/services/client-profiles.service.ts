@@ -13,13 +13,15 @@ import type {
 } from '@a1prime/schemas';
 import { BusinessRuleError, ForbiddenError, NotFoundError } from '@/lib/errors';
 import { db, type DbTransaction, withDbTransaction } from '@/db/client';
-import { agentProfiles, clientProfiles, systemAuditLogs } from '@/schema';
+import { agentProfiles, clientProfiles, systemAuditLogs, userAccounts } from '@/schema';
 import type { AuthTokenPayload } from '@/shared/lib/auth';
+import { emailQueueService } from '@/services/email-queue.service';
 import { r2Service } from '@/lib/r2';
+import { decryptEmail } from '@/shared/lib/encryption';
 
 type ClientProfileRow = {
   id: string;
-  assignedAgentId: string;
+  assignedAgentId: string | null;
   firstName: string;
   lastName: string;
   policyNumber: string;
@@ -35,6 +37,8 @@ type ClientProfileRow = {
 
 type AgentLookupRow = {
   id: string;
+  displayName: string;
+  email: string;
 };
 
 const MAX_IMPORT_FILE_SIZE_BYTES = 20 * 1024 * 1024;
@@ -198,14 +202,14 @@ export class ClientProfilesService {
     return withDbTransaction('cosaf.reassign-profiles', async (tx) => {
       const [sourceAgent, destinationAgent] = await Promise.all([
         this.findActiveAgent(tx, input.sourceAgentId),
-        this.findActiveAgent(tx, input.destinationAgentId),
+        input.destinationAgentId ? this.findActiveAgent(tx, input.destinationAgentId) : null,
       ]);
 
       if (!sourceAgent) {
         throw new NotFoundError('Source agent was not found.');
       }
 
-      if (!destinationAgent) {
+      if (input.destinationAgentId && !destinationAgent) {
         throw new NotFoundError('Destination agent was not found.');
       }
 
@@ -235,6 +239,7 @@ export class ClientProfilesService {
         .update(clientProfiles)
         .set({
           assignedAgentId: input.destinationAgentId,
+          caseStatus: input.destinationAgentId ? 'For Approval' : 'Orphan',
           updatedAt,
         })
         .where(inArray(clientProfiles.id, input.clientProfileIds));
@@ -250,9 +255,18 @@ export class ClientProfilesService {
           },
           newValue: {
             assignedAgentId: input.destinationAgentId,
+            caseStatus: input.destinationAgentId ? 'For Approval' : 'Orphan',
           },
         })),
       );
+
+      if (destinationAgent) {
+        await emailQueueService.enqueueEmail({
+          to: destinationAgent.email,
+          subject: 'New client reassignment batch',
+          text: `${rows.length} client profile(s) were reassigned to ${destinationAgent.displayName}.`,
+        });
+      }
 
       return {
         reassignedCount: rows.length,
@@ -285,12 +299,27 @@ export class ClientProfilesService {
     const [agent] = await tx
       .select({
         id: agentProfiles.id,
+        displayName: agentProfiles.displayName,
+        encryptedEmail: userAccounts.encryptedEmail,
       })
       .from(agentProfiles)
-      .where(and(eq(agentProfiles.id, agentId), isNull(agentProfiles.deletedAtUtc)))
+      .innerJoin(userAccounts, eq(userAccounts.id, agentProfiles.userId))
+      .where(
+        and(
+          eq(agentProfiles.id, agentId),
+          isNull(agentProfiles.deletedAtUtc),
+          isNull(userAccounts.deletedAtUtc),
+        ),
+      )
       .limit(1);
 
-    return agent ?? null;
+    return agent
+      ? {
+          id: agent.id,
+          displayName: agent.displayName,
+          email: decryptEmail(agent.encryptedEmail),
+        }
+      : null;
   }
 }
 

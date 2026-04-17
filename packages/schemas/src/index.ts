@@ -16,10 +16,12 @@ export type SystemRole = z.infer<typeof systemRoleSchema>;
 export const caseStatuses = [
   'Uncontacted',
   'Contacted',
-  'Submitted',
-  'Reviewed',
-  'Completed',
+  'For Approval',
+  'Forms Submitted',
+  'BM Signed',
+  'Done',
   'Returned',
+  'Orphan',
 ] as const;
 export const caseStatusSchema = z.enum(caseStatuses);
 export type CaseStatus = z.infer<typeof caseStatusSchema>;

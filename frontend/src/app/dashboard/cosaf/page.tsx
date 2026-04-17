@@ -2,10 +2,12 @@ import { CosafPageClient } from '@/features/cosaf/components/cosaf-page-client';
 import { FileDown, CheckCircle, XCircle } from 'lucide-react';
 
 interface CosafPageProps {
-  searchParams: { [key: string]: string | string[] | undefined };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-export default function CosafPage({ searchParams }: CosafPageProps) {
+export default async function CosafPage({ searchParams }: CosafPageProps) {
+  const resolvedSearchParams = await searchParams;
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-8 fade-in">
       
@@ -42,7 +44,7 @@ export default function CosafPage({ searchParams }: CosafPageProps) {
       </section>
 
       <section>
-        <CosafPageClient searchParams={searchParams} />
+        <CosafPageClient searchParams={resolvedSearchParams} />
       </section>
     </div>
   );

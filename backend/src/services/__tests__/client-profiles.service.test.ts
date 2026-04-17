@@ -80,6 +80,16 @@ vi.mock('@/lib/r2', () => ({
   },
 }));
 
+vi.mock('@/services/email-queue.service', () => ({
+  emailQueueService: {
+    enqueueEmail: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
+vi.mock('@/shared/lib/encryption', () => ({
+  decryptEmail: vi.fn(() => 'agent@example.com'),
+}));
+
 function createRowsBuilder(result: unknown[]) {
   return {
     from: vi.fn(() => ({
@@ -103,6 +113,11 @@ function createCountBuilder(total: number) {
 function createTxAgentBuilder(result: unknown[]) {
   return {
     from: vi.fn(() => ({
+      innerJoin: vi.fn(() => ({
+        where: vi.fn(() => ({
+          limit: vi.fn().mockResolvedValue(result),
+        })),
+      })),
       where: vi.fn(() => ({
         limit: vi.fn().mockResolvedValue(result),
       })),

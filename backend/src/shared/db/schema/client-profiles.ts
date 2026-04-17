@@ -9,8 +9,7 @@ export const clientProfiles = pgTable(
   {
     id: uuid('Id').primaryKey().defaultRandom(),
     assignedAgentId: uuid('AssignedAgentId')
-      .references(() => agentProfiles.id)
-      .notNull(),
+      .references(() => agentProfiles.id),
     firstName: varchar('FirstName', { length: 100 }).notNull(),
     lastName: varchar('LastName', { length: 100 }).notNull(),
     policyNumber: varchar('PolicyNumber', { length: 50 }).notNull().unique(),

@@ -1,9 +1,10 @@
 import { db, withDbTransaction } from '@/db/client';
-import { clientProfiles, cosafApprovals, systemAuditLogs } from '@/shared/db/schema';
+import { agentProfiles, clientProfiles, cosafApprovals, systemAuditLogs, userAccounts } from '@/shared/db/schema';
 import { emailQueueService } from '@/services/email-queue.service';
 import { NotFoundError } from '@/lib/errors';
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import type { CaseStatus } from '@a1prime/schemas';
+import { decryptEmail } from '@/shared/lib/encryption';
 
 /**
  * Orchestrates cross-table mutations mapping Branch Manager Approvals securely
@@ -16,9 +17,10 @@ export class CosafApprovalsService {
     return withDbTransaction('approve.cosaf', async (tx) => {
        const [approval] = await tx.select().from(cosafApprovals).where(eq(cosafApprovals.id, approvalId));
        if (!approval) throw new NotFoundError('Approval record not found');
+       const recipientEmail = await this.findAssignedAgentEmail(approval.clientProfileId);
        
        await tx.update(cosafApprovals).set({ status: 'APPROVED' }).where(eq(cosafApprovals.id, approvalId));
-       await tx.update(clientProfiles).set({ caseStatus: 'Completed' as CaseStatus }).where(eq(clientProfiles.id, approval.clientProfileId));
+       await tx.update(clientProfiles).set({ caseStatus: 'Done' as CaseStatus }).where(eq(clientProfiles.id, approval.clientProfileId));
        
        await tx.insert(systemAuditLogs).values({
          actorUserId: actorId,
@@ -28,11 +30,13 @@ export class CosafApprovalsService {
          newValue: { status: 'APPROVED' }
        });
        
-       await emailQueueService.enqueueEmail({
-         to: 'agent@a1prime.local',
-         subject: 'COSAF Form Approved',
-         text: `Branch manager has approved COSAF reassignment for Client mapping.`
-       });
+       if (recipientEmail) {
+         await emailQueueService.enqueueEmail({
+           to: recipientEmail,
+           subject: 'COSAF Form Approved',
+           text: 'Branch manager has approved the reassignment request for one of your clients.',
+         });
+       }
        return { success: true };
     });
   }
@@ -44,6 +48,7 @@ export class CosafApprovalsService {
      return withDbTransaction('reject.cosaf', async (tx) => {
        const [approval] = await tx.select().from(cosafApprovals).where(eq(cosafApprovals.id, approvalId));
        if (!approval) throw new NotFoundError('Approval record not found');
+       const recipientEmail = await this.findAssignedAgentEmail(approval.clientProfileId);
        
        await tx.update(cosafApprovals).set({ status: 'REJECTED' }).where(eq(cosafApprovals.id, approvalId));
        await tx.update(clientProfiles).set({ caseStatus: 'Returned' as CaseStatus }).where(eq(clientProfiles.id, approval.clientProfileId));
@@ -56,14 +61,37 @@ export class CosafApprovalsService {
          newValue: { status: 'REJECTED', reason }
        });
        
-       await emailQueueService.enqueueEmail({
-         to: 'agent@a1prime.local',
-         subject: 'COSAF Form Returned',
-         text: `Branch Manager securely returned this record. Rejection Reason: ${reason}`
-       });
+       if (recipientEmail) {
+         await emailQueueService.enqueueEmail({
+           to: recipientEmail,
+           subject: 'COSAF Form Returned',
+           text: `Branch Manager returned the COSAF request. Reason: ${reason}`,
+         });
+       }
        
        return { success: true };
     });
+  }
+
+  private async findAssignedAgentEmail(clientProfileId: string): Promise<string | null> {
+    const [record] = await db
+      .select({
+        encryptedEmail: userAccounts.encryptedEmail,
+      })
+      .from(clientProfiles)
+      .innerJoin(agentProfiles, eq(agentProfiles.id, clientProfiles.assignedAgentId))
+      .innerJoin(userAccounts, eq(userAccounts.id, agentProfiles.userId))
+      .where(
+        and(
+          eq(clientProfiles.id, clientProfileId),
+          isNull(clientProfiles.deletedAtUtc),
+          isNull(agentProfiles.deletedAtUtc),
+          isNull(userAccounts.deletedAtUtc),
+        ),
+      )
+      .limit(1);
+
+    return record ? decryptEmail(record.encryptedEmail) : null;
   }
 }
 

@@ -26,6 +26,15 @@ export const documentsRoutes: FastifyPluginAsync = async (app) => {
     const parsed = z.object({ category: z.string().optional() }).parse(request.query);
     return reply.code(200).send(await documentsService.fetchDocuments(parsed.category));
   });
+
+  app.patch('/documents/:id/pin', {
+    preHandler: [app.authenticate, requireRole(['Admin', 'BranchManager'])]
+  }, async (request, reply) => {
+    const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
+    const { isPinned } = z.object({ isPinned: z.boolean() }).parse(request.body);
+    const result = await documentsService.updatePinnedState(id, isPinned);
+    return reply.code(result ? 200 : 404).send(result ?? { message: 'Document not found' });
+  });
 };
 
 export default documentsRoutes;
