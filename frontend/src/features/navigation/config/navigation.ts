@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { BarChart3, LayoutDashboard, ShieldCheck, Users } from 'lucide-react';
+import { BarChart3, LayoutDashboard, ShieldCheck, Users, AlertTriangle, Trophy, Library } from 'lucide-react';
 import type { SystemRole } from '@a1prime/schemas';
 
 export interface NavigationItem {
@@ -42,6 +42,30 @@ export const dashboardNavigationItems: readonly NavigationItem[] = [
     description: 'Manage system access, roles, and account lifecycle.',
     icon: ShieldCheck,
     allowedRoles: ['Admin'],
+    matchMode: 'startsWith',
+  },
+  {
+    href: '/dashboard/lapsation',
+    label: 'Lapsation',
+    description: 'Track at-risk policies and reinstatements.',
+    icon: AlertTriangle,
+    allowedRoles: ['Admin', 'BranchManager', 'Agent'],
+    matchMode: 'startsWith',
+  },
+  {
+    href: '/dashboard/performance',
+    label: 'Performance',
+    description: 'Agent leaderboards and KPI tracking.',
+    icon: Trophy,
+    allowedRoles: ['Admin', 'BranchManager'],
+    matchMode: 'startsWith',
+  },
+  {
+    href: '/dashboard/documents',
+    label: 'Documents',
+    description: 'Branch form library and templates.',
+    icon: Library,
+    allowedRoles: ['Admin', 'BranchManager', 'Agent'],
     matchMode: 'startsWith',
   },
 ] as const;

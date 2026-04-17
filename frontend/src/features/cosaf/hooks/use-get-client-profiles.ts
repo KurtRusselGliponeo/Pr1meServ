@@ -14,11 +14,12 @@ export interface ClientProfilesFilters {
 }
 
 export function useGetClientProfiles(page: number, filters: ClientProfilesFilters) {
+  const validStatuses = ['Uncontacted', 'Contacted', 'Submitted', 'Reviewed', 'Completed', 'Returned'];
   const parsedQuery = ListClientProfilesQuerySchema.parse({
     page,
     pageSize: 10,
-    status: filters.status,
-    agentId: filters.agentId,
+    status: validStatuses.includes(filters.status as string) ? filters.status : undefined,
+    agentId: filters.agentId || undefined,
   });
 
   const query = useQuery({
