@@ -27,7 +27,8 @@ export class MetricsService {
     query: GetPerformanceMetricsQuery,
   ): Promise<PerformanceMetricsResponse> {
     const startMonth = `${query.year}-01`;
-    const endMonth = `${query.year + 1}-01`;
+    const nextMonthDate = new Date(Date.UTC(query.year, query.month, 1));
+    const endMonth = `${nextMonthDate.getUTCFullYear()}-${String(nextMonthDate.getUTCMonth() + 1).padStart(2, '0')}`;
 
     const rows = await db
       .select({
@@ -44,7 +45,8 @@ export class MetricsService {
           gte(performanceMetrics.recordMonth, startMonth),
           lt(performanceMetrics.recordMonth, endMonth),
         ),
-      );
+      )
+      .orderBy(performanceMetrics.recordMonth);
 
     const selectedMonth = `${query.year}-${String(query.month).padStart(2, '0')}`;
     const monthFormatter = new Intl.DateTimeFormat('en', { month: 'short' });

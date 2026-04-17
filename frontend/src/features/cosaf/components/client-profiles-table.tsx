@@ -1,6 +1,5 @@
 'use client';
 
-import { useMemo } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { FileSearch } from 'lucide-react';
 import type { ClientProfile } from '@a1prime/schemas';
@@ -29,69 +28,51 @@ export function ClientProfilesTable({
   onSearchChange,
   onPageChange,
 }: ClientProfilesTableProps) {
-  const filteredData = useMemo(() => {
-    const query = searchValue.trim().toLowerCase();
+  const columns: Array<ColumnDef<ClientProfile>> = [
+    {
+      accessorKey: 'policyNumber',
+      header: 'Policy',
+      cell: ({ row }) => (
+        <div>
+          <p className="font-medium text-foreground">{row.original.policyNumber}</p>
+          <p className="text-xs text-muted-foreground">{row.original.id}</p>
+        </div>
+      ),
+    },
+    {
+      id: 'client',
+      header: 'Client',
+      cell: ({ row }) => (
+        <div>
+          <p className="font-medium text-foreground">
+            {row.original.firstName} {row.original.lastName}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Assigned agent: {row.original.assignedAgentId ?? 'Unassigned'}
+          </p>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'caseStatus',
+      header: 'Case status',
+    },
+    {
+      accessorKey: 'policyStatus',
+      header: 'Policy status',
+    },
+    {
+      accessorKey: 'modalPremium',
+      header: 'Premium',
+    },
+  ];
 
-    if (!query) {
-      return data;
-    }
-
-    return data.filter((profile) =>
-      [profile.firstName, profile.lastName, profile.policyNumber]
-        .join(' ')
-        .toLowerCase()
-        .includes(query),
-    );
-  }, [data, searchValue]);
-
-  const columns = useMemo<Array<ColumnDef<ClientProfile>>>(
-    () => [
-      {
-        accessorKey: 'policyNumber',
-        header: 'Policy',
-        cell: ({ row }) => (
-          <div>
-            <p className="font-medium text-foreground">{row.original.policyNumber}</p>
-            <p className="text-xs text-muted-foreground">{row.original.id}</p>
-          </div>
-        ),
-      },
-      {
-        id: 'client',
-        header: 'Client',
-        cell: ({ row }) => (
-          <div>
-            <p className="font-medium text-foreground">
-              {row.original.firstName} {row.original.lastName}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Assigned agent: {row.original.assignedAgentId}
-            </p>
-          </div>
-        ),
-      },
-      {
-        accessorKey: 'caseStatus',
-        header: 'Case status',
-      },
-      {
-        accessorKey: 'policyStatus',
-        header: 'Policy status',
-      },
-      {
-        accessorKey: 'modalPremium',
-        header: 'Premium',
-      },
-    ],
-    [],
-  );
-
-  if (filteredData.length === 0) {
+  if (data.length === 0) {
     return (
       <EmptyState
         icon={FileSearch}
         title="No client profiles found for the current filter"
-        description="Try a different search term or clear the active filters to broaden the result set."
+        description="Try a different search term or clear the active filters to broaden the server results."
       />
     );
   }
@@ -100,7 +81,7 @@ export function ClientProfilesTable({
     <div className="space-y-4">
       <DataTable
         columns={columns}
-        data={filteredData}
+        data={data}
         searchValue={searchValue}
         onSearchChange={onSearchChange}
         searchPlaceholder="Search by client name or policy number"

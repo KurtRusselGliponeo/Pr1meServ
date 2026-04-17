@@ -14,18 +14,29 @@ export interface ClientProfilesFilters {
 }
 
 export function useGetClientProfiles(page: number, filters: ClientProfilesFilters) {
-  const validStatuses = ['Uncontacted', 'Contacted', 'Submitted', 'Reviewed', 'Completed', 'Returned'];
+  const validStatuses = [
+    'Uncontacted',
+    'Contacted',
+    'For Approval',
+    'Forms Submitted',
+    'BM Signed',
+    'Done',
+    'Returned',
+    'Orphan',
+  ];
+  const normalizedSearch = filters.search?.trim() || undefined;
   const parsedQuery = ListClientProfilesQuerySchema.parse({
     page,
     pageSize: 10,
     status: validStatuses.includes(filters.status as string) ? filters.status : undefined,
     agentId: filters.agentId || undefined,
+    search: normalizedSearch,
   });
 
   const query = useQuery({
     queryKey: queryKeys.clientProfiles(page, {
       agentId: filters.agentId,
-      search: filters.search,
+      search: normalizedSearch,
       status: filters.status,
     }),
     queryFn: async () => {

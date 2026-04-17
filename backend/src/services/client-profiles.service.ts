@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, ilike, inArray, isNull, or, sql } from 'drizzle-orm';
 import { fileTypeFromBuffer } from 'file-type';
 import { nanoid } from 'nanoid';
 import type { MultipartFile } from '@fastify/multipart';
@@ -87,6 +87,17 @@ export class ClientProfilesService {
       conditions.push(eq(clientProfiles.caseStatus, query.status));
     }
 
+    if (query.search) {
+      const searchTerm = `%${query.search.trim()}%`;
+      conditions.push(
+        or(
+          ilike(clientProfiles.firstName, searchTerm),
+          ilike(clientProfiles.lastName, searchTerm),
+          ilike(clientProfiles.policyNumber, searchTerm),
+        )!,
+      );
+    }
+
     const whereClause = and(...conditions);
 
     const [rows, totalRows] = await Promise.all([
@@ -108,6 +119,7 @@ export class ClientProfilesService {
         })
         .from(clientProfiles)
         .where(whereClause)
+        .orderBy(desc(clientProfiles.updatedAt), desc(clientProfiles.createdAt))
         .limit(pageSize)
         .offset(offset),
       db

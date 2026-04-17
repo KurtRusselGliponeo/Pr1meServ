@@ -26,11 +26,16 @@ export function CosafPageClient({ searchParams }: CosafPageClientProps) {
 
   const [page, setPage] = React.useState(Number.isNaN(initialPage) ? 1 : initialPage);
   const [searchValue, setSearchValue] = React.useState('');
+  const deferredSearchValue = React.useDeferredValue(searchValue);
   const [status] = React.useState(initialStatus);
+
+  React.useEffect(() => {
+    setPage(1);
+  }, [deferredSearchValue, status]);
 
   const { data, isPending, isPlaceholderData, errorMessage } = useGetClientProfiles(page, {
     status,
-    search: searchValue,
+    search: deferredSearchValue,
   });
 
   return (
