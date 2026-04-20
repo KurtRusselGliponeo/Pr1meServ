@@ -1,9 +1,22 @@
 import type { FastifyPluginAsync } from 'fastify';
-import * as Sentry from '@sentry/node';
-import { nodeProfilingIntegration } from '@sentry/profiling-node';
 
 const sentryPlugin: FastifyPluginAsync = async (app) => {
   if (!process.env.SENTRY_DSN) {
+    return;
+  }
+
+  let Sentry: typeof import('@sentry/node');
+  let nodeProfilingIntegration: typeof import('@sentry/profiling-node').nodeProfilingIntegration;
+
+  try {
+    ({ default: Sentry } = await import('@sentry/node').then((module) => ({
+      default: module,
+    })));
+    ({ nodeProfilingIntegration } = await import('@sentry/profiling-node'));
+  } catch {
+    app.log.warn(
+      'Sentry packages are not installed. Skipping backend Sentry initialization.',
+    );
     return;
   }
 
@@ -14,7 +27,7 @@ const sentryPlugin: FastifyPluginAsync = async (app) => {
     tracesSampleRate: 0.05,
     profilesSampleRate: 0.1,
     integrations: [nodeProfilingIntegration()],
-    beforeSend(event: Parameters<typeof Sentry.init>[0] extends { beforeSend?: (event: infer T) => unknown } ? T : never) {
+    beforeSend(event) {
       if (event.user) {
         delete event.user.email;
         delete event.user.ip_address;
