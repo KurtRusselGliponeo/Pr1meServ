@@ -19,6 +19,11 @@ export const phaseOneMigrations = [
   clientProfileStatusesMigration,
 ];
 
-export const phaseTwoMigrations = [clientProfilesSearchIndexMigration];
+export const phaseTwoMigrations = [
+  clientProfilesSearchIndexMigration,
+];
 
-export const applicationMigrations = [...phaseOneMigrations, ...phaseTwoMigrations];
+export const applicationMigrations = [
+  ...phaseOneMigrations,
+  ...phaseTwoMigrations,
+];

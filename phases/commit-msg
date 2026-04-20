@@ -1,0 +1,23 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Enforce Conventional Commits format
+# Examples: feat(cosaf): add reassignment batch, fix(auth): refresh token expiry
+commit_regex='^(feat|fix|docs|style|refactor|perf|test|chore|ci|build|revert)(\(.+\))?: .{1,100}'
+
+if ! grep -qE "$commit_regex" "$1"; then
+  echo ""
+  echo "  ✗ Invalid commit message format."
+  echo ""
+  echo "  Use Conventional Commits:"
+  echo "  feat(scope): description"
+  echo "  fix(scope): description"
+  echo "  docs|style|refactor|perf|test|chore|ci|build|revert"
+  echo ""
+  echo "  Examples:"
+  echo "  feat(cosaf): add client reassignment batch endpoint"
+  echo "  fix(auth): correct refresh token expiry calculation"
+  echo "  chore(deps): upgrade drizzle-orm to 0.39"
+  echo ""
+  exit 1
+fi

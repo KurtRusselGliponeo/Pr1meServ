@@ -1,0 +1,39 @@
+{
+  "name": "a1prime",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "prepare": "husky",
+    "lint:all": "npm run lint --workspace=frontend --workspace=backend",
+    "typecheck:all": "npm run typecheck --workspace=frontend --workspace=backend",
+    "test:all": "npm run test --workspace=backend",
+    "test:unit": "npm run test:unit --workspace=backend",
+    "test:api": "npm run test:api --workspace=backend",
+    "e2e": "npm run playwright test --workspace=frontend"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^15.3.0"
+  },
+  "lint-staged": {
+    "frontend/**/*.{ts,tsx}": [
+      "bash -c 'cd frontend && npx eslint --max-warnings=0 --fix'",
+      "bash -c 'cd frontend && npx tsc --noEmit'"
+    ],
+    "backend/src/**/*.ts": [
+      "bash -c 'cd backend && npx eslint --max-warnings=0 --fix'",
+      "bash -c 'cd backend && npx tsc --noEmit'"
+    ],
+    "packages/schemas/src/**/*.ts": [
+      "bash -c 'cd packages/schemas && npx tsc --noEmit'"
+    ],
+    "**/*.{json,md,yml,yaml}": [
+      "npx prettier --write"
+    ]
+  }
+}

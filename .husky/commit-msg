@@ -1,0 +1,16 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+commit_regex='^(feat|fix|docs|style|refactor|perf|test|chore|ci|build|revert)(\(.+\))?: .{1,100}'
+
+if ! grep -qE "$commit_regex" "$1"; then
+  echo ""
+  echo "  x Invalid commit message format."
+  echo ""
+  echo "  Use Conventional Commits:"
+  echo "  feat(scope): description"
+  echo "  fix(scope): description"
+  echo "  docs|style|refactor|perf|test|chore|ci|build|revert"
+  echo ""
+  exit 1
+fi

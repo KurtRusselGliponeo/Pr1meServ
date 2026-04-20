@@ -6,6 +6,7 @@ import fastifyJwt from '@fastify/jwt';
 import multipart from '@fastify/multipart';
 import rateLimit from '@fastify/rate-limit';
 import { ZodError } from 'zod';
+import sentryPlugin from './app/plugins/sentry';
 import authRoutes from './features/identity/identity.route';
 import agentsRoutes from './features/agents/agents.route';
 import clientProfilesRoutes from './features/client-profiles/client-profiles.route';
@@ -40,6 +41,8 @@ const buildApp = async () => {
   const app = Fastify({
     loggerInstance: logger,
   });
+
+  await app.register(sentryPlugin);
 
   await app.register(cors, {
     origin: [process.env.FRONTEND_URL || 'http://localhost:3000'],

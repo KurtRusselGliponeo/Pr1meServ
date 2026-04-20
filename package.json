@@ -1,10 +1,11 @@
 {
   "name": "a1-prime-branch-management",
   "version": "1.0.0",
-  "description": "PRU Life UK — A1 Prime Branch Management & Agent Performance System",
+  "description": "PRU Life UK - A1 Prime Branch Management & Agent Performance System",
   "private": true,
   "scripts": {
-    "dev": "concurrently -n \"WEB 🌐,API ⚡\" -c \"bgBlue.bold,bgMagenta.bold\" \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "prepare": "husky",
+    "dev": "concurrently -n \"WEB,API\" -c \"bgBlue.bold,bgMagenta.bold\" \"npm run dev:frontend\" \"npm run dev:backend\"",
     "dev:frontend": "npm run dev --workspace=frontend",
     "dev:backend": "npm run dev --workspace=backend",
     "install:frontend": "npm install --workspace=frontend",
@@ -17,7 +18,11 @@
     "format:check": "prettier --check .",
     "format:write": "prettier --write .",
     "typecheck:all": "npm run typecheck --workspaces --if-present",
-    "lint:all": "npm run lint --workspaces --if-present"
+    "lint:all": "npm run lint --workspaces --if-present",
+    "test:all": "npm run test --workspace=backend",
+    "test:unit": "npm run test:unit --workspace=backend",
+    "test:api": "npm run test:api --workspace=backend",
+    "e2e": "npm run test:e2e --workspace=frontend"
   },
   "workspaces": [
     "frontend",
@@ -29,6 +34,24 @@
     "npm": ">=10.0.0"
   },
   "devDependencies": {
-    "concurrently": "^9.2.1"
+    "concurrently": "^9.2.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.3.0"
+  },
+  "lint-staged": {
+    "frontend/**/*.{ts,tsx}": [
+      "npm exec --workspace=frontend eslint -- --max-warnings=0 --fix",
+      "npm exec --workspace=frontend tsc -- --noEmit"
+    ],
+    "backend/src/**/*.ts": [
+      "npm exec --workspace=backend eslint -- --max-warnings=0 --fix",
+      "npm exec --workspace=backend tsc -- --noEmit"
+    ],
+    "packages/schemas/src/**/*.ts": [
+      "npm exec --workspace=@a1prime/schemas tsc -- --noEmit"
+    ],
+    "**/*.{json,md,yml,yaml}": [
+      "npx prettier --write"
+    ]
   }
 }
