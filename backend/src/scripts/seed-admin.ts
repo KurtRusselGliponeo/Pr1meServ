@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { eq } from 'drizzle-orm';
-import { db } from '../shared/db/client';
-import { userAccounts } from '../modules/identity/identity.schema';
+import { db } from '../db/client';
+import { userAccounts } from '../features/identity/identity.schema';
 import { hashPassword } from '../shared/lib/auth';
 import { encryptEmail, hashEmail, normalizeEmail } from '../shared/lib/encryption';
 

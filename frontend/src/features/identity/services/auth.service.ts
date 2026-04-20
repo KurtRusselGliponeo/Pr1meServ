@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { AuthMeResponseSchema, LoginResponseSchema } from '@a1prime/schemas';
 
-import api from '@/lib/api';
+import api from '@/services/api-client';
 import type { AuthResponse, LoginRequest } from '../types/auth.types';
 
 export async function login(payload: LoginRequest): Promise<AuthResponse> {
@@ -55,3 +55,4 @@ export async function refreshAccessToken(): Promise<string> {
 export async function logoutRequest(): Promise<void> {
   await api.post('/auth/logout');
 }
+

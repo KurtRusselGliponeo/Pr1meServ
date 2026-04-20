@@ -11,7 +11,7 @@ import { ConfirmActionDialog } from '@/components/ui/confirm-action-dialog';
 import { DataTable, ServerPaginationControls } from '@/components/ui/data-table';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
-import api from '@/lib/api';
+import api from '@/services/api-client';
 import { useCreateUser } from '../hooks/use-create-user';
 import { useGetUsers } from '../hooks/use-get-users';
 import { useResetUserPassword } from '../hooks/use-reset-user-password';
@@ -207,3 +207,4 @@ export function UsersPageClient() {
     </div>
   );
 }
+

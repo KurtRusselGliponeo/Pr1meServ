@@ -1,1 +1,1 @@
-export * from './shared/db/schema';
+export * from './db/schema';

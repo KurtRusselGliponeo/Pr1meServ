@@ -1,6 +1,6 @@
 import { db } from '@/db/client';
-import { agentProfiles, clientProfiles, lapsationRecords, userAccounts } from '@/shared/db/schema';
-import { emailQueueService } from '@/services/email-queue.service';
+import { agentProfiles, clientProfiles, lapsationRecords, userAccounts } from '@/db/schema';
+import { emailQueueService } from '@/features/notifications/email-queue.service';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { decryptEmail } from '@/shared/lib/encryption';
 
@@ -36,3 +36,4 @@ export async function runAtRiskDailyScanner() {
   
   console.log(`[Scanner CRON] Successfully processed ${criticalProfiles.length} critical gaps via auto-flags.`);
 }
+

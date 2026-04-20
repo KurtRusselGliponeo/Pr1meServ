@@ -3,9 +3,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { CosafApprovalListResponseSchema } from '@a1prime/schemas';
 
-import api from '@/lib/api';
+import api from '@/services/api-client';
 import { getErrorMessage } from '@/lib/error-utils';
-import { queryKeys } from '@/lib/query';
+import { queryKeys } from '@/services/query-client';
 import type { CosafApprovalListResponse } from '../types/cosaf-approval.types';
 
 export function useGetCosafApprovals() {
@@ -24,3 +24,4 @@ export function useGetCosafApprovals() {
       : null,
   };
 }
+

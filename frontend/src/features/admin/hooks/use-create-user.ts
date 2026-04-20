@@ -3,8 +3,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
-import api from '@/lib/api';
-import { queryKeys } from '@/lib/query';
+import api from '@/services/api-client';
+import { queryKeys } from '@/services/query-client';
 import type { CreateUserPayload } from '../types/user-management.types';
 
 export function useCreateUser() {
@@ -22,3 +22,4 @@ export function useCreateUser() {
     },
   });
 }
+

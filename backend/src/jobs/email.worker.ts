@@ -1,7 +1,7 @@
 import type { NotificationQueueJobs } from '@/queues/notification.queue';
 import { notificationQueueDefinition } from '@/queues/notification.queue';
 import { createLoggedWorker } from '@/shared/lib/queue';
-import { emailQueueService } from '@/services/email-queue.service';
+import { emailQueueService } from '@/features/notifications/email-queue.service';
 
 export function createEmailWorker() {
   return createLoggedWorker<NotificationQueueJobs>(
@@ -14,3 +14,4 @@ export function createEmailWorker() {
     },
   );
 }
+

@@ -6,9 +6,9 @@ import {
   PerformanceLeaderboardResponseSchema,
 } from '@a1prime/schemas';
 
-import api from '@/lib/api';
+import api from '@/services/api-client';
 import { getErrorMessage } from '@/lib/error-utils';
-import { queryKeys } from '@/lib/query';
+import { queryKeys } from '@/services/query-client';
 import type { PerformanceLeaderboardResponse } from '../types/performance-metrics.types';
 
 export function useGetPerformanceLeaderboard(month: number, year: number) {
@@ -30,3 +30,4 @@ export function useGetPerformanceLeaderboard(month: number, year: number) {
       : null,
   };
 }
+

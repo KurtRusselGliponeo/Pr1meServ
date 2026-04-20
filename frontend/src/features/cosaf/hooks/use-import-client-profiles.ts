@@ -3,9 +3,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ClientProfileImportResponseSchema } from '@a1prime/schemas';
 
-import api from '@/lib/api';
+import api from '@/services/api-client';
 import { getErrorMessage } from '@/lib/error-utils';
-import { queryKeys } from '@/lib/query';
+import { queryKeys } from '@/services/query-client';
 
 export function useImportClientProfiles() {
   const queryClient = useQueryClient();
@@ -39,3 +39,4 @@ export function useImportClientProfiles() {
       : null,
   };
 }
+

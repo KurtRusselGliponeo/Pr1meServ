@@ -6,9 +6,9 @@ import {
   PerformanceMetricsResponseSchema,
 } from '@a1prime/schemas';
 
-import api from '@/lib/api';
+import api from '@/services/api-client';
 import { getErrorMessage } from '@/lib/error-utils';
-import { queryKeys } from '@/lib/query';
+import { queryKeys } from '@/services/query-client';
 import type { PerformanceMetricsResponse } from '../types/performance-metrics.types';
 
 export function useGetPerformanceMetrics(month: number, year: number, filterRole = 'all') {
@@ -35,3 +35,4 @@ export function useGetPerformanceMetrics(month: number, year: number, filterRole
       : null,
   };
 }
+

@@ -3,9 +3,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { LapsationDashboardResponseSchema } from '@a1prime/schemas';
 
-import api from '@/lib/api';
+import api from '@/services/api-client';
 import { getErrorMessage } from '@/lib/error-utils';
-import { queryKeys } from '@/lib/query';
+import { queryKeys } from '@/services/query-client';
 import type { LapsationDashboardResponse } from '../types/lapsation.types';
 
 export function useGetLapsationDashboard() {
@@ -24,3 +24,4 @@ export function useGetLapsationDashboard() {
       : null,
   };
 }
+

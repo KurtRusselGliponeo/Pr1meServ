@@ -8,8 +8,8 @@ import {
 } from '@a1prime/schemas';
 import { toast } from 'sonner';
 
-import api from '@/lib/api';
-import { queryKeys } from '@/lib/query';
+import api from '@/services/api-client';
+import { queryKeys } from '@/services/query-client';
 
 export function useReassignClients() {
   const queryClient = useQueryClient();
@@ -28,3 +28,4 @@ export function useReassignClients() {
     },
   });
 }
+

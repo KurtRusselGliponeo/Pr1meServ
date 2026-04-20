@@ -3,9 +3,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { AgentProfileSchema } from '@a1prime/schemas';
 
-import api from '@/lib/api';
+import api from '@/services/api-client';
 import { getErrorMessage } from '@/lib/error-utils';
-import { queryKeys } from '@/lib/query';
+import { queryKeys } from '@/services/query-client';
 import type { AgentProfile } from '../types/agent-profile.types';
 
 export function useGetAgentProfile(agentId: string) {
@@ -25,3 +25,4 @@ export function useGetAgentProfile(agentId: string) {
       : null,
   };
 }
+

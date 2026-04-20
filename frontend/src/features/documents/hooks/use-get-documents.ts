@@ -2,9 +2,9 @@
 
 import { useQuery } from '@tanstack/react-query';
 
-import api from '@/lib/api';
+import api from '@/services/api-client';
 import { getErrorMessage } from '@/lib/error-utils';
-import { queryKeys } from '@/lib/query';
+import { queryKeys } from '@/services/query-client';
 import type { DocumentLibraryItem } from '../types/document-library.types';
 
 export function useGetDocuments(category?: string) {
@@ -26,3 +26,4 @@ export function useGetDocuments(category?: string) {
       : null,
   };
 }
+

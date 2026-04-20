@@ -3,9 +3,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { ListUsersQuerySchema, ListUsersResponseSchema } from '@a1prime/schemas';
 
-import api from '@/lib/api';
+import api from '@/services/api-client';
 import { getErrorMessage } from '@/lib/error-utils';
-import { queryKeys } from '@/lib/query';
+import { queryKeys } from '@/services/query-client';
 import type { ManagedUsersResponse } from '../types/user-management.types';
 
 export function useGetUsers(page: number, roleFilter = '') {
@@ -30,3 +30,4 @@ export function useGetUsers(page: number, roleFilter = '') {
     errorMessage: query.error ? getErrorMessage(query.error, 'Unable to load users.') : null,
   };
 }
+

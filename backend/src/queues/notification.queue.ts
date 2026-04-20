@@ -23,5 +23,3 @@ export const notificationQueueDefinition: QueueDefinition = {
 export function createNotificationQueue() {
   return createQueue<NotificationQueueJobs>(notificationQueueDefinition);
 }
-
-export const notificationQueue = createNotificationQueue();

@@ -1,6 +1,6 @@
-import { db } from '../db/client';
-import type { DbTransaction, DatabaseClient } from '../db/client';
-import { systemAuditLogs } from '../db/schema';
+import { db } from '../../db/client';
+import type { DbTransaction, DatabaseClient } from '../../db/client';
+import { systemAuditLogs } from '../../db/schema';
 
 export interface AuditLogPayload {
   action: string;

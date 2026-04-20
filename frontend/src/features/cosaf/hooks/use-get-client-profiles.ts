@@ -3,9 +3,9 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { ListClientProfilesQuerySchema, ListClientProfilesResponseSchema } from '@a1prime/schemas';
 
-import api from '@/lib/api';
+import api from '@/services/api-client';
 import { getErrorMessage } from '@/lib/error-utils';
-import { queryKeys } from '@/lib/query';
+import { queryKeys } from '@/services/query-client';
 
 export interface ClientProfilesFilters {
   status?: string;
@@ -57,3 +57,4 @@ export function useGetClientProfiles(page: number, filters: ClientProfilesFilter
       : null,
   };
 }
+

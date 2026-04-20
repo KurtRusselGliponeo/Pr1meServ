@@ -2,8 +2,8 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import api from '@/lib/api';
-import { queryKeys } from '@/lib/query';
+import api from '@/services/api-client';
+import { queryKeys } from '@/services/query-client';
 
 export function useReinstateLapsationRecord() {
   const queryClient = useQueryClient();
@@ -18,3 +18,4 @@ export function useReinstateLapsationRecord() {
     },
   });
 }
+

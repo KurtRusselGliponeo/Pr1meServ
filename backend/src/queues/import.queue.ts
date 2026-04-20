@@ -31,5 +31,3 @@ export const importQueueDefinition: QueueDefinition = {
 export function createImportQueue() {
   return createQueue<ImportQueueJobs>(importQueueDefinition);
 }
-
-export const importQueue = createImportQueue();
