@@ -7,6 +7,7 @@ import {
 } from '@a1prime/schemas';
 import { BusinessRuleError } from '@/lib/errors';
 import { requireRole } from '@/app/middleware/require-role';
+import { scanForMalware } from '@/app/middleware/malware-scanner';
 import { clientProfilesService } from '@/features/phase-3-reassignment/client-profiles/client-profiles.service';
 
 /**
@@ -56,6 +57,8 @@ const clientProfilesRoutes: FastifyPluginAsync = async (app) => {
       if (!upload) {
         throw new BusinessRuleError('A client profile import file is required.');
       }
+
+      await scanForMalware(upload);
 
       ClientProfileImportRequestSchema.parse({
         fileName: upload.filename,

@@ -8,6 +8,7 @@ import { documentLibraryEnhancementsMigration } from './007_DocumentLibraryEnhan
 import { clientProfileStatusesMigration } from './008_ClientProfileStatuses';
 import { clientProfilesSearchIndexMigration } from './009_ClientProfilesSearchIndex';
 import { queryPerformanceIndexesMigration } from './010_QueryPerformanceIndexes';
+import { rowLevelSecurityMigration } from './011_RowLevelSecurity';
 
 export const phaseOneMigrations = [
   userAccountsMigration,
@@ -25,4 +26,8 @@ export const phaseTwoMigrations = [
   queryPerformanceIndexesMigration,
 ];
 
-export const applicationMigrations = [...phaseOneMigrations, ...phaseTwoMigrations];
+export const phaseThreeMigrations = [
+  rowLevelSecurityMigration,
+];
+
+export const applicationMigrations = [...phaseOneMigrations, ...phaseTwoMigrations, ...phaseThreeMigrations];

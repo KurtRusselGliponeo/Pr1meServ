@@ -24,6 +24,7 @@ import { getJwtSecret } from './shared/lib/auth';
 import { assertDatabaseConnection } from './db/client';
 import { validateRequiredConstraints } from './db/migrations/validation';
 import { getQueueHealthSummary } from './shared/lib/queue';
+import { initI18n } from './lib/i18n';
 
 function isZodLikeError(
   error: unknown,
@@ -42,6 +43,8 @@ const buildApp = async () => {
   const app = Fastify({
     loggerInstance: logger,
   });
+
+  await initI18n();
 
   await app.register(sentryPlugin);
 
@@ -246,4 +249,3 @@ if (require.main === module) {
 }
 
 export default buildApp;
-

@@ -19,12 +19,28 @@ export const metadata: Metadata = {
   description:
     'PRU Life UK A1 Prime Branch Management & Agent Performance System — COSAF, Lapsation, KPI Monitoring',
   keywords: ['PRU Life UK', 'A1 Prime', 'Insurance', 'COSAF', 'Agent Performance'],
+  openGraph: {
+    title: 'A1 Prime Branch Management System',
+    description: 'PRU Life UK A1 Prime Branch Management & Agent Performance System',
+    url: 'https://a1prime.example.com',
+    siteName: 'A1 Prime',
+    locale: 'en_PH',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'A1 Prime Branch Management System',
+    description: 'PRU Life UK A1 Prime Branch Management & Agent Performance System',
+  },
 };
+
+import { PwaRegistration } from '@/components/providers/pwa-registration';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning className={cn('font-sans', geist.variable)}>
       <body className={`${inter.variable} font-sans antialiased`}>
+        <PwaRegistration />
         <AppProviders>{children}</AppProviders>
       </body>
     </html>
