@@ -8,12 +8,12 @@ import rateLimit from '@fastify/rate-limit';
 import { ZodError } from 'zod';
 import sentryPlugin from './app/plugins/sentry';
 import authRoutes from './features/identity/identity.route';
-import agentsRoutes from './features/agents/agents.route';
-import clientProfilesRoutes from './features/client-profiles/client-profiles.route';
-import cosafApprovalsRoutes from './features/cosaf/cosaf-approvals.route';
-import documentsRoutes from './features/documents/documents.route';
-import lapsationRoutes from './features/lapsation/lapsation.route';
-import metricsRoutes from './features/metrics/metrics.route';
+import agentsRoutes from './features/phase-4-agent-workbench/agents/agents.route';
+import clientProfilesRoutes from './features/phase-3-reassignment/client-profiles/client-profiles.route';
+import cosafApprovalsRoutes from './features/phase-2-bm-workflow/cosaf/cosaf-approvals.route';
+import documentsRoutes from './features/phase-2-bm-workflow/documents/documents.route';
+import lapsationRoutes from './features/phase-5-performance/lapsation/lapsation.route';
+import metricsRoutes from './features/phase-5-performance/metrics/metrics.route';
 import notificationsRoutes from './features/notifications/notifications.route';
 import usersRoutes from './features/users/users.route';
 import { assertRedisConnection, isRedisEnabled, redis } from './lib/redis';
@@ -244,3 +244,4 @@ if (require.main === module) {
 }
 
 export default buildApp;
+

@@ -4,6 +4,8 @@ export const queryKeys = {
   cosafApprovals: ['cosaf-approvals'] as const,
   importProfiles: ['import-profiles'] as const,
   reassignClients: ['reassign-clients'] as const,
+  reassignPreflight: ['reassign-preflight'] as const,
+  agentLookup: (search: string) => ['agent-lookup', search] as const,
   agentProfile: (agentId: string) => ['agent-profile', agentId] as const,
   updateAgent: ['update-agent'] as const,
   metrics: (filterRole: string, month: number, year: number) =>

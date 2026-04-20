@@ -9,14 +9,20 @@ const REFRESH_COOKIE_NAME = 'refresh_token';
 const REFRESH_COOKIE_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
 
 function serializeRefreshTokenCookie(value: string, maxAge: number): string {
+  const isSecureCookie =
+    process.env.NODE_ENV === 'production' &&
+    !(process.env.FRONTEND_URL ?? '').startsWith('http://localhost');
+
   return [
     `${REFRESH_COOKIE_NAME}=${encodeURIComponent(value)}`,
     'Path=/',
     'HttpOnly',
-    'Secure',
-    'SameSite=Strict',
+    isSecureCookie ? 'Secure' : null,
+    isSecureCookie ? 'SameSite=Strict' : 'SameSite=Lax',
     `Max-Age=${maxAge}`,
-  ].join('; ');
+  ]
+    .filter(Boolean)
+    .join('; ');
 }
 
 function getRefreshTokenCookie(rawCookieHeader?: string): string | null {

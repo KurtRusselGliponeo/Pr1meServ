@@ -1,4 +1,4 @@
-import { DocumentsPageClient } from '@/features/documents/components/documents-page-client';
+import { DocumentsPageClient } from '@/features/phase-2-bm-workflow/components/documents-page-client';
 
 export default function DocumentsPage() {
   return <DocumentsPageClient />;

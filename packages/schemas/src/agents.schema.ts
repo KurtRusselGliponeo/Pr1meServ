@@ -33,3 +33,22 @@ export const UpdateAgentProfileSchema = z.object({
   email: z.string().trim().email('Enter a valid email address.'),
 });
 export type UpdateAgentProfile = z.infer<typeof UpdateAgentProfileSchema>;
+
+export const ListAgentsQuerySchema = z.object({
+  search: z.string().trim().min(1).max(100).optional(),
+  limit: z.coerce.number().int().min(1).max(25).default(10),
+});
+export type ListAgentsQuery = z.infer<typeof ListAgentsQuerySchema>;
+
+export const AgentLookupItemSchema = z.object({
+  id: z.string().uuid(),
+  displayName: z.string().min(1),
+  agentCode: z.string().min(1),
+  email: z.string().email(),
+});
+export type AgentLookupItem = z.infer<typeof AgentLookupItemSchema>;
+
+export const AgentLookupResponseSchema = z.object({
+  data: z.array(AgentLookupItemSchema),
+});
+export type AgentLookupResponse = z.infer<typeof AgentLookupResponseSchema>;

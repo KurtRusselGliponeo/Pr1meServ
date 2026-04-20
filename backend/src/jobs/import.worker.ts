@@ -1,7 +1,7 @@
 import type { ImportQueueJobs } from '@/queues/import.queue';
 import { importQueueDefinition } from '@/queues/import.queue';
 import { createLoggedWorker } from '@/shared/lib/queue';
-import { performanceImportService } from '@/features/performance/performance-import.service';
+import { performanceImportService } from '@/features/phase-5-performance/performance/performance-import.service';
 import type {
   ApeImportJobPayload,
   NapImportJobPayload,

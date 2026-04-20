@@ -1,6 +1,6 @@
 import { FileUp } from 'lucide-react';
 
-import { ClientProfileImportForm } from '@/features/cosaf/components/client-profile-import-form';
+import { ClientProfileImportForm } from '@/features/phase-2-bm-workflow/components/client-profile-import-form';
 import { RoleGuard } from '@/features/identity';
 
 export default function CosafImportPage() {

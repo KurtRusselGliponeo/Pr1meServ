@@ -1,3 +1,5 @@
+export {};
+
 async function initSentry() {
   try {
     const Sentry = await import('@sentry/nextjs');

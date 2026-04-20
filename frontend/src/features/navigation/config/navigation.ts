@@ -8,6 +8,8 @@ import {
   AlertTriangle,
   Trophy,
   Library,
+  ArrowRightLeft,
+  UploadCloud,
 } from 'lucide-react';
 import type { SystemRole } from '@a1prime/schemas';
 
@@ -35,6 +37,22 @@ export const dashboardNavigationItems: readonly NavigationItem[] = [
     description: 'Review COSAF profiles and ownership status.',
     icon: Users,
     allowedRoles: ['Admin', 'BranchManager', 'Agent'],
+    matchMode: 'startsWith',
+  },
+  {
+    href: '/dashboard/cosaf/import',
+    label: 'COSAF Import',
+    description: 'Import and stage COSAF-related branch files.',
+    icon: UploadCloud,
+    allowedRoles: ['Admin', 'BranchManager'],
+    matchMode: 'startsWith',
+  },
+  {
+    href: '/dashboard/cosaf/reassign',
+    label: 'Reassign Clients',
+    description: 'Move client ownership between agents without manual IDs.',
+    icon: ArrowRightLeft,
+    allowedRoles: ['Admin', 'BranchManager'],
     matchMode: 'startsWith',
   },
   {

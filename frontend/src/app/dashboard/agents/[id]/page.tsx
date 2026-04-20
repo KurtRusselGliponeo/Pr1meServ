@@ -1,4 +1,4 @@
-import { AgentProfilePageClient } from '@/features/agents/components/agent-profile-page-client';
+import { AgentProfilePageClient } from '@/features/phase-4-agent-workbench/components/agent-profile-page-client';
 
 interface AgentProfilePageProps {
   params: Promise<{

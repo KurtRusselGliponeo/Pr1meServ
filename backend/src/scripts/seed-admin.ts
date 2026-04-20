@@ -29,7 +29,21 @@ async function seedAdmin() {
     .limit(1);
 
   if (existingAdmin) {
-    console.log(`Admin already exists for ${email}.`);
+    await db
+      .update(userAccounts)
+      .set({
+        encryptedEmail: encryptEmail(email),
+        passwordHash: await hashPassword(password),
+        firstName,
+        lastName,
+        role,
+        deletedAtUtc: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(userAccounts.id, existingAdmin.id));
+
+    console.log(`Admin account refreshed for ${email}.`);
+    console.log(`Password: ${password}`);
     return;
   }
 

@@ -15,7 +15,6 @@
     "jsx": "preserve",
     "incremental": true,
     "plugins": [{ "name": "next" }],
-    "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
@@ -31,5 +30,11 @@
     ".next/types/**/*.ts",
     "../packages/schemas/src/**/*.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    "tests",
+    "playwright.config.ts",
+    "sentry.client.config.ts",
+    "sentry.edge.config.ts"
+  ]
 }

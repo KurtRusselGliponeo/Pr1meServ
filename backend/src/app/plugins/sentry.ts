@@ -5,12 +5,15 @@ const sentryPlugin: FastifyPluginAsync = async (app) => {
     return;
   }
 
-  let Sentry: typeof import('@sentry/node');
+  let Sentry: {
+    init: (config: Record<string, unknown>) => void;
+    captureException: (error: unknown) => void;
+  };
   let nodeProfilingIntegration: typeof import('@sentry/profiling-node').nodeProfilingIntegration;
 
   try {
     ({ default: Sentry } = await import('@sentry/node').then((module) => ({
-      default: module,
+      default: module as unknown as typeof Sentry,
     })));
     ({ nodeProfilingIntegration } = await import('@sentry/profiling-node'));
   } catch {
@@ -27,7 +30,7 @@ const sentryPlugin: FastifyPluginAsync = async (app) => {
     tracesSampleRate: 0.05,
     profilesSampleRate: 0.1,
     integrations: [nodeProfilingIntegration()],
-    beforeSend(event) {
+    beforeSend(event: { user?: { email?: string; ip_address?: string } }) {
       if (event.user) {
         delete event.user.email;
         delete event.user.ip_address;

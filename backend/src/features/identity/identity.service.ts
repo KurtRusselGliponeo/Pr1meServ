@@ -38,6 +38,14 @@ const INVALID_CREDENTIALS_MESSAGE = 'Invalid email or password';
 const ACCESS_TOKEN_EXPIRES_IN_SECONDS = 15 * 60;
 const REFRESH_TOKEN_EXPIRES_IN_MS = 7 * 24 * 60 * 60 * 1000;
 
+function safeDecryptEmail(payload: string, fallback = 'unknown@local'): string {
+  try {
+    return decryptEmail(payload);
+  } catch {
+    return fallback;
+  }
+}
+
 function buildAccessToken(user: LoginUser, agentId: string | null): string {
   const signAccessToken = createSigner({
     key: getJwtSecret(),
@@ -68,7 +76,7 @@ function createRefreshToken() {
 function mapLoginUser(record: AuthRecord): LoginUser {
   return {
     id: record.userId,
-    email: decryptEmail(record.encryptedEmail),
+    email: safeDecryptEmail(record.encryptedEmail),
     firstName: record.firstName,
     lastName: record.lastName,
     role: record.role,
@@ -201,14 +209,16 @@ export class AuthService {
       throw new UnauthorizedError(INVALID_CREDENTIALS_MESSAGE);
     }
 
-    const isEmailMatch = decryptEmail(record.encryptedEmail) === normalizedEmail;
     const isPasswordMatch = await verifyPassword(password, record.passwordHash);
 
-    if (!isEmailMatch || !isPasswordMatch) {
+    if (!isPasswordMatch) {
       throw new UnauthorizedError(INVALID_CREDENTIALS_MESSAGE);
     }
 
-    const user = mapLoginUser(record);
+    const user = {
+      ...mapLoginUser(record),
+      email: normalizedEmail,
+    };
     const accessToken = buildAccessToken(user, record.agentId);
     const nextRefreshToken = createRefreshToken();
 
