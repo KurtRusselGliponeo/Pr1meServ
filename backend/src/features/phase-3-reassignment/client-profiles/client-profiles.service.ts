@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, inArray, isNull, or, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { fileTypeFromBuffer } from 'file-type';
 import { nanoid } from 'nanoid';
 import type { MultipartFile } from '@fastify/multipart';
@@ -13,9 +13,9 @@ import type {
   ListClientProfilesQuery,
   ListClientProfilesResponse,
 } from '@a1prime/schemas';
-import { BusinessRuleError, ForbiddenError, NotFoundError } from '@/lib/errors';
 import { db, type DbTransaction, withDbTransaction } from '@/db/client';
 import { agentProfiles, clientProfiles, systemAuditLogs, userAccounts } from '@/schema';
+import { BusinessRuleError, ForbiddenError, NotFoundError } from '@/lib/errors';
 import type { AuthTokenPayload } from '@/shared/lib/auth';
 import { emailQueueService } from '@/features/notifications/email-queue.service';
 import { r2Service } from '@/lib/r2';
@@ -35,6 +35,7 @@ type ClientProfileRow = {
   policyStatus: ClientProfile['policyStatus'];
   createdAtUtc: Date;
   updatedAtUtc: Date;
+  searchRank?: number | null;
 };
 
 type AgentLookupRow = {
@@ -49,23 +50,7 @@ const ALLOWED_IMPORT_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png']
 type AllowedImportMimeType = (typeof ALLOWED_IMPORT_MIME_TYPES)[number];
 const NON_REASSIGNABLE_CASE_STATUSES = new Set<ClientProfile['caseStatus']>(['BM Signed', 'Done']);
 
-/**
- * Provides scoped client profile list operations for COSAF endpoints.
- */
 export class ClientProfilesService {
-  /**
-   * Lists paginated client profiles for the authenticated actor.
-   *
-   * Development EXPLAIN ANALYZE reference:
-   * Index Scan using idx_clientprofiles_agent_status on "ClientProfiles"
-   *   Index Cond: (("AssignedAgentId" = $1) AND ("PolicyStatus" = $2))
-   *   Filter: ("DeletedAtUtc" IS NULL)
-   *
-   * @param query Validated query string filters and pagination settings.
-   * @param actorUser Authenticated JWT payload.
-   * @returns ListClientProfilesResponse
-   * @throws {ForbiddenError} if an Agent token is missing its agent scope.
-   */
   async listClientProfiles(
     query: ListClientProfilesQuery,
     actorUser: AuthTokenPayload,
@@ -73,8 +58,8 @@ export class ClientProfilesService {
     const page = query.page;
     const pageSize = query.pageSize;
     const offset = (page - 1) * pageSize;
-
     const conditions = [isNull(clientProfiles.deletedAtUtc)];
+    const trimmedSearch = query.search?.trim();
 
     if (actorUser.role === 'Agent') {
       if (!actorUser.agentId) {
@@ -90,18 +75,19 @@ export class ClientProfilesService {
       conditions.push(eq(clientProfiles.caseStatus, query.status));
     }
 
-    if (query.search) {
-      const searchTerm = `%${query.search.trim()}%`;
+    if (trimmedSearch) {
       conditions.push(
         or(
-          ilike(clientProfiles.firstName, searchTerm),
-          ilike(clientProfiles.lastName, searchTerm),
-          ilike(clientProfiles.policyNumber, searchTerm),
+          sql<boolean>`"ClientProfiles"."SearchVector" @@ websearch_to_tsquery('simple', ${trimmedSearch})`,
+          sql<boolean>`"ClientProfiles"."PolicyNumber" ILIKE ${`%${trimmedSearch}%`}`,
         )!,
       );
     }
 
     const whereClause = and(...conditions);
+    const searchRank = trimmedSearch
+      ? sql<number>`ts_rank_cd("ClientProfiles"."SearchVector", websearch_to_tsquery('simple', ${trimmedSearch}))`
+      : sql<number>`0`;
 
     const [rows, totalRows] = await Promise.all([
       db
@@ -119,10 +105,17 @@ export class ClientProfilesService {
           policyStatus: clientProfiles.policyStatus,
           createdAtUtc: clientProfiles.createdAt,
           updatedAtUtc: clientProfiles.updatedAt,
+          searchRank,
         })
         .from(clientProfiles)
         .where(whereClause)
-        .orderBy(desc(clientProfiles.updatedAt), desc(clientProfiles.createdAt))
+        .orderBy(
+          trimmedSearch
+            ? sql`ts_rank_cd("ClientProfiles"."SearchVector", websearch_to_tsquery('simple', ${trimmedSearch})) DESC`
+            : desc(clientProfiles.updatedAt),
+          desc(clientProfiles.updatedAt),
+          desc(clientProfiles.createdAt),
+        )
         .limit(pageSize)
         .offset(offset),
       db
@@ -146,14 +139,6 @@ export class ClientProfilesService {
     };
   }
 
-  /**
-   * Uploads a validated client profile import file to private Cloudflare R2 storage.
-   *
-   * @param file Multipart upload file from Fastify.
-   * @returns Import metadata plus a signed URL valid for 15 minutes.
-   * @throws {BusinessRuleError} If the file exceeds 20MB or is not a supported MIME type.
-   * @throws {Error} If R2 upload or signed URL generation fails.
-   */
   async importClientProfile(file: MultipartFile): Promise<ClientProfileImportResponse> {
     const chunks: Buffer[] = [];
     let totalBytes = 0;
@@ -179,7 +164,6 @@ export class ClientProfilesService {
     }
 
     const mimeType = detectedFileType.mime as AllowedImportMimeType;
-
     const objectKey = `client-profiles/imports/${nanoid()}.${detectedFileType.ext}`;
     await r2Service.uploadPrivateObject({
       key: objectKey,
@@ -200,16 +184,6 @@ export class ClientProfilesService {
     };
   }
 
-  /**
-   * Reassigns a batch of client profiles from one agent to another inside a single transaction.
-   *
-   * @param input Validated reassignment payload.
-   * @param actorUser Authenticated JWT payload.
-   * @returns The total number of successfully reassigned client profiles.
-   * @throws {NotFoundError} If the source or destination agent does not exist.
-   * @throws {BusinessRuleError} If any client profile is missing or not assigned to the source agent.
-   * @throws {Error} Rethrows transaction failures so the full batch rolls back.
-   */
   async reassignClientProfiles(
     input: ClientProfileReassign,
     actorUser: AuthTokenPayload,
@@ -434,4 +408,3 @@ export class ClientProfilesService {
 }
 
 export const clientProfilesService = new ClientProfilesService();
-

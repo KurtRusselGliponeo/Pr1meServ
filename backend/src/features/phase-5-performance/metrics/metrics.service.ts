@@ -1,4 +1,4 @@
-import { and, eq, gte, isNull, lt } from 'drizzle-orm';
+import { and, eq, isNull, gte, lt, sql } from 'drizzle-orm';
 import Decimal from 'decimal.js';
 
 import type {
@@ -6,7 +6,6 @@ import type {
   PerformanceLeaderboardQuery,
   PerformanceLeaderboardResponse,
   PerformanceMetricsResponse,
-  PerformanceMetricPoint,
 } from '@a1prime/schemas';
 import { db } from '@/db/client';
 import { agentProfiles, clientProfiles, lapsationRecords, performanceMetrics } from '@/schema';
@@ -15,85 +14,71 @@ function toNumber(value: string | number | null | undefined) {
   return new Decimal(value ?? 0).toNumber();
 }
 
-/**
- * Provides aggregated reporting metrics for the dashboard.
- */
 export class MetricsService {
-  /**
-   * Returns a year-to-date performance aggregation for the requested period.
-   *
-   * @param query Validated month/year query values.
-   * @returns Aggregated performance metrics ready for the frontend dashboard.
-   */
   async getPerformanceMetrics(
     query: GetPerformanceMetricsQuery,
   ): Promise<PerformanceMetricsResponse> {
     const startMonth = `${query.year}-01`;
     const nextMonthDate = new Date(Date.UTC(query.year, query.month, 1));
     const endMonth = `${nextMonthDate.getUTCFullYear()}-${String(nextMonthDate.getUTCMonth() + 1).padStart(2, '0')}`;
-
-    const rows = await db
-      .select({
-        agentId: performanceMetrics.agentId,
-        month: performanceMetrics.recordMonth,
-        modalPremium: performanceMetrics.modalPremium,
-        api: performanceMetrics.api,
-        sumAssured: performanceMetrics.sumAssured,
-        commissionAmount: performanceMetrics.commissionAmount,
-      })
-      .from(performanceMetrics)
-      .where(
-        and(
-          gte(performanceMetrics.recordMonth, startMonth),
-          lt(performanceMetrics.recordMonth, endMonth),
-        ),
-      )
-      .orderBy(performanceMetrics.recordMonth);
-
     const selectedMonth = `${query.year}-${String(query.month).padStart(2, '0')}`;
     const monthFormatter = new Intl.DateTimeFormat('en', { month: 'short' });
-    const pointsMap = new Map<string, PerformanceMetricPoint>();
-    const activeAgents = new Set<string>();
-    let totalApi = new Decimal(0);
-    let totalModalPremium = new Decimal(0);
-    let totalCommission = new Decimal(0);
 
-    for (const row of rows) {
-      activeAgents.add(row.agentId);
-      totalApi = totalApi.plus(row.api ?? 0);
-      totalModalPremium = totalModalPremium.plus(row.modalPremium ?? 0);
-      totalCommission = totalCommission.plus(row.commissionAmount ?? 0);
+    const [summaryRows, pointRows] = await Promise.all([
+      db
+        .select({
+          activeAgents: sql<number>`count(distinct ${performanceMetrics.agentId})::int`,
+          totalApi: sql<string>`coalesce(sum(${performanceMetrics.api}), 0)::text`,
+          totalModalPremium: sql<string>`coalesce(sum(${performanceMetrics.modalPremium}), 0)::text`,
+          totalCommission: sql<string>`coalesce(sum(${performanceMetrics.commissionAmount}), 0)::text`,
+        })
+        .from(performanceMetrics)
+        .where(
+          and(
+            gte(performanceMetrics.recordMonth, startMonth),
+            lt(performanceMetrics.recordMonth, endMonth),
+          ),
+        ),
+      db
+        .select({
+          month: performanceMetrics.recordMonth,
+          modalPremium: sql<string>`coalesce(sum(${performanceMetrics.modalPremium}), 0)::text`,
+          api: sql<string>`coalesce(sum(${performanceMetrics.api}), 0)::text`,
+          sumAssured: sql<string>`coalesce(sum(${performanceMetrics.sumAssured}), 0)::text`,
+          commissionAmount: sql<string>`coalesce(sum(${performanceMetrics.commissionAmount}), 0)::text`,
+        })
+        .from(performanceMetrics)
+        .where(
+          and(
+            gte(performanceMetrics.recordMonth, startMonth),
+            lt(performanceMetrics.recordMonth, endMonth),
+          ),
+        )
+        .groupBy(performanceMetrics.recordMonth)
+        .orderBy(performanceMetrics.recordMonth),
+    ]);
 
-      const existingPoint = pointsMap.get(row.month);
-      const nextPoint = {
-        month: row.month,
-        label: monthFormatter.format(new Date(`${row.month}-01T00:00:00.000Z`)),
-        modalPremium: (existingPoint?.modalPremium ?? 0) + toNumber(row.modalPremium),
-        api: (existingPoint?.api ?? 0) + toNumber(row.api),
-        sumAssured: (existingPoint?.sumAssured ?? 0) + toNumber(row.sumAssured),
-        commissionAmount: (existingPoint?.commissionAmount ?? 0) + toNumber(row.commissionAmount),
-      };
-
-      pointsMap.set(row.month, nextPoint);
-    }
-
-    const sortedPoints = [...pointsMap.values()].sort((left, right) =>
-      left.month.localeCompare(right.month),
-    );
-    const filteredPoints =
-      sortedPoints.filter((point) => point.month <= selectedMonth).length > 0
-        ? sortedPoints.filter((point) => point.month <= selectedMonth)
-        : sortedPoints;
+    const summaryRow = summaryRows[0];
+    const points = pointRows
+      .filter((point) => point.month <= selectedMonth)
+      .map((point) => ({
+        month: point.month,
+        label: monthFormatter.format(new Date(`${point.month}-01T00:00:00.000Z`)),
+        modalPremium: toNumber(point.modalPremium),
+        api: toNumber(point.api),
+        sumAssured: toNumber(point.sumAssured),
+        commissionAmount: toNumber(point.commissionAmount),
+      }));
 
     return {
       generatedAtUtc: new Date().toISOString(),
       summary: {
-        activeAgents: activeAgents.size,
-        totalApi: totalApi.toNumber(),
-        totalModalPremium: totalModalPremium.toNumber(),
-        totalCommission: totalCommission.toNumber(),
+        activeAgents: summaryRow?.activeAgents ?? 0,
+        totalApi: toNumber(summaryRow?.totalApi),
+        totalModalPremium: toNumber(summaryRow?.totalModalPremium),
+        totalCommission: toNumber(summaryRow?.totalCommission),
       },
-      points: filteredPoints,
+      points,
     };
   }
 
@@ -119,18 +104,16 @@ export class MetricsService {
     const lapsationRows = await db
       .select({
         agentId: clientProfiles.assignedAgentId,
+        count: sql<number>`count(*)::int`,
       })
       .from(lapsationRecords)
       .innerJoin(clientProfiles, eq(clientProfiles.id, lapsationRecords.policyNumberId))
-      .where(and(isNull(lapsationRecords.reinstatedAtUtc), eq(lapsationRecords.isAtRisk, true)));
+      .where(and(isNull(lapsationRecords.reinstatedAtUtc), eq(lapsationRecords.isAtRisk, true)))
+      .groupBy(clientProfiles.assignedAgentId);
 
-    const lapsationCountByAgent = new Map<string, number>();
-    for (const row of lapsationRows) {
-      if (!row.agentId) {
-        continue;
-      }
-      lapsationCountByAgent.set(row.agentId, (lapsationCountByAgent.get(row.agentId) ?? 0) + 1);
-    }
+    const lapsationCountByAgent = new Map(
+      lapsationRows.filter((row) => row.agentId).map((row) => [row.agentId as string, row.count]),
+    );
 
     const leaderboardRows = rows
       .map((row) => {

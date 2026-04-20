@@ -11,6 +11,7 @@ export * from './lapsation.schema';
 export * from './notifications.schema';
 export * from './performance-metrics.schema';
 export * from './users.schema';
+export * from './webhook-events.schema';
 
 export const systemRoles = ['Admin', 'BranchManager', 'Agent'] as const;
 export const systemRoleSchema = z.enum(systemRoles);

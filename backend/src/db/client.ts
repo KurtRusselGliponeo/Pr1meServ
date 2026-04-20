@@ -1,22 +1,29 @@
 import 'dotenv/config';
-import { drizzle } from 'drizzle-orm/postgres-js';
 import { sql } from 'drizzle-orm';
+import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import * as schema from '../schema';
-import { logger } from '../lib/logger';
 
-// Singleton pattern — prevents multiple DB connections in development (HMR)
+import { logger } from '../lib/logger';
+import * as schema from '../schema';
+
 const connectionString = process.env.DATABASE_URL!;
+const databasePoolMax = Number.parseInt(process.env.DB_POOL_MAX ?? '5', 10);
+const databaseIdleTimeoutSeconds = Number.parseInt(process.env.DB_IDLE_TIMEOUT_SECONDS ?? '20', 10);
+const databaseConnectTimeoutSeconds = Number.parseInt(
+  process.env.DB_CONNECT_TIMEOUT_SECONDS ?? '10',
+  10,
+);
+const usePgBouncer = process.env.DB_USE_PGBOUNCER?.trim() === 'true';
 
 if (!connectionString) {
   throw new Error('DATABASE_URL environment variable is not set.');
 }
 
 const client = postgres(connectionString, {
-  // For Supabase/Neon free tier: limit connection pool
-  max: 5,
-  idle_timeout: 20,
-  connect_timeout: 10,
+  max: Number.isNaN(databasePoolMax) ? 5 : databasePoolMax,
+  idle_timeout: Number.isNaN(databaseIdleTimeoutSeconds) ? 20 : databaseIdleTimeoutSeconds,
+  connect_timeout: Number.isNaN(databaseConnectTimeoutSeconds) ? 10 : databaseConnectTimeoutSeconds,
+  prepare: !usePgBouncer,
 });
 
 export const db = drizzle(client, { schema });
@@ -26,15 +33,6 @@ export type DatabaseClient = typeof db;
 export type DbTransactionCallback = Parameters<DatabaseClient['transaction']>[0];
 export type DbTransaction = Parameters<DbTransactionCallback>[0];
 
-/**
- * Executes a typed Drizzle transaction boundary and preserves the schema-aware tx object
- * for downstream service composition.
- *
- * @param operationName Friendly operation name for structured logging.
- * @param callback Work executed inside the transaction.
- * @returns The callback result.
- * @throws Rethrows the original error so Drizzle performs the rollback automatically.
- */
 export async function withDbTransaction<TResult>(
   operationName: string,
   callback: (tx: DbTransaction) => Promise<TResult>,
@@ -47,13 +45,6 @@ export async function withDbTransaction<TResult>(
   }
 }
 
-/**
- * Checks whether the database connection is responsive.
- *
- * @param No parameters are required.
- * @returns A promise that resolves when the database is reachable.
- * @throws Rethrows any database connectivity error.
- */
 export async function assertDatabaseConnection(): Promise<void> {
   await db.execute(sql`select 1`);
 }

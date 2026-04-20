@@ -7,6 +7,7 @@ import multipart from '@fastify/multipart';
 import rateLimit from '@fastify/rate-limit';
 import { ZodError } from 'zod';
 import sentryPlugin from './app/plugins/sentry';
+import contractsRoutes from './app/routes/contracts.route';
 import authRoutes from './features/identity/identity.route';
 import agentsRoutes from './features/phase-4-agent-workbench/agents/agents.route';
 import clientProfilesRoutes from './features/phase-3-reassignment/client-profiles/client-profiles.route';
@@ -164,6 +165,7 @@ const buildApp = async () => {
   await app.register(lapsationRoutes, { prefix: '/api/v1' });
   await app.register(metricsRoutes, { prefix: '/api/v1' });
   await app.register(notificationsRoutes, { prefix: '/api/v1' });
+  await app.register(contractsRoutes, { prefix: '/api/v1' });
 
   app.get('/health', async (_request, reply) => {
     try {

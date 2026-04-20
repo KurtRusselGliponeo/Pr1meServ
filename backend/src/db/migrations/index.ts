@@ -7,6 +7,7 @@ import { clientProfileOrphansMigration } from './006_ClientProfileOrphans';
 import { documentLibraryEnhancementsMigration } from './007_DocumentLibraryEnhancements';
 import { clientProfileStatusesMigration } from './008_ClientProfileStatuses';
 import { clientProfilesSearchIndexMigration } from './009_ClientProfilesSearchIndex';
+import { queryPerformanceIndexesMigration } from './010_QueryPerformanceIndexes';
 
 export const phaseOneMigrations = [
   userAccountsMigration,
@@ -19,6 +20,9 @@ export const phaseOneMigrations = [
   clientProfileStatusesMigration,
 ];
 
-export const phaseTwoMigrations = [clientProfilesSearchIndexMigration];
+export const phaseTwoMigrations = [
+  clientProfilesSearchIndexMigration,
+  queryPerformanceIndexesMigration,
+];
 
 export const applicationMigrations = [...phaseOneMigrations, ...phaseTwoMigrations];
