@@ -92,6 +92,8 @@ jobs:
           cache: npm
       - name: Install deps
         run: npm ci
+      - name: Run frontend unit tests
+        run: npm run test:unit --workspace=frontend
       - name: Build frontend
         run: npm run build --workspace=frontend
 

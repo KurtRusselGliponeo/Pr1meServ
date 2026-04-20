@@ -1,5 +1,5 @@
 import { nanoid } from 'nanoid';
-import { r2Service } from '@/lib/r2';
+import { gdriveService } from '@/lib/gdrive';
 import { db } from '@/db/client';
 import { clientProfiles, cosafApprovals, documentLibrary } from '@/db/schema';
 import { and, desc, eq } from 'drizzle-orm';
@@ -17,13 +17,13 @@ function getBaseFileName(fileName: string) {
 }
 
 /**
- * Handles AWS S3/CloudFlare R2 Pre-Signed URL configurations and Library Mappings
+ * Handles Google Drive Library Mappings
  */
 export class DocumentsService {
   /**
-   * Generates a pre-signed URL allowing frontend clients to upload securely without choking node buffers.
+   * Uploads the document directly to Google Drive and tracks it in the database.
    */
-  async generatePresignedUrl(fileName: string, mimeType: string, category: string, uploaderId: string) {
+  async uploadDocument(fileName: string, mimeType: string, category: string, uploaderId: string, buffer: Buffer) {
     const baseFileName = getBaseFileName(fileName);
     const existing = await db
       .select({
@@ -39,21 +39,20 @@ export class DocumentsService {
     const nextVersion = siblingVersions.length
       ? Math.max(...siblingVersions.map((row) => parseVersion(row.version))) + 1
       : 1;
-    const objectKey = `documents/${nanoid()}-${fileName}`;
     
-    // Core AWS Request Signer binding
-    const signedUrl = await r2Service.getSignedObjectUrl(objectKey, PRESIGNED_URL_EXPIRES_IN);
+    // Upload directly to Google Drive
+    const driveResult = await gdriveService.uploadFile(`${nanoid()}-${fileName}`, mimeType, buffer);
     
     const [insertedDoc] = await db.insert(documentLibrary).values({
       uploadedByUserId: uploaderId,
-      fileUrl: objectKey,
+      fileUrl: driveResult.webViewLink || driveResult.fileId || '',
       fileName,
       category,
       mimeType,
       version: `${nextVersion}.0`,
     }).returning();
     
-    return { signedUrl, documentId: insertedDoc.id };
+    return { documentId: insertedDoc.id, webViewLink: driveResult.webViewLink };
   }
 
   /**
