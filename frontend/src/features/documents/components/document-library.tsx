@@ -3,7 +3,6 @@
 import * as React from 'react';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { format } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +10,14 @@ import { Input } from '@/components/ui/input';
 import { Download, FileIcon, Pin, Search, Upload } from 'lucide-react';
 import { DocumentUploadModal } from './document-upload-modal';
 import { Skeleton } from '@/components/ui/skeleton';
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(new Date(value));
+}
 
 interface Document {
   id: string;
@@ -157,7 +164,7 @@ export function DocumentLibrary() {
                     <Badge variant="secondary">{doc.category}</Badge>
                   </TableCell>
                   <TableCell>v{doc.version}</TableCell>
-                  <TableCell>{format(new Date(doc.createdAtUtc), 'PP')}</TableCell>
+                  <TableCell>{formatDate(doc.createdAtUtc)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                       <Button

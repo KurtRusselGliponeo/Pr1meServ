@@ -10,9 +10,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { getStoredAuthUser } from '@/lib/auth';
 import { toast } from 'sonner';
-import { useGetClientProfiles } from '../hooks/use-get-client-profiles';
 import { useCompleteCosafUpload } from '@/features/phase-2-bm-workflow/hooks/use-complete-cosaf-upload';
 import { useCreateDocumentUpload } from '@/features/phase-2-bm-workflow/hooks/use-create-document-upload';
+import { useGetClientProfiles } from '../hooks/use-get-client-profiles';
 
 type UploadStage = 'idle' | 'requesting-url' | 'uploading' | 'finalizing' | 'done';
 
@@ -22,12 +22,21 @@ export function CosafUploadPanel() {
   const [selectedClient, setSelectedClient] = React.useState<ClientProfile | null>(null);
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
   const [stage, setStage] = React.useState<UploadStage>('idle');
-  const [statusMessage, setStatusMessage] = React.useState('Pick a client record and upload the COSAF file.');
-  const clientsQuery = useGetClientProfiles(1, { search }, 8);
+  const [statusMessage, setStatusMessage] = React.useState(
+    'Pick a reassigned client and upload the signed COSAF file.',
+  );
+  const clientsQuery = useGetClientProfiles(
+    1,
+    {
+      search,
+      status: 'For Approval',
+    },
+    8,
+  );
   const createUploadMutation = useCreateDocumentUpload();
   const completeUploadMutation = useCompleteCosafUpload();
 
-  if (!authUser || !['Admin', 'BranchManager'].includes(authUser.role)) {
+  if (!authUser || authUser.role !== 'Agent') {
     return null;
   }
 
@@ -62,7 +71,7 @@ export function CosafUploadPanel() {
       }
 
       setStage('finalizing');
-      setStatusMessage('Finalizing COSAF upload and creating the approval record.');
+      setStatusMessage('Finalizing COSAF upload and notifying the manager queue.');
 
       await completeUploadMutation.mutateAsync({
         documentId: upload.documentId,
@@ -70,7 +79,7 @@ export function CosafUploadPanel() {
       });
 
       setStage('done');
-      setStatusMessage('Upload complete. The BM approval queue has been updated.');
+      setStatusMessage('Upload complete. The manager approval queue has been updated.');
       setSelectedClient(null);
       setSelectedFile(null);
       setSearch('');
@@ -92,14 +101,14 @@ export function CosafUploadPanel() {
             <UploadCloud className="h-5 w-5" />
           </div>
           <div>
-            <CardDescription>COSAF workflow</CardDescription>
-            <CardTitle className="mt-1">Upload directly into the approval queue</CardTitle>
+            <CardDescription>Agent handoff</CardDescription>
+            <CardTitle className="mt-1">Upload directly into the manager queue</CardTitle>
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-5">
         <div className="space-y-2">
-          <p className="text-sm font-semibold text-foreground">1. Find the client record</p>
+          <p className="text-sm font-semibold text-foreground">1. Find your reassigned client</p>
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -125,7 +134,7 @@ export function CosafUploadPanel() {
                   {client.firstName} {client.lastName}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Policy {client.policyNumber} · {client.caseStatus}
+                  Policy {client.policyNumber} | {client.caseStatus}
                 </p>
               </button>
             ))}
@@ -133,7 +142,7 @@ export function CosafUploadPanel() {
         </div>
 
         <div className="space-y-2">
-          <p className="text-sm font-semibold text-foreground">2. Attach the COSAF file</p>
+          <p className="text-sm font-semibold text-foreground">2. Attach the signed COSAF file</p>
           <label className="flex cursor-pointer items-center justify-between rounded-3xl border border-dashed border-brand/35 bg-background/70 px-4 py-4 text-sm text-muted-foreground">
             <span className="flex items-center gap-2">
               <FileUp className="h-4 w-4" />

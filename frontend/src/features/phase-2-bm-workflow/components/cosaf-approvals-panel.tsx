@@ -7,11 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
+import { toast } from 'sonner';
 import { useGetCosafApprovals } from '../hooks/use-get-cosaf-approvals';
 import {
   useApproveCosafApproval,
   useRejectCosafApproval,
 } from '../hooks/use-update-cosaf-approval';
+import { CosafRejectionDialog } from './cosaf-rejection-dialog';
 
 function formatCreatedAt(value: string) {
   return new Intl.DateTimeFormat(undefined, {
@@ -26,16 +28,17 @@ export function CosafApprovalsPanel() {
   const approvalsQuery = useGetCosafApprovals();
   const approveMutation = useApproveCosafApproval();
   const rejectMutation = useRejectCosafApproval();
+  const [approvalToReject, setApprovalToReject] = React.useState<string | null>(null);
 
   const handleReject = React.useCallback(
-    (approvalId: string) => {
-      const reason = window.prompt('Enter the Branch Manager return reason (min. 10 characters).');
-
-      if (!reason) {
-        return;
+    async (approvalId: string, reason: string) => {
+      try {
+        await rejectMutation.mutateAsync({ approvalId, reason });
+        toast.success('COSAF submission returned to the agent.');
+        setApprovalToReject(null);
+      } catch {
+        // Axios interceptor already displays the failure state.
       }
-
-      rejectMutation.mutate({ approvalId, reason });
     },
     [rejectMutation],
   );
@@ -59,7 +62,7 @@ export function CosafApprovalsPanel() {
       <CardHeader className="bg-brand-gradient-soft">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <CardDescription>Branch Manager queue</CardDescription>
+            <CardDescription>Manager review queue</CardDescription>
             <CardTitle className="mt-2">Live COSAF approvals</CardTitle>
           </div>
           <div className="inline-flex items-center gap-2 rounded-full border border-white/60 bg-white/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-brand shadow-soft dark:border-white/10 dark:bg-white/10">
@@ -73,7 +76,7 @@ export function CosafApprovalsPanel() {
           <EmptyState
             icon={CheckCircle2}
             title="Approval queue is clear"
-            description="There are no pending COSAF records waiting on Branch Manager review right now."
+            description="There are no pending COSAF records waiting on manager review right now."
           />
         ) : (
           <div className="grid gap-4 lg:grid-cols-2">
@@ -108,7 +111,7 @@ export function CosafApprovalsPanel() {
                       type="button"
                       size="sm"
                       variant="outline"
-                      onClick={() => handleReject(approval.id)}
+                      onClick={() => setApprovalToReject(approval.id)}
                       disabled={approveMutation.isPending || rejectMutation.isPending}
                     >
                       <XCircle className="h-4 w-4" />
@@ -121,6 +124,19 @@ export function CosafApprovalsPanel() {
           </div>
         )}
       </CardContent>
+      <CosafRejectionDialog
+        approvalId={approvalToReject}
+        open={Boolean(approvalToReject)}
+        isPending={rejectMutation.isPending}
+        onOpenChange={(open) => {
+          if (!open) {
+            setApprovalToReject(null);
+          }
+        }}
+        onSubmit={(approvalId, reason) => {
+          void handleReject(approvalId, reason);
+        }}
+      />
     </Card>
   );
 }
