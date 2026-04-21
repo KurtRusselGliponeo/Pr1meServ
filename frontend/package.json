@@ -12,7 +12,8 @@
     "test:unit": "vitest run --config vitest.config.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "test:e2e:debug": "playwright test --debug"
+    "test:e2e:debug": "playwright test --debug",
+    "test:lighthouse": "npm run build && concurrently --kill-others --success first \"npm --prefix ../backend run dev\" \"wait-on http-get://127.0.0.1:8080/health && lhci autorun\""
   },
   "dependencies": {
     "@a1prime/schemas": "file:../packages/schemas",
@@ -48,6 +49,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@lhci/cli": "^0.15.1",
     "@playwright/test": "^1.49.0",
     "@testing-library/jest-dom": "^6.0.0",
     "@testing-library/react": "^14.3.0",
@@ -56,11 +58,14 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^5.1.0",
+    "concurrently": "^9.2.1",
     "jsdom": "^29.0.2",
     "postcss": "^8.4.47",
+    "puppeteer": "^24.42.0",
     "tailwindcss": "^3.4.19",
     "typescript": "^5.6.3",
     "vite": "^8.0.0",
-    "vitest": "^4.1.4"
+    "vitest": "^4.1.4",
+    "wait-on": "^9.0.5"
   }
 }
