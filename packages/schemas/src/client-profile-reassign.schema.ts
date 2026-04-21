@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const ClientProfileReassignSchema = z.object({
-  sourceAgentId: z.string().uuid(),
+  sourceAgentId: z.string().uuid().nullable(),
   destinationAgentId: z.string().uuid().nullable(),
   clientProfileIds: z.array(z.string().uuid()).min(1),
 });
@@ -29,7 +29,7 @@ export type ClientProfileReassignIssue = z.infer<typeof ClientProfileReassignIss
 
 export const ClientProfileReassignPreflightResponseSchema = z.object({
   ok: z.boolean(),
-  sourceAgentId: z.string().uuid(),
+  sourceAgentId: z.string().uuid().nullable(),
   destinationAgentId: z.string().uuid().nullable(),
   totalRequested: z.number().int().nonnegative(),
   validClientProfileIds: z.array(z.string().uuid()),

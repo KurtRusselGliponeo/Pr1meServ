@@ -18,6 +18,7 @@ export function useApproveCosafApproval() {
   const queryClient = useQueryClient();
 
   return useMutation({
+    mutationKey: ['cosaf-approvals', 'approve'],
     mutationFn: async ({ approvalId }: ApprovePayload) => {
       const response = await api.post(`/cosaf-approvals/${approvalId}/approve`);
       return response.data;
@@ -35,6 +36,7 @@ export function useRejectCosafApproval() {
   const queryClient = useQueryClient();
 
   return useMutation({
+    mutationKey: ['cosaf-approvals', 'reject'],
     mutationFn: async ({ approvalId, reason }: RejectPayload) => {
       const response = await api.post(`/cosaf-approvals/${approvalId}/reject`, { reason });
       return response.data;

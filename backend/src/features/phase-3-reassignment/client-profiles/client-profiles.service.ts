@@ -196,11 +196,11 @@ export class ClientProfilesService {
 
     return withDbTransaction('cosaf.reassign-profiles', async (tx) => {
       const [sourceAgent, destinationAgent] = await Promise.all([
-        this.findActiveAgent(tx, preflight.sourceAgentId),
+        preflight.sourceAgentId ? this.findActiveAgent(tx, preflight.sourceAgentId) : null,
         preflight.destinationAgentId ? this.findActiveAgent(tx, preflight.destinationAgentId) : null,
       ]);
 
-      if (!sourceAgent) {
+      if (preflight.sourceAgentId && !sourceAgent) {
         throw new NotFoundError('Source agent was not found.');
       }
 
@@ -215,11 +215,17 @@ export class ClientProfilesService {
         })
         .from(clientProfiles)
         .where(
-          and(
-            inArray(clientProfiles.id, preflight.validClientProfileIds),
-            eq(clientProfiles.assignedAgentId, preflight.sourceAgentId),
-            isNull(clientProfiles.deletedAtUtc),
-          ),
+          preflight.sourceAgentId
+            ? and(
+                inArray(clientProfiles.id, preflight.validClientProfileIds),
+                eq(clientProfiles.assignedAgentId, preflight.sourceAgentId),
+                isNull(clientProfiles.deletedAtUtc),
+              )
+            : and(
+                inArray(clientProfiles.id, preflight.validClientProfileIds),
+                isNull(clientProfiles.assignedAgentId),
+                isNull(clientProfiles.deletedAtUtc),
+              ),
         );
 
       const updatedAt = new Date();
@@ -268,12 +274,12 @@ export class ClientProfilesService {
     _actorUser: AuthTokenPayload,
   ): Promise<ClientProfileReassignPreflightResponse> {
     const issues: ClientProfileReassignIssue[] = [];
-    const sourceAgent = await this.findActiveAgent(db, input.sourceAgentId);
+    const sourceAgent = input.sourceAgentId ? await this.findActiveAgent(db, input.sourceAgentId) : null;
     const destinationAgent = input.destinationAgentId
       ? await this.findActiveAgent(db, input.destinationAgentId)
       : null;
 
-    if (!sourceAgent) {
+    if (input.sourceAgentId && !sourceAgent) {
       issues.push({
         code: 'SOURCE_AGENT_NOT_FOUND',
         message: 'Select a valid source agent before continuing.',
@@ -287,7 +293,11 @@ export class ClientProfilesService {
       });
     }
 
-    if (input.destinationAgentId && input.destinationAgentId === input.sourceAgentId) {
+    if (
+      input.sourceAgentId &&
+      input.destinationAgentId &&
+      input.destinationAgentId === input.sourceAgentId
+    ) {
       issues.push({
         code: 'DESTINATION_MATCHES_SOURCE',
         message: 'Destination agent must be different from the source agent.',
@@ -318,10 +328,16 @@ export class ClientProfilesService {
         continue;
       }
 
-      if (row.assignedAgentId !== input.sourceAgentId) {
+      const ownershipMatches = input.sourceAgentId
+        ? row.assignedAgentId === input.sourceAgentId
+        : row.assignedAgentId === null;
+
+      if (!ownershipMatches) {
         issues.push({
           code: 'CLIENT_OWNERSHIP_MISMATCH',
-          message: 'Selected client profiles must belong to the chosen source agent.',
+          message: input.sourceAgentId
+            ? 'Selected client profiles must belong to the chosen source agent.'
+            : 'Selected client profiles must already be unassigned before they can be mapped to a new agent.',
           clientProfileId,
         });
         continue;

@@ -14,6 +14,7 @@ export function useCompleteCosafUpload() {
   const queryClient = useQueryClient();
 
   return useMutation({
+    mutationKey: ['documents', 'cosaf-upload-complete'],
     mutationFn: async (payload: CompleteCosafUploadPayload) => {
       const response = await api.post('/documents/cosaf-upload-complete', payload);
       return response.data;

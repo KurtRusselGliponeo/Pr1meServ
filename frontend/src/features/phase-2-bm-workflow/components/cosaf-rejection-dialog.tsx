@@ -1,7 +1,10 @@
 'use client';
 
 import * as React from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { LoaderCircle, MessageSquareWarning } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -12,6 +15,23 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+
+const rejectionReasonSchema = z.object({
+  rejectionReason: z
+    .string()
+    .trim()
+    .min(10, 'Enter at least 10 characters so the agent knows what to fix.'),
+});
+
+type RejectionReasonValues = z.infer<typeof rejectionReasonSchema>;
 
 interface CosafRejectionDialogProps {
   approvalId: string | null;
@@ -21,8 +41,6 @@ interface CosafRejectionDialogProps {
   onSubmit: (approvalId: string, reason: string) => void;
 }
 
-const MIN_REASON_LENGTH = 10;
-
 export function CosafRejectionDialog({
   approvalId,
   open,
@@ -30,17 +48,18 @@ export function CosafRejectionDialog({
   onOpenChange,
   onSubmit,
 }: CosafRejectionDialogProps) {
-  const [reason, setReason] = React.useState('');
+  const form = useForm<RejectionReasonValues>({
+    resolver: zodResolver(rejectionReasonSchema),
+    defaultValues: {
+      rejectionReason: '',
+    },
+  });
 
   React.useEffect(() => {
     if (!open) {
-      setReason('');
+      form.reset();
     }
-  }, [open]);
-
-  const trimmedReason = reason.trim();
-  const hasValidationError =
-    trimmedReason.length > 0 && trimmedReason.length < MIN_REASON_LENGTH;
+  }, [form, open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -50,65 +69,67 @@ export function CosafRejectionDialog({
             <div className="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white/85 text-brand shadow-soft">
               <MessageSquareWarning className="h-5 w-5" />
             </div>
-            <DialogTitle>Return COSAF submission</DialogTitle>
+            <DialogTitle>Reject COSAF submission</DialogTitle>
             <DialogDescription>
-              A rejection reason is required so the agent knows exactly what to fix before
-              resubmitting.
+              A detailed rejection reason is required before this record can be returned to the
+              agent.
             </DialogDescription>
           </DialogHeader>
         </div>
 
-        <div className="space-y-3 px-6 pb-6 pt-2">
-          <label htmlFor="cosaf-rejection-reason" className="text-sm font-semibold text-foreground">
-            Rejection reason
-          </label>
-          <textarea
-            id="cosaf-rejection-reason"
-            value={reason}
-            onChange={(event) => setReason(event.target.value)}
-            placeholder="Explain what needs correction before this COSAF can be approved."
-            className="min-h-32 w-full rounded-3xl border border-input bg-background px-4 py-3 text-sm outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/20"
-          />
-          <div className="flex items-center justify-between gap-3 text-xs">
-            <p className={hasValidationError ? 'text-destructive' : 'text-muted-foreground'}>
-              {hasValidationError
-                ? `Enter at least ${MIN_REASON_LENGTH} characters.`
-                : 'This note will be sent back to the assigned agent.'}
-            </p>
-            <p className="text-muted-foreground">{trimmedReason.length} characters</p>
-          </div>
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={isPending}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              disabled={!approvalId || trimmedReason.length < MIN_REASON_LENGTH || isPending}
-              onClick={() => {
+        <div className="px-6 pb-6 pt-2">
+          <Form {...form}>
+            <form
+              className="space-y-4"
+              onSubmit={form.handleSubmit((values) => {
                 if (!approvalId) {
                   return;
                 }
 
-                onSubmit(approvalId, trimmedReason);
-              }}
+                onSubmit(approvalId, values.rejectionReason);
+              })}
             >
-              {isPending ? (
-                <>
-                  <LoaderCircle className="h-4 w-4 animate-spin" />
-                  Returning
-                </>
-              ) : (
-                'Return to agent'
-              )}
-            </Button>
-          </DialogFooter>
+              <FormField
+                control={form.control}
+                name="rejectionReason"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Rejection reason</FormLabel>
+                    <FormControl>
+                      <textarea
+                        {...field}
+                        rows={5}
+                        placeholder="Explain what needs correction before this COSAF can be approved."
+                        className="min-h-32 w-full rounded-3xl border border-input bg-background px-4 py-3 text-sm outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/20"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                  disabled={isPending}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" variant="destructive" disabled={!approvalId || isPending}>
+                  {isPending ? (
+                    <>
+                      <LoaderCircle className="h-4 w-4 animate-spin" />
+                      Rejecting
+                    </>
+                  ) : (
+                    'Reject submission'
+                  )}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
         </div>
       </DialogContent>
     </Dialog>
