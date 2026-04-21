@@ -1,0 +1,8 @@
+Summary
+- add a role-aware COSAF pipeline screen for admin, agent, and branch manager flows
+- restrict reassignment to admins and reframe it as orphan-client automation
+- add an agent COSAF upload portal and a manager approval queue with required rejection reasons
+- fix COSAF completion so uploads resolve to a valid reviewer instead of the uploading agent
+- add Gmail-specific error logging and Sentry capture for notification failures
+- add a Playwright E2E spec covering admin assign -> agent upload -> manager approve
+- restore frontend typecheck health by replacing missing document library UI imports with local components
