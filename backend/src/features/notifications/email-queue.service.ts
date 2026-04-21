@@ -1,4 +1,5 @@
 import { EmailQueuePayloadSchema, type EmailQueuePayload } from '@a1prime/schemas';
+import { addBreadcrumb } from '@sentry/core';
 
 import { isRedisEnabled } from '@/lib/redis';
 import { createNotificationQueue } from '@/queues/notification.queue';
@@ -43,6 +44,22 @@ export class EmailQueueService {
    */
   async processEmailJob(payload: EmailQueuePayload): Promise<void> {
     const parsedPayload = EmailQueuePayloadSchema.parse(payload);
+    
+    const maskedEmail = parsedPayload.to.replace(/(.{2})(.*)(@.*)/, '$1***$3');
+    const templateType = typeof parsedPayload.metadata?.templateType === 'string'
+      ? parsedPayload.metadata.templateType
+      : 'GENERAL_NOTIFICATION';
+
+    addBreadcrumb({
+      category: 'email.send',
+      message: 'Attempting to send email from queue',
+      level: 'info',
+      data: {
+        recipient: maskedEmail,
+        templateType,
+      },
+    });
+
     try {
       await sendQueuedEmail(parsedPayload);
       await logSystemAudit({

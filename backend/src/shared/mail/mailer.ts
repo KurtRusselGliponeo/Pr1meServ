@@ -1,3 +1,4 @@
+import { captureException } from '@sentry/core';
 import nodemailer from 'nodemailer';
 import { google } from 'googleapis';
 import type { EmailQueuePayload } from '@a1prime/schemas';
@@ -22,13 +23,10 @@ const createTransporter = async () => {
     refresh_token: process.env.GMAIL_REFRESH_TOKEN
   });
 
-  const accessToken = await new Promise<string>((resolve) => {
+  const accessToken = await new Promise<string>((resolve, reject) => {
     oauth2Client.getAccessToken((err, token) => {
       if (err) {
-        void captureGmailFailure(err, {
-          stage: 'oauth-access-token',
-        });
-        resolve('');
+        reject(err);
       } else {
         resolve(token || '');
       }
@@ -60,54 +58,26 @@ export async function sendQueuedEmail(payload: EmailQueuePayload) {
       html: payload.html,
     });
   } catch (error) {
-    await captureGmailFailure(error, {
-      stage: 'send-mail',
-      to: payload.to,
-      subject: payload.subject,
-    });
-    throw error;
-  }
-}
+    const maskedEmail = payload.to.replace(/(.{2})(.*)(@.*)/, '$1***$3');
 
-async function captureGmailFailure(
-  error: unknown,
-  context: {
-    stage: 'oauth-access-token' | 'send-mail';
-    subject?: string;
-    to?: string;
-  },
-) {
-  logger.error(
-    {
-      err: error,
-      mailProvider: 'gmail',
-      stage: context.stage,
-      to: context.to,
-      subject: context.subject,
-    },
-    'Gmail notification failure',
-  );
-
-  if (!process.env.SENTRY_DSN) {
-    return;
-  }
-
-  try {
-    const sentryModule = (await import('@sentry/node')) as {
-      captureException?: (error: unknown, captureContext?: Record<string, unknown>) => void;
-    };
-
-    sentryModule.captureException?.(error, {
-      tags: {
-        'mail.provider': 'gmail',
-        'mail.stage': context.stage,
-      },
+    captureException(error, {
+      tags: { feature: 'cosaf-reassignment' },
+      level: 'error',
       extra: {
-        subject: context.subject,
-        recipient: context.to,
+        subject: payload.subject,
+        recipient: maskedEmail,
       },
     });
-  } catch {
-    logger.warn('Unable to forward Gmail failure to Sentry.');
+
+    logger.error(
+      {
+        err: error,
+        mailProvider: 'gmail',
+        to: payload.to,
+        subject: payload.subject,
+      },
+      'Gmail notification failure',
+    );
+    throw error;
   }
 }
