@@ -9,6 +9,7 @@ import { clientProfileStatusesMigration } from './008_ClientProfileStatuses';
 import { clientProfilesSearchIndexMigration } from './009_ClientProfilesSearchIndex';
 import { queryPerformanceIndexesMigration } from './010_QueryPerformanceIndexes';
 import { rowLevelSecurityMigration } from './011_RowLevelSecurity';
+import { rlsPoliciesMigration } from './012_RlsPolicies';
 
 export const phaseOneMigrations = [
   userAccountsMigration,
@@ -30,4 +31,13 @@ export const phaseThreeMigrations = [
   rowLevelSecurityMigration,
 ];
 
-export const applicationMigrations = [...phaseOneMigrations, ...phaseTwoMigrations, ...phaseThreeMigrations];
+export const phaseFourMigrations = [
+  rlsPoliciesMigration,
+];
+
+export const applicationMigrations = [
+  ...phaseOneMigrations,
+  ...phaseTwoMigrations,
+  ...phaseThreeMigrations,
+  ...phaseFourMigrations,
+];
