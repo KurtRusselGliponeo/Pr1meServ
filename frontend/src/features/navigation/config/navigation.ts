@@ -33,8 +33,8 @@ export const dashboardNavigationItems: readonly NavigationItem[] = [
   },
   {
     href: '/dashboard/cosaf',
-    label: 'Client Profiles',
-    description: 'Review COSAF profiles and ownership status.',
+    label: 'COSAF Pipeline',
+    description: 'Run the orphan-client, upload, and approval workflow.',
     icon: Users,
     allowedRoles: ['Admin', 'BranchManager', 'Agent'],
     matchMode: 'startsWith',
@@ -50,9 +50,9 @@ export const dashboardNavigationItems: readonly NavigationItem[] = [
   {
     href: '/dashboard/cosaf/reassign',
     label: 'Reassign Clients',
-    description: 'Move client ownership between agents without manual IDs.',
+    description: 'Assign orphan clients and route cases into the next handoff.',
     icon: ArrowRightLeft,
-    allowedRoles: ['Admin', 'BranchManager'],
+    allowedRoles: ['Admin'],
     matchMode: 'startsWith',
   },
   {

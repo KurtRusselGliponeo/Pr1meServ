@@ -15,7 +15,9 @@ export const documentsRoutes: FastifyPluginAsync = async (app) => {
       return reply.code(400).send({ message: 'No file uploaded' });
     }
 
-    const { category } = data.fields;
+    const categoryField = data.fields.category;
+    const category = Array.isArray(categoryField) ? categoryField[0] : categoryField;
+
     if (!category || category.type !== 'field') {
       return reply.code(400).send({ message: 'Category is required' });
     }
@@ -25,7 +27,7 @@ export const documentsRoutes: FastifyPluginAsync = async (app) => {
     const result = await documentsService.uploadDocument(
       data.filename, 
       data.mimetype, 
-      category.value, 
+      String(category.value),
       request.authUser.sub,
       buffer
     );

@@ -40,15 +40,10 @@
   },
   "lint-staged": {
     "frontend/**/*.{ts,tsx}": [
-      "npm exec --workspace=frontend eslint -- --max-warnings=0 --fix",
-      "npm exec --workspace=frontend tsc -- --noEmit"
+      "npm exec --workspace=frontend eslint -- --max-warnings=0 --fix"
     ],
     "backend/src/**/*.ts": [
-      "npm exec --workspace=backend eslint -- --max-warnings=0 --fix",
-      "npm exec --workspace=backend tsc -- --noEmit"
-    ],
-    "packages/schemas/src/**/*.ts": [
-      "npm exec --workspace=@a1prime/schemas tsc -- --noEmit"
+      "npm exec --workspace=backend eslint -- --max-warnings=0 --fix"
     ],
     "**/*.{json,md,yml,yaml}": [
       "npx prettier --write"

@@ -45,13 +45,15 @@ export function ReassignPageClient() {
   return (
     <div className="space-y-6">
       <section className="floating-card bg-white/72 p-6 sm:p-8 dark:bg-card/82">
-        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand/75">COSAF</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand/75">
+          Orphan Client Automation
+        </p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">
-          Client reassignment
+          Admin reassignment screen
         </h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-          Batch transfer client ownership between agents, confirm the move before it is written, and
-          keep the branch team aligned with a visible audit timeline.
+          Batch transfer client ownership between agents, push records into the orphan queue when
+          needed, and keep the handoff visible before agents start their COSAF uploads.
         </p>
       </section>
 

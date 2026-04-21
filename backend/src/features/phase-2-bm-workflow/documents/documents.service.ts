@@ -1,11 +1,11 @@
 import { nanoid } from 'nanoid';
 import { gdriveService } from '@/lib/gdrive';
 import { db } from '@/db/client';
-import { clientProfiles, cosafApprovals, documentLibrary } from '@/db/schema';
+import { clientProfiles, cosafApprovals, documentLibrary, userAccounts } from '@/db/schema';
 import { and, desc, eq } from 'drizzle-orm';
-import type { CaseStatus } from '@a1prime/schemas';
+import type { CaseStatus, SystemRole } from '@a1prime/schemas';
 
-const PRESIGNED_URL_EXPIRES_IN = 3600; // 1 hr
+
 
 function parseVersion(value: string) {
   const parsed = Number.parseInt(value.replace('.0', ''), 10);
@@ -130,6 +130,8 @@ export class DocumentsService {
       })
       .where(eq(clientProfiles.id, clientProfileId));
 
+    const resolvedReviewerId = await this.resolveReviewingManagerId(reviewingBmId);
+
     const [existingApproval] = await db
       .select({ id: cosafApprovals.id })
       .from(cosafApprovals)
@@ -141,12 +143,49 @@ export class DocumentsService {
     if (!existingApproval) {
       await db.insert(cosafApprovals).values({
         clientProfileId,
-        reviewingBmId,
+        reviewingBmId: resolvedReviewerId,
         status: 'PENDING',
       });
     }
 
     return { success: true };
+  }
+
+  private async resolveReviewingManagerId(actorUserId: string) {
+    const [actor] = await db
+      .select({
+        id: userAccounts.id,
+        role: userAccounts.role,
+      })
+      .from(userAccounts)
+      .where(eq(userAccounts.id, actorUserId))
+      .limit(1);
+
+    if (actor && ['Admin', 'BranchManager'].includes(actor.role as SystemRole)) {
+      return actor.id;
+    }
+
+    const [manager] = await db
+      .select({
+        id: userAccounts.id,
+      })
+      .from(userAccounts)
+      .where(eq(userAccounts.role, 'BranchManager'))
+      .limit(1);
+
+    if (manager) {
+      return manager.id;
+    }
+
+    const [admin] = await db
+      .select({
+        id: userAccounts.id,
+      })
+      .from(userAccounts)
+      .where(eq(userAccounts.role, 'Admin'))
+      .limit(1);
+
+    return admin?.id ?? actorUserId;
   }
 }
 
