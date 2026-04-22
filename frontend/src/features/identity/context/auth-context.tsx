@@ -22,6 +22,7 @@ interface AuthContextValue {
   user: AuthenticatedUser | null;
   isAuthenticated: boolean;
   isHydrated: boolean;
+  isRestoringSession: boolean;
   login: (values: LoginFormValues) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -34,9 +35,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [user, setUser] = React.useState<AuthenticatedUser | null>(null);
   const [isHydrated, setIsHydrated] = React.useState(false);
+  const [isRestoringSession, setIsRestoringSession] = React.useState(false);
 
   const refreshUser = React.useCallback(async () => {
     try {
+      setIsRestoringSession(true);
+
       if (!getAccessToken()) {
         const nextAccessToken = await refreshAccessToken();
         const storedUser = getStoredAuthUser<AuthenticatedUser>();
@@ -54,6 +58,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       clearAuthSession();
       setUser(null);
+    } finally {
+      setIsRestoringSession(false);
     }
   }, []);
 
@@ -106,6 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         isAuthenticated: Boolean(user && getAccessToken()),
         isHydrated,
+        isRestoringSession,
         login,
         logout,
         refreshUser,

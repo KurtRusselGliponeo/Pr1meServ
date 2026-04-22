@@ -12,9 +12,9 @@ import {
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
 import { LineMetricChart } from '@/components/ui/metric-chart';
 import { MonthYearPicker } from '@/components/ui/month-year-picker';
+import { ChartCardSkeleton } from '@/components/ui/panel-skeletons';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useGetPerformanceMetrics } from '@/features/phase-5-performance/hooks/use-get-performance-metrics';
 import { useGetPerformanceLeaderboard } from '@/features/phase-5-performance/hooks/use-get-performance-leaderboard';
@@ -80,20 +80,53 @@ function getTrend(current: number, previous: number) {
 function PerformanceDashboardSkeleton() {
   return (
     <div className="space-y-6">
-      <LoadingSkeleton rows={4} columns={3} />
+      <section className="floating-card bg-white/72 p-6 sm:p-8 dark:bg-card/82">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-3xl space-y-3">
+            <div className="h-3 w-32 animate-pulse rounded-full bg-muted/70" />
+            <div className="h-10 w-96 max-w-full animate-pulse rounded-full bg-muted/70" />
+            <div className="h-4 w-full max-w-2xl animate-pulse rounded-full bg-muted/70" />
+          </div>
+          <div className="h-11 w-52 animate-pulse rounded-full bg-muted/70" />
+        </div>
+      </section>
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, index) => (
           <Card key={index}>
-            <CardHeader className="space-y-3">
-              <div className="h-4 w-24 animate-pulse rounded-full bg-muted" />
-              <div className="h-8 w-32 animate-pulse rounded-full bg-muted" />
+            <CardHeader className="space-y-3 rounded-[28px] bg-brand-gradient-soft">
+              <div className="h-4 w-24 animate-pulse rounded-full bg-muted/70" />
+              <div className="h-8 w-32 animate-pulse rounded-full bg-muted/70" />
+              <div className="h-4 w-40 animate-pulse rounded-full bg-muted/70" />
             </CardHeader>
           </Card>
         ))}
       </div>
       <div className="grid gap-6 xl:grid-cols-[1.35fr_1fr]">
-        <LoadingSkeleton rows={5} columns={2} />
-        <LoadingSkeleton rows={5} columns={4} />
+        <ChartCardSkeleton titleWidth="w-72" descriptionWidth="w-96" heightClassName="h-72" />
+        <Card>
+          <CardHeader className="space-y-3">
+            <div className="h-6 w-48 animate-pulse rounded-full bg-muted/70" />
+            <div className="h-4 w-80 max-w-full animate-pulse rounded-full bg-muted/70" />
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-hidden rounded-[28px] border border-white/40 bg-background/70 p-4 dark:border-white/10">
+              <div className="grid grid-cols-4 gap-4 border-b border-white/20 pb-4 dark:border-white/10">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <div key={`performance-header-${index}`} className="h-4 animate-pulse rounded-full bg-muted/70" />
+                ))}
+              </div>
+              <div className="space-y-4 py-4">
+                {Array.from({ length: 5 }).map((_, rowIndex) => (
+                  <div key={`performance-row-${rowIndex}`} className="grid grid-cols-4 gap-4">
+                    {Array.from({ length: 4 }).map((__, columnIndex) => (
+                      <div key={`performance-cell-${rowIndex}-${columnIndex}`} className="h-5 animate-pulse rounded-full bg-muted/70" />
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

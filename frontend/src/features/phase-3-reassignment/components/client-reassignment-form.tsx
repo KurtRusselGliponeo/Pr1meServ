@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import {
   AlertTriangle,
   ArrowRightLeft,
@@ -137,6 +138,43 @@ function OrphanClientCard({
   );
 }
 
+function AgentColumnSkeleton() {
+  return (
+    <div className="grid gap-3" aria-hidden="true">
+      {Array.from({ length: 3 }).map((_, index) => (
+        <div
+          key={`agent-loading-${index}`}
+          className="rounded-[26px] border border-white/50 bg-background/85 px-4 py-4 shadow-soft dark:border-white/10 dark:bg-white/[0.03]"
+        >
+          <div className="h-5 w-40 animate-pulse rounded-full bg-muted/70" />
+          <div className="mt-2 h-3 w-20 animate-pulse rounded-full bg-muted/70" />
+          <div className="mt-4 h-4 w-full animate-pulse rounded-full bg-muted/70" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function OrphanClientGridSkeleton() {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2" aria-hidden="true">
+      {Array.from({ length: 6 }).map((_, index) => (
+        <div
+          key={`client-loading-${index}`}
+          className="rounded-[28px] border border-white/50 bg-background/88 px-4 py-4 shadow-soft dark:border-white/10 dark:bg-white/[0.03]"
+        >
+          <div className="h-5 w-36 animate-pulse rounded-full bg-muted/70" />
+          <div className="mt-2 h-3 w-28 animate-pulse rounded-full bg-muted/70" />
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <div className="h-12 animate-pulse rounded-2xl bg-muted/70" />
+            <div className="h-12 animate-pulse rounded-2xl bg-muted/70" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function ClientReassignmentForm({
   orphanClients,
   agents,
@@ -149,6 +187,7 @@ export function ClientReassignmentForm({
   isAgentsPending = false,
   isPending = false,
 }: ClientReassignmentFormProps) {
+  const shouldReduceMotion = useReducedMotion();
   const [destinationAgent, setDestinationAgent] = React.useState<AgentLookupItem | null>(null);
   const [selectedClientIds, setSelectedClientIds] = React.useState<string[]>([]);
   const [lastPreflight, setLastPreflight] =
@@ -257,9 +296,7 @@ export function ClientReassignmentForm({
             </div>
             <div className="grid gap-3">
               {isAgentsPending ? (
-                <div className="rounded-[24px] border border-white/50 bg-brand-gradient-soft px-4 py-6 text-sm text-muted-foreground dark:border-white/10">
-                  Loading active agents...
-                </div>
+                <AgentColumnSkeleton />
               ) : null}
               {!isAgentsPending && agents.length === 0 ? (
                 <div className="rounded-[24px] border border-white/50 bg-brand-gradient-soft px-4 py-6 text-sm text-muted-foreground dark:border-white/10">
@@ -319,9 +356,7 @@ export function ClientReassignmentForm({
               </div>
             </div>
             {isClientsPending ? (
-              <div className="rounded-[24px] border border-white/50 bg-brand-gradient-soft px-4 py-6 text-sm text-muted-foreground dark:border-white/10">
-                Loading orphan clients...
-              </div>
+              <OrphanClientGridSkeleton />
             ) : null}
             {!isClientsPending && orphanClients.length === 0 ? (
               <div className="rounded-[24px] border border-white/50 bg-brand-gradient-soft px-4 py-6 text-sm text-muted-foreground dark:border-white/10">
@@ -330,12 +365,26 @@ export function ClientReassignmentForm({
             ) : null}
             <div className="grid gap-3 sm:grid-cols-2">
               {orphanClients.map((client) => (
-                <OrphanClientCard
+                <motion.div
                   key={client.id}
-                  client={client}
-                  isSelected={selectedClientIds.includes(client.id)}
-                  onToggle={toggleClient}
-                />
+                  layout={!shouldReduceMotion}
+                  transition={
+                    shouldReduceMotion
+                      ? undefined
+                      : {
+                          layout: {
+                            duration: 0.24,
+                            ease: [0.22, 1, 0.36, 1],
+                          },
+                        }
+                  }
+                >
+                  <OrphanClientCard
+                    client={client}
+                    isSelected={selectedClientIds.includes(client.id)}
+                    onToggle={toggleClient}
+                  />
+                </motion.div>
               ))}
             </div>
           </div>

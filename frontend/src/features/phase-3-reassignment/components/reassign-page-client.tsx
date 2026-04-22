@@ -4,7 +4,7 @@ import * as React from 'react';
 import { ArrowRightLeft } from 'lucide-react';
 
 import { EmptyState } from '@/components/ui/empty-state';
-import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
+import { ReassignmentBoardSkeleton } from '@/components/ui/panel-skeletons';
 import { useGetClientProfiles } from '@/features/phase-2-bm-workflow/hooks/use-get-client-profiles';
 import { useGetAgents } from '@/features/phase-3-reassignment/hooks/use-get-agents';
 import { useReassignClients } from '@/features/phase-3-reassignment/hooks/use-reassign-clients';
@@ -39,7 +39,7 @@ export function ReassignPageClient() {
   }));
 
   if (orphanClientsQuery.isPending && !orphanClientsQuery.data) {
-    return <LoadingSkeleton rows={6} columns={2} />;
+    return <ReassignmentBoardSkeleton />;
   }
 
   if (orphanClientsQuery.errorMessage) {

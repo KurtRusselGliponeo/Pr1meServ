@@ -45,13 +45,13 @@ export function LoginForm() {
   const { login } = useAuth();
   const [submitError, setSubmitError] = React.useState<string | null>(null);
   const [showPassword, setShowPassword] = React.useState(false);
+  const [rememberMe, setRememberMe] = React.useState(false);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema as never),
     defaultValues: {
       email: '',
       password: '',
-      rememberMe: false,
     },
   });
 
@@ -156,33 +156,27 @@ export function LoginForm() {
           />
 
           {/* ── Remember Me + Forgot Password ── */}
-          <FormField
-            control={form.control}
-            name="rememberMe"
-            render={({ field }) => (
-              <FormItem className="flex flex-row items-center justify-between gap-4 space-y-0">
-                <label
-                  className="flex items-center gap-2.5 text-[13px]"
-                  style={{ color: 'rgba(255,255,255,0.55)' }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={Boolean(field.value)}
-                    onChange={(e) => field.onChange(e.target.checked)}
-                    className="h-4 w-4 rounded accent-[#c9b99a]"
-                  />
-                  <span>Remember Me</span>
-                </label>
-                <Link
-                  href="#"
-                  className="text-[13px] font-medium underline-offset-4 transition-colors hover:underline focus-visible:outline-none"
-                  style={{ color: 'rgba(255,255,255,0.55)' }}
-                >
-                  Forgot Password?
-                </Link>
-              </FormItem>
-            )}
-          />
+          <FormItem className="flex flex-row items-center justify-between gap-4 space-y-0">
+            <label
+              className="flex items-center gap-2.5 text-[13px]"
+              style={{ color: 'rgba(255,255,255,0.55)' }}
+            >
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(event) => setRememberMe(event.target.checked)}
+                className="h-4 w-4 rounded accent-[#c9b99a]"
+              />
+              <span>Remember Me</span>
+            </label>
+            <Link
+              href="#"
+              className="text-[13px] font-medium underline-offset-4 transition-colors hover:underline focus-visible:outline-none"
+              style={{ color: 'rgba(255,255,255,0.55)' }}
+            >
+              Forgot Password?
+            </Link>
+          </FormItem>
 
           {/* ── Error ── */}
           {submitError ? (

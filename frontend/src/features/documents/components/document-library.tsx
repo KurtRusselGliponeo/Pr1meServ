@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Download, FileIcon, Pin, Search, Upload } from 'lucide-react';
 import { DocumentUploadModal } from './document-upload-modal';
-import { Skeleton } from '@/components/ui/skeleton';
+import { DocumentLibraryTableSkeleton } from '@/components/ui/panel-skeletons';
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat(undefined, {
@@ -77,6 +77,10 @@ export function DocumentLibrary() {
     },
   });
 
+  if (isLoading && !documents) {
+    return <DocumentLibraryTableSkeleton />;
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -136,8 +140,26 @@ export function DocumentLibrary() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">
-                  <Skeleton className="h-6 w-full max-w-[250px] mx-auto" />
+                <TableCell colSpan={5} className="p-0">
+                  <div className="p-4">
+                    <div className="space-y-4">
+                      {Array.from({ length: 6 }).map((_, index) => (
+                        <div
+                          key={`documents-inline-loading-${index}`}
+                          className="grid grid-cols-[1.6fr_1fr_0.8fr_1fr_1fr] items-center gap-4"
+                        >
+                          <div className="h-5 animate-pulse rounded-full bg-muted/70" />
+                          <div className="h-8 w-24 animate-pulse rounded-full bg-muted/70" />
+                          <div className="h-4 w-16 animate-pulse rounded-full bg-muted/70" />
+                          <div className="h-4 w-24 animate-pulse rounded-full bg-muted/70" />
+                          <div className="flex justify-end gap-2">
+                            <div className="h-9 w-10 animate-pulse rounded-xl bg-muted/70" />
+                            <div className="h-9 w-28 animate-pulse rounded-xl bg-muted/70" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : documents?.length === 0 ? (
