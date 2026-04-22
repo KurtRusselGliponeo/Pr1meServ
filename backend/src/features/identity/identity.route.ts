@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 
-import { LoginRequestSchema } from '@a1prime/schemas';
+import { LoginRequestSchema, ResetPasswordRequestSchema } from '@a1prime/schemas';
 import { UnauthorizedError } from '@/lib/errors';
 import { requireRole } from '@/app/middleware/require-role';
 import { authService } from '@/features/identity/identity.service';
@@ -114,6 +114,14 @@ const authRoutes: FastifyPluginAsync = async (app) => {
     return {
       user: await authService.getCurrentUser(request.authUser.id),
     };
+  });
+
+  app.post('/auth/reset-password', { preHandler: app.authenticate }, async (request, reply) => {
+    const body = ResetPasswordRequestSchema.parse(request.body);
+
+    return reply.code(200).send({
+      user: await authService.resetPassword(request.authUser.id, body),
+    });
   });
 
   app.get('/private/health', { preHandler: app.authenticate }, async (request) => {

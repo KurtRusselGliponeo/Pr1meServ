@@ -1,5 +1,5 @@
 import type { SystemRole } from '@a1prime/schemas';
-import { pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
+import { boolean, pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
 
 export const userAccounts = pgTable('UserAccounts', {
   id: uuid('Id').primaryKey().defaultRandom(),
@@ -11,6 +11,7 @@ export const userAccounts = pgTable('UserAccounts', {
   firstName: varchar('FirstName', { length: 100 }).notNull(),
   lastName: varchar('LastName', { length: 100 }).notNull(),
   role: varchar('SystemRole', { length: 32 }).$type<SystemRole>().notNull(),
+  needsPasswordReset: boolean('NeedsPasswordReset').default(true).notNull(),
   createdAt: timestamp('CreatedAtUtc', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('UpdatedAtUtc', { withTimezone: true }).defaultNow().notNull(),
   deletedAtUtc: timestamp('DeletedAtUtc', { withTimezone: true }),

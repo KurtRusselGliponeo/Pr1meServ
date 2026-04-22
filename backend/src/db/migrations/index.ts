@@ -10,6 +10,7 @@ import { clientProfilesSearchIndexMigration } from './009_ClientProfilesSearchIn
 import { queryPerformanceIndexesMigration } from './010_QueryPerformanceIndexes';
 import { rowLevelSecurityMigration } from './011_RowLevelSecurity';
 import { rlsPoliciesMigration } from './012_RlsPolicies';
+import { needsPasswordResetMigration } from './013_NeedsPasswordReset';
 
 export const phaseOneMigrations = [
   userAccountsMigration,
@@ -40,4 +41,5 @@ export const applicationMigrations = [
   ...phaseTwoMigrations,
   ...phaseThreeMigrations,
   ...phaseFourMigrations,
+  needsPasswordResetMigration,
 ];

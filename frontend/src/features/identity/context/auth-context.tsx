@@ -14,6 +14,7 @@ import {
   login as loginRequest,
   logoutRequest,
   refreshAccessToken,
+  resetPassword as resetPasswordRequest,
 } from '../services/auth.service';
 import type { LoginFormValues } from '../lib/login-schema';
 import type { AuthenticatedUser } from '../types/auth.types';
@@ -26,6 +27,7 @@ interface AuthContextValue {
   login: (values: LoginFormValues) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  resetPassword: (password: string, confirmPassword: string) => Promise<void>;
 }
 
 const AuthContext = React.createContext<AuthContextValue | undefined>(undefined);
@@ -106,6 +108,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [pathname, router]);
 
+  const resetPassword = React.useCallback(
+    async (password: string, confirmPassword: string) => {
+      const currentUser = await resetPasswordRequest({ password, confirmPassword });
+
+      persistAuthSession({
+        accessToken: getAccessToken() ?? '',
+        user: currentUser,
+      });
+
+      setUser(currentUser);
+      router.replace('/dashboard');
+      router.refresh();
+    },
+    [router],
+  );
+
   return (
     <AuthContext.Provider
       value={{
@@ -116,6 +134,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         logout,
         refreshUser,
+        resetPassword,
       }}
     >
       {children}

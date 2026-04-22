@@ -6,12 +6,13 @@ import type {
   AuthenticatedUser,
   LoginResponse,
   RefreshTokenResponse,
+  ResetPasswordRequest,
   UserRole,
 } from '@a1prime/schemas';
 import { db, withDbTransaction } from '@/db/client';
 import { UnauthorizedError } from '@/lib/errors';
 import { agentProfiles, userAccounts } from '@/schema';
-import { getJwtSecret, verifyPassword } from '@/shared/lib/auth';
+import { getJwtSecret, hashPassword, verifyPassword } from '@/shared/lib/auth';
 import { decryptEmail, hashEmail, normalizeEmail } from '@/shared/lib/encryption';
 
 type LoginUser = LoginResponse['user'];
@@ -30,6 +31,7 @@ type AuthRecord = {
   refreshTokenExpiresAtUtc: Date | null;
   agentId: string | null;
   agentCode: string | null;
+  needsPasswordReset: boolean;
   createdAtUtc: Date;
   updatedAtUtc: Date;
 };
@@ -81,6 +83,7 @@ function mapLoginUser(record: AuthRecord): LoginUser {
     lastName: record.lastName,
     role: record.role,
     agentCode: record.agentCode,
+    needsPasswordReset: record.needsPasswordReset,
     createdAtUtc: record.createdAtUtc.toISOString(),
     updatedAtUtc: record.updatedAtUtc.toISOString(),
   };
@@ -100,6 +103,7 @@ async function findAuthRecordByEmailHash(emailHashValue: string): Promise<AuthRe
       refreshTokenExpiresAtUtc: userAccounts.refreshTokenExpiresAtUtc,
       agentId: agentProfiles.id,
       agentCode: agentProfiles.agentCode,
+      needsPasswordReset: userAccounts.needsPasswordReset,
       createdAtUtc: userAccounts.createdAt,
       updatedAtUtc: userAccounts.updatedAt,
     })
@@ -130,6 +134,7 @@ async function findAuthRecordByRefreshTokenHash(
       refreshTokenExpiresAtUtc: userAccounts.refreshTokenExpiresAtUtc,
       agentId: agentProfiles.id,
       agentCode: agentProfiles.agentCode,
+      needsPasswordReset: userAccounts.needsPasswordReset,
       createdAtUtc: userAccounts.createdAt,
       updatedAtUtc: userAccounts.updatedAt,
     })
@@ -175,6 +180,7 @@ export class AuthService {
         refreshTokenExpiresAtUtc: userAccounts.refreshTokenExpiresAtUtc,
         agentId: agentProfiles.id,
         agentCode: agentProfiles.agentCode,
+        needsPasswordReset: userAccounts.needsPasswordReset,
         createdAtUtc: userAccounts.createdAt,
         updatedAtUtc: userAccounts.updatedAt,
       })
@@ -277,6 +283,58 @@ export class AuthService {
       accessToken,
       refreshToken: nextRefreshToken.rawToken,
     };
+  }
+
+  async resetPassword(userId: string, input: ResetPasswordRequest): Promise<AuthenticatedUser> {
+    const [record] = await withDbTransaction('auth.reset-password', async (tx) => {
+      const updatedAt = new Date();
+
+      const [updatedUser] = await tx
+        .update(userAccounts)
+        .set({
+          passwordHash: await hashPassword(input.password),
+          needsPasswordReset: false,
+          updatedAt,
+        })
+        .where(and(eq(userAccounts.id, userId), isNull(userAccounts.deletedAtUtc)))
+        .returning({
+          userId: userAccounts.id,
+          emailHash: userAccounts.emailHash,
+          encryptedEmail: userAccounts.encryptedEmail,
+          passwordHash: userAccounts.passwordHash,
+          firstName: userAccounts.firstName,
+          lastName: userAccounts.lastName,
+          role: userAccounts.role,
+          refreshTokenHash: userAccounts.refreshTokenHash,
+          refreshTokenExpiresAtUtc: userAccounts.refreshTokenExpiresAtUtc,
+          needsPasswordReset: userAccounts.needsPasswordReset,
+          createdAtUtc: userAccounts.createdAt,
+          updatedAtUtc: userAccounts.updatedAt,
+        });
+
+      if (!updatedUser) {
+        throw new UnauthorizedError('Unauthorized');
+      }
+
+      const [agentProfile] = await tx
+        .select({
+          agentId: agentProfiles.id,
+          agentCode: agentProfiles.agentCode,
+        })
+        .from(agentProfiles)
+        .where(and(eq(agentProfiles.userId, userId), isNull(agentProfiles.deletedAtUtc)))
+        .limit(1);
+
+      return [
+        {
+          ...updatedUser,
+          agentId: agentProfile?.agentId ?? null,
+          agentCode: agentProfile?.agentCode ?? null,
+        } satisfies AuthRecord,
+      ];
+    });
+
+    return mapLoginUser(record);
   }
 }
 

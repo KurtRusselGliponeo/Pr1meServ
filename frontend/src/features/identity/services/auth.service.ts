@@ -2,7 +2,7 @@ import axios from 'axios';
 import { AuthMeResponseSchema, LoginResponseSchema } from '@a1prime/schemas';
 
 import api from '@/services/api-client';
-import type { AuthResponse, LoginRequest } from '../types/auth.types';
+import type { AuthResponse, LoginRequest, ResetPasswordRequest } from '../types/auth.types';
 
 export async function login(payload: LoginRequest): Promise<AuthResponse> {
   const response = await api.post('/auth/login', payload);
@@ -15,6 +15,7 @@ export async function login(payload: LoginRequest): Promise<AuthResponse> {
       firstName: user.firstName,
       lastName: user.lastName,
       role: user.role,
+      needsPasswordReset: user.needsPasswordReset,
       createdAt: user.createdAtUtc,
       updatedAt: user.updatedAtUtc,
     },
@@ -35,6 +36,7 @@ export async function getCurrentUser(): Promise<AuthResponse['user']> {
     firstName: user.firstName,
     lastName: user.lastName,
     role: user.role,
+    needsPasswordReset: user.needsPasswordReset,
     createdAt: user.createdAtUtc,
     updatedAt: user.updatedAtUtc,
   };
@@ -54,5 +56,21 @@ export async function refreshAccessToken(): Promise<string> {
 
 export async function logoutRequest(): Promise<void> {
   await api.post('/auth/logout');
+}
+
+export async function resetPassword(payload: ResetPasswordRequest): Promise<AuthResponse['user']> {
+  const response = await api.post('/auth/reset-password', payload);
+  const { user } = AuthMeResponseSchema.parse(response.data);
+
+  return {
+    id: user.id,
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    role: user.role,
+    needsPasswordReset: user.needsPasswordReset,
+    createdAt: user.createdAtUtc,
+    updatedAt: user.updatedAtUtc,
+  };
 }
 

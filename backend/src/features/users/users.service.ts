@@ -139,6 +139,7 @@ export class UsersService {
           firstName: input.firstName.trim(),
           lastName: input.lastName.trim(),
           role: input.role,
+          needsPasswordReset: true,
           updatedAt: new Date(),
         })
         .returning({
@@ -526,6 +527,7 @@ export class UsersService {
         .update(userAccounts)
         .set({
           passwordHash: await hashPassword(temporaryPassword),
+          needsPasswordReset: true,
           refreshTokenHash: null,
           refreshTokenExpiresAtUtc: null,
           updatedAt: updatedAtUtc,
