@@ -5,21 +5,21 @@ import { Slot } from 'radix-ui';
 import { cn } from '@/lib/utils';
 
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-semibold whitespace-nowrap transition-all duration-300 ease-smooth outline-none select-none focus-visible:border-ring focus-visible:ring-4 focus-visible:ring-ring/20 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-4 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-semibold whitespace-nowrap transition-all duration-300 ease-smooth outline-none select-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-4 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
         default:
-          'bg-brand text-brand-foreground shadow-soft hover:-translate-y-0.5 hover:bg-brand/92 hover:shadow-float',
+          'bg-primary text-primary-foreground shadow-soft hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-float active:bg-primary/95',
         outline:
-          'border-white/55 bg-background/78 text-foreground shadow-soft backdrop-blur-sm hover:-translate-y-0.5 hover:bg-brand-gradient-soft hover:text-foreground aria-expanded:bg-brand-gradient-soft dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10',
+          'border border-input bg-background/78 text-foreground shadow-soft backdrop-blur-sm hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground aria-expanded:bg-accent dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10 active:bg-accent/80',
         secondary:
-          'bg-secondary/90 text-secondary-foreground shadow-soft hover:-translate-y-0.5 hover:bg-secondary aria-expanded:bg-secondary',
+          'bg-secondary/90 text-secondary-foreground shadow-soft hover:-translate-y-0.5 hover:bg-secondary aria-expanded:bg-secondary active:bg-secondary/80',
         ghost:
-          'text-muted-foreground hover:-translate-y-0.5 hover:bg-brand-gradient-soft hover:text-foreground aria-expanded:bg-brand-gradient-soft aria-expanded:text-foreground dark:hover:bg-white/10',
+          'text-muted-foreground hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground aria-expanded:bg-accent aria-expanded:text-accent-foreground dark:hover:bg-white/10 active:bg-accent/80',
         destructive:
-          'bg-destructive text-destructive-foreground shadow-soft hover:-translate-y-0.5 hover:bg-destructive/90 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40',
-        link: 'text-primary underline-offset-4 hover:underline',
+          'bg-destructive text-destructive-foreground shadow-soft hover:-translate-y-0.5 hover:bg-destructive/90 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 active:bg-destructive/95',
+        link: 'text-primary underline-offset-4 hover:underline active:text-primary/80',
       },
       size: {
         default:

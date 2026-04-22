@@ -3,66 +3,62 @@
 import * as React from 'react';
 import { ThemeProvider as NextThemesProvider, useTheme } from 'next-themes';
 
-type BrandTheme = 'madras' | 'burgundy';
+export type CustomTheme = 'madras' | 'ocean' | 'emerald';
 
-interface BrandThemeContextValue {
-  brandTheme: BrandTheme;
-  setBrandTheme: (theme: BrandTheme) => void;
-  toggleBrandTheme: () => void;
+interface CustomThemeContextValue {
+  theme: CustomTheme;
+  setTheme: (theme: CustomTheme) => void;
 }
 
-const BRAND_STORAGE_KEY = 'a1prime-brand-theme';
-const DEFAULT_BRAND_THEME: BrandTheme = 'madras';
+const THEME_STORAGE_KEY = 'a1prime-custom-theme';
+const DEFAULT_THEME: CustomTheme = 'madras';
 
-const BrandThemeContext = React.createContext<BrandThemeContextValue | null>(null);
+const CustomThemeContext = React.createContext<CustomThemeContextValue | null>(null);
 
-function applyBrandTheme(theme: BrandTheme) {
+function applyCustomTheme(theme: CustomTheme) {
   if (typeof document === 'undefined') {
     return;
   }
 
-  document.documentElement.setAttribute('data-brand', theme);
+  document.documentElement.setAttribute('data-theme', theme);
 }
 
-function BrandThemeProvider({ children }: { children: React.ReactNode }) {
-  const [brandTheme, setBrandThemeState] = React.useState<BrandTheme>(DEFAULT_BRAND_THEME);
+function CustomThemeProvider({ children }: { children: React.ReactNode }) {
+  const [themeState, setThemeState] = React.useState<CustomTheme>(DEFAULT_THEME);
 
   React.useEffect(() => {
     if (typeof window === 'undefined') {
       return;
     }
 
-    const storedTheme = window.localStorage.getItem(BRAND_STORAGE_KEY) as BrandTheme | null;
+    const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY) as CustomTheme | null;
     const nextTheme =
-      storedTheme === 'madras' || storedTheme === 'burgundy' ? storedTheme : DEFAULT_BRAND_THEME;
+      storedTheme === 'madras' || storedTheme === 'ocean' || storedTheme === 'emerald'
+        ? storedTheme
+        : DEFAULT_THEME;
 
-    setBrandThemeState(nextTheme);
-    applyBrandTheme(nextTheme);
+    setThemeState(nextTheme);
+    applyCustomTheme(nextTheme);
   }, []);
 
-  const setBrandTheme = React.useCallback((theme: BrandTheme) => {
-    setBrandThemeState(theme);
-    applyBrandTheme(theme);
+  const setTheme = React.useCallback((theme: CustomTheme) => {
+    setThemeState(theme);
+    applyCustomTheme(theme);
 
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(BRAND_STORAGE_KEY, theme);
+      window.localStorage.setItem(THEME_STORAGE_KEY, theme);
     }
   }, []);
 
-  const toggleBrandTheme = React.useCallback(() => {
-    setBrandTheme(brandTheme === 'madras' ? 'burgundy' : 'madras');
-  }, [brandTheme, setBrandTheme]);
-
   const value = React.useMemo(
     () => ({
-      brandTheme,
-      setBrandTheme,
-      toggleBrandTheme,
+      theme: themeState,
+      setTheme,
     }),
-    [brandTheme, setBrandTheme, toggleBrandTheme],
+    [themeState, setTheme],
   );
 
-  return <BrandThemeContext.Provider value={value}>{children}</BrandThemeContext.Provider>;
+  return <CustomThemeContext.Provider value={value}>{children}</CustomThemeContext.Provider>;
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
@@ -73,16 +69,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       enableSystem={false}
       disableTransitionOnChange
     >
-      <BrandThemeProvider>{children}</BrandThemeProvider>
+      <CustomThemeProvider>{children}</CustomThemeProvider>
     </NextThemesProvider>
   );
 }
 
-export function useBrandTheme() {
-  const context = React.useContext(BrandThemeContext);
+export function useCustomTheme() {
+  const context = React.useContext(CustomThemeContext);
 
   if (!context) {
-    throw new Error('useBrandTheme must be used within ThemeProvider.');
+    throw new Error('useCustomTheme must be used within ThemeProvider.');
   }
 
   return context;

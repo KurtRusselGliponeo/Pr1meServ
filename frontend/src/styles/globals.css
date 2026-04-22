@@ -109,27 +109,7 @@
     --sidebar-ring: var(--ring);
   }
 
-  :root[data-brand='madras'] {
-    --brand: 194 72% 32%;
-    --brand-2: 176 58% 48%;
-    --brand-foreground: 0 0% 100%;
-    --brand-subtle: 188 52% 94%;
-    --brand-border: 190 42% 78%;
-    --primary: var(--brand);
-    --primary-foreground: var(--brand-foreground);
-    --ring: var(--brand);
-    --sidebar-primary: var(--brand);
-  }
-
-  :root.dark[data-brand='madras'] {
-    --brand: 186 70% 62%;
-    --brand-2: 168 63% 56%;
-    --brand-foreground: 228 28% 9%;
-    --brand-subtle: 188 38% 19%;
-    --brand-border: 189 33% 30%;
-  }
-
-  :root[data-brand='burgundy'] {
+  :root[data-theme='madras'] {
     --brand: 338 58% 31%;
     --brand-2: 18 76% 61%;
     --brand-foreground: 0 0% 100%;
@@ -139,14 +119,78 @@
     --primary-foreground: var(--brand-foreground);
     --ring: var(--brand);
     --sidebar-primary: var(--brand);
+    --accent: var(--brand-subtle);
+    --accent-foreground: var(--brand);
   }
 
-  :root.dark[data-brand='burgundy'] {
+  :root.dark[data-theme='madras'] {
     --brand: 338 68% 67%;
     --brand-2: 16 81% 66%;
     --brand-foreground: 228 28% 9%;
     --brand-subtle: 339 35% 18%;
     --brand-border: 339 29% 31%;
+    --primary: var(--brand);
+    --primary-foreground: var(--brand-foreground);
+    --ring: var(--brand);
+    --sidebar-primary: var(--brand);
+    --accent: var(--brand-subtle);
+    --accent-foreground: var(--brand);
+  }
+
+  :root[data-theme='ocean'] {
+    --brand: 221 83% 53%;
+    --brand-2: 212 96% 78%;
+    --brand-foreground: 0 0% 100%;
+    --brand-subtle: 214 100% 97%;
+    --brand-border: 214 100% 88%;
+    --primary: var(--brand);
+    --primary-foreground: var(--brand-foreground);
+    --ring: var(--brand);
+    --sidebar-primary: var(--brand);
+    --accent: var(--brand-subtle);
+    --accent-foreground: var(--brand);
+  }
+
+  :root.dark[data-theme='ocean'] {
+    --brand: 217 91% 60%;
+    --brand-2: 210 100% 74%;
+    --brand-foreground: 228 28% 9%;
+    --brand-subtle: 215 50% 15%;
+    --brand-border: 215 50% 25%;
+    --primary: var(--brand);
+    --primary-foreground: var(--brand-foreground);
+    --ring: var(--brand);
+    --sidebar-primary: var(--brand);
+    --accent: var(--brand-subtle);
+    --accent-foreground: var(--brand);
+  }
+
+  :root[data-theme='emerald'] {
+    --brand: 158 64% 39%;
+    --brand-2: 142 71% 45%;
+    --brand-foreground: 0 0% 100%;
+    --brand-subtle: 152 76% 96%;
+    --brand-border: 152 76% 88%;
+    --primary: var(--brand);
+    --primary-foreground: var(--brand-foreground);
+    --ring: var(--brand);
+    --sidebar-primary: var(--brand);
+    --accent: var(--brand-subtle);
+    --accent-foreground: var(--brand);
+  }
+
+  :root.dark[data-theme='emerald'] {
+    --brand: 158 64% 50%;
+    --brand-2: 142 71% 55%;
+    --brand-foreground: 228 28% 9%;
+    --brand-subtle: 158 40% 15%;
+    --brand-border: 158 40% 25%;
+    --primary: var(--brand);
+    --primary-foreground: var(--brand-foreground);
+    --ring: var(--brand);
+    --sidebar-primary: var(--brand);
+    --accent: var(--brand-subtle);
+    --accent-foreground: var(--brand);
   }
 
   html {
