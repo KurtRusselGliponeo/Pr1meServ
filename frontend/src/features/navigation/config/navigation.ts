@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   Trophy,
   Library,
+  BriefcaseBusiness,
 } from 'lucide-react';
 import type { SystemRole } from '@a1prime/schemas';
 
@@ -57,6 +58,14 @@ export const dashboardNavigationItems: readonly NavigationItem[] = [
     label: 'Document Library',
     description: 'Access branch forms and templates.',
     icon: Library,
+    allowedRoles: ['Admin', 'BranchManager', 'Agent'],
+    matchMode: 'startsWith',
+  },
+  {
+    href: '/dashboard/prospects',
+    label: 'Prospecting CRM',
+    description: 'Move agent leads across the pre-policy pipeline.',
+    icon: BriefcaseBusiness,
     allowedRoles: ['Admin', 'BranchManager', 'Agent'],
     matchMode: 'startsWith',
   },

@@ -10,6 +10,7 @@ import sentryPlugin from './app/plugins/sentry';
 import contractsRoutes from './app/routes/contracts.route';
 import authRoutes from './features/identity/identity.route';
 import agentsRoutes from './features/phase-4-agent-workbench/agents/agents.route';
+import prospectsRoutes from './features/phase-4-agent-workbench/prospects/prospects.route';
 import clientProfilesRoutes from './features/phase-3-reassignment/client-profiles/client-profiles.route';
 import cosafApprovalsRoutes from './features/phase-2-bm-workflow/cosaf/cosaf-approvals.route';
 import documentsRoutes from './features/phase-2-bm-workflow/documents/documents.route';
@@ -172,6 +173,7 @@ const buildApp = async () => {
   await app.register(authRoutes, { prefix: '/api/v1' });
   await app.register(usersRoutes, { prefix: '/api/v1' });
   await app.register(agentsRoutes, { prefix: '/api/v1' });
+  await app.register(prospectsRoutes, { prefix: '/api/v1' });
   await app.register(clientProfilesRoutes, { prefix: '/api/v1' });
   await app.register(cosafApprovalsRoutes, { prefix: '/api/v1' });
   await app.register(documentsRoutes, { prefix: '/api/v1' });

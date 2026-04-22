@@ -13,6 +13,8 @@ export const queryKeys = {
   performanceLeaderboard: (month: number, year: number) =>
     ['performance-leaderboard', month, year] as const,
   documents: (category?: string) => ['documents', category ?? 'all'] as const,
+  prospects: ['prospects'] as const,
+  updateProspectStage: ['update-prospect-stage'] as const,
   lapsation: ['lapsation'] as const,
   notificationLogs: ['notification-logs'] as const,
   users: (pagination: string, roleFilter: string) => ['users', pagination, roleFilter] as const,

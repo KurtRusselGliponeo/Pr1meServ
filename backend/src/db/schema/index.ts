@@ -6,6 +6,7 @@ export * from './document-library';
 export * from './lapsation-records';
 export * from './performance-metrics';
 export * from './system-audit-logs';
+export * from './prospects';
 export * from './nap-transactions';
 export * from './ape-policies';
 export * from './per-performance';

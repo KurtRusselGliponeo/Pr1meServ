@@ -10,6 +10,7 @@ export * from './cosaf-approvals.schema';
 export * from './lapsation.schema';
 export * from './notifications.schema';
 export * from './performance-metrics.schema';
+export * from './prospects.schema';
 export * from './users.schema';
 export * from './webhook-events.schema';
 

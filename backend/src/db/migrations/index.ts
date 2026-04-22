@@ -11,6 +11,7 @@ import { queryPerformanceIndexesMigration } from './010_QueryPerformanceIndexes'
 import { rowLevelSecurityMigration } from './011_RowLevelSecurity';
 import { rlsPoliciesMigration } from './012_RlsPolicies';
 import { needsPasswordResetMigration } from './013_NeedsPasswordReset';
+import { prospectsMigration } from './014_Prospects';
 
 export const phaseOneMigrations = [
   userAccountsMigration,
@@ -42,4 +43,5 @@ export const applicationMigrations = [
   ...phaseThreeMigrations,
   ...phaseFourMigrations,
   needsPasswordResetMigration,
+  prospectsMigration,
 ];
