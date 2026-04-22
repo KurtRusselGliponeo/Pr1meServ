@@ -1,3 +1,5 @@
+import { LapsationAlertWidget } from '@/features/phase-5-performance/components/lapsation-alert-widget';
+
 export default function DashboardPage() {
   const workspaceCards = [
     {
@@ -69,6 +71,8 @@ export default function DashboardPage() {
           </div>
         ))}
       </section>
+
+      <LapsationAlertWidget />
 
       <div className="grid w-full gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <section className="floating-card p-8">

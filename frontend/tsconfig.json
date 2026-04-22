@@ -21,7 +21,8 @@
       "@/*": ["./src/*"],
       "@a1prime/schemas": ["../packages/schemas/src/index.ts"],
       "sonner": ["./src/shims/sonner.tsx"],
-      "@tanstack/react-table": ["./src/shims/react-table.ts"]
+      "@tanstack/react-table": ["./src/shims/react-table.ts"],
+      "recharts": ["./src/shims/recharts.tsx"]
     }
   },
   "include": [

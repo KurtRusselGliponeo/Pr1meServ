@@ -6,8 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
+import { useAuth } from '@/features/identity/context/auth-context';
 import { useGetLapsationDashboard } from '../hooks/use-get-lapsation-dashboard';
 import { useReinstateLapsationRecord } from '../hooks/use-reinstate-lapsation-record';
+import { NapUploadPortal } from './nap-upload-portal';
 
 function formatCurrency(value: string) {
   return new Intl.NumberFormat(undefined, {
@@ -18,6 +20,7 @@ function formatCurrency(value: string) {
 }
 
 export function LapsationPageClient() {
+  const { user, isHydrated } = useAuth();
   const dashboardQuery = useGetLapsationDashboard();
   const reinstateMutation = useReinstateLapsationRecord();
 
@@ -36,6 +39,7 @@ export function LapsationPageClient() {
   }
 
   const dashboard = dashboardQuery.data;
+  const isAdmin = isHydrated && user?.role === 'Admin';
 
   return (
     <div className="space-y-6">
@@ -51,6 +55,8 @@ export function LapsationPageClient() {
           reinstatements from a live branch dashboard.
         </p>
       </section>
+
+      {isAdmin ? <NapUploadPortal /> : null}
 
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
         <Card>
@@ -120,7 +126,7 @@ export function LapsationPageClient() {
                       <td className="py-4 pr-4">
                         <p className="font-semibold text-foreground">{record.policyNumber}</p>
                         <p className="text-xs text-muted-foreground">
-                          {record.reinstatedAtUtc ? 'Reinstated' : 'Open'}
+                          {record.clientName} · {record.reinstatedAtUtc ? 'Reinstated' : 'Open'}
                         </p>
                       </td>
                       <td className="py-4 pr-4">{record.assignedAgentName}</td>

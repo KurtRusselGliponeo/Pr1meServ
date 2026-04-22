@@ -7,6 +7,7 @@ export const LapsationRecordSummarySchema = z.object({
   id: z.string().uuid(),
   policyNumberId: z.string().uuid(),
   policyNumber: z.string(),
+  clientName: z.string(),
   assignedAgentId: z.string().uuid().nullable(),
   assignedAgentName: z.string(),
   modalPremium: z.string(),
