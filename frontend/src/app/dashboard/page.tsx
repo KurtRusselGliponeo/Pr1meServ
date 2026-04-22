@@ -1,120 +1,139 @@
 import { LapsationAlertWidget } from '@/features/phase-5-performance/components/lapsation-alert-widget';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Activity, AlertTriangle, ArrowRight, ShieldCheck, Trophy, Users } from 'lucide-react';
+import Link from 'next/link';
 
 export default function DashboardPage() {
-  const workspaceCards = [
+  const quickStats = [
     {
-      label: 'Client Profiles',
-      value: 'Operational',
-      note: 'Reassignment, intake, and profile review are grouped into one calmer workspace.',
+      title: 'Orphan Clients',
+      value: '24',
+      description: 'Pending reassignment',
+      icon: Users,
+      trend: '+4 since yesterday',
+      trendUp: false,
     },
     {
-      label: 'Performance',
-      value: 'Live Ready',
-      note: 'Metrics cards and charts are styled for review once backend production data is present.',
+      title: 'At-Risk Policies',
+      value: '7',
+      description: 'Expiring in < 30 days',
+      icon: AlertTriangle,
+      trend: '-2 since yesterday',
+      trendUp: true,
     },
     {
-      label: 'Admin Controls',
-      value: 'Role Aware',
-      note: 'Protected views now match the shell instead of falling back to raw utility layouts.',
-    },
-    {
-      label: 'System State',
-      value: 'Phase 7',
-      note: 'Theme switching, dark mode, floating cards, and polished loading states are active.',
+      title: 'Branch Ranking',
+      value: '#4',
+      description: 'Regional performance',
+      icon: Trophy,
+      trend: 'Up 1 spot this week',
+      trendUp: true,
     },
   ];
 
   return (
-    <div className="space-y-6">
-      <section className="floating-card relative overflow-hidden bg-white/74 p-8 dark:bg-card/82">
-        <div className="absolute inset-y-0 right-0 hidden w-72 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.6),transparent_62%)] dark:bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_62%)] lg:block" />
-        <div className="relative grid gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.28em] text-brand/75">
-              Protected area
-            </p>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-              Branch command center
-            </h1>
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground">
-              Track branch activity, move into operational workspaces, and review system readiness
-              from a dashboard that finally feels designed instead of scaffolded.
-            </p>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-[28px] border border-white/55 bg-background/90 p-5 shadow-soft dark:border-white/10 dark:bg-white/5">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand/75">
-                Active brand
-              </p>
-              <p className="mt-3 text-2xl font-semibold text-foreground">Dual themes</p>
-              <p className="mt-2 text-sm text-muted-foreground">Madras and Burgundy</p>
-            </div>
-            <div className="rounded-[28px] border border-white/55 bg-background/90 p-5 shadow-soft dark:border-white/10 dark:bg-white/5">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand/75">
-                Visual mode
-              </p>
-              <p className="mt-3 text-2xl font-semibold text-foreground">Light / Dark</p>
-              <p className="mt-2 text-sm text-muted-foreground">Switchable in the shell header</p>
-            </div>
-          </div>
+    <div className="space-y-8">
+      {/* Header Section */}
+      <section className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Overview</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Here is what's happening in your branch today.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Link href="/dashboard/documents">
+            <Button variant="outline" className="rounded-full">
+              View Documents
+            </Button>
+          </Link>
+          <Link href="/dashboard/cosaf">
+            <Button className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-md">
+              Start Reassignment <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </Link>
         </div>
       </section>
 
-      <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-        {workspaceCards.map(({ label, value, note }) => (
-          <div key={label} className="floating-card p-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand/75">
-              {label}
-            </p>
-            <p className="mt-4 text-3xl font-semibold tracking-tight text-foreground">{value}</p>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">{note}</p>
-          </div>
+      {/* Quick Stats Grid */}
+      <section className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {quickStats.map((stat) => (
+          <Card key={stat.title} className="group relative overflow-hidden rounded-3xl border-border/50 bg-background/50 shadow-sm backdrop-blur-sm transition-all hover:shadow-md dark:bg-white/5">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                {stat.title}
+              </CardTitle>
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 transition-colors group-hover:bg-primary/20">
+                <stat.icon className="h-5 w-5 text-primary" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-foreground">{stat.value}</div>
+              <p className="mt-1 text-xs text-muted-foreground">{stat.description}</p>
+              <div className="mt-4 flex items-center text-xs">
+                <span
+                  className={
+                    stat.trendUp ? 'font-medium text-emerald-600 dark:text-emerald-400' : 'font-medium text-destructive'
+                  }
+                >
+                  {stat.trend}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
         ))}
       </section>
 
+      {/* Lapsation Alert Widget */}
       <LapsationAlertWidget />
 
-      <div className="grid w-full gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <section className="floating-card p-8">
-          <h2 className="text-xl font-semibold tracking-tight text-foreground">
-            Operational readiness
-          </h2>
-          <p className="mt-3 max-w-2xl text-sm leading-7 text-muted-foreground">
-            The command surface now has a clearer hierarchy: a branded shell, cleaner page framing,
-            solid action buttons, and feature workspaces that look consistent whether data is
-            loading, empty, or live.
-          </p>
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+      {/* Two Column Layout for Workflows */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card className="rounded-3xl border-border/50 bg-background/50 shadow-sm backdrop-blur-sm dark:bg-white/5">
+          <CardHeader>
+            <CardTitle>Recent Activity</CardTitle>
+            <CardDescription>Your latest system actions and updates.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
             {[
-              'Role-guarded navigation',
-              'Intentional loading states',
-              'Consistent form surfaces',
-            ].map((item) => (
-              <div
-                key={item}
-                className="rounded-[26px] border border-white/50 bg-brand-gradient-soft px-4 py-4 text-sm font-medium text-foreground shadow-soft dark:border-white/10"
-              >
-                {item}
+              { text: 'Assigned 4 clients to Agent Michael Scott', time: '2 hours ago', icon: ShieldCheck },
+              { text: 'Imported new COSAF data batch', time: '5 hours ago', icon: Activity },
+              { text: 'Rescued 1 policy from lapsation', time: '1 day ago', icon: AlertTriangle },
+            ].map((activity, i) => (
+              <div key={i} className="flex items-start gap-4">
+                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
+                  <activity.icon className="h-4 w-4" />
+                </div>
+                <div className="grid gap-1">
+                  <p className="text-sm font-medium leading-none text-foreground">{activity.text}</p>
+                  <p className="text-xs text-muted-foreground">{activity.time}</p>
+                </div>
               </div>
             ))}
-          </div>
-        </section>
-        <aside className="grid gap-6">
-          <section className="floating-card p-6">
-            <h2 className="text-lg font-semibold tracking-tight text-foreground">Session safety</h2>
-            <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              Requests attach the in-memory token automatically, retry once after refresh, and send
-              users back to sign-in if recovery fails.
-            </p>
-          </section>
-          <section className="floating-card p-6">
-            <h2 className="text-lg font-semibold tracking-tight text-foreground">UX baseline</h2>
-            <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              Rounded tables, intentional skeletons, chart containers, empty states, and
-              destructive-action guards are now shared patterns instead of one-off styles.
-            </p>
-          </section>
-        </aside>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-3xl border-border/50 bg-background/50 shadow-sm backdrop-blur-sm dark:bg-white/5">
+          <CardHeader>
+            <CardTitle>Quick Navigation</CardTitle>
+            <CardDescription>Jump directly to your operational workspaces.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4 sm:grid-cols-2">
+            <Link href="/dashboard/cosaf">
+              <div className="group flex cursor-pointer flex-col justify-center rounded-2xl border border-border/50 bg-background p-6 transition-colors hover:border-primary/50 hover:bg-accent">
+                <Users className="mb-3 h-6 w-6 text-primary transition-transform group-hover:scale-110" />
+                <span className="font-medium text-foreground">Reassignments</span>
+              </div>
+            </Link>
+            <Link href="/dashboard/performance">
+              <div className="group flex cursor-pointer flex-col justify-center rounded-2xl border border-border/50 bg-background p-6 transition-colors hover:border-primary/50 hover:bg-accent">
+                <Trophy className="mb-3 h-6 w-6 text-primary transition-transform group-hover:scale-110" />
+                <span className="font-medium text-foreground">Leaderboard</span>
+              </div>
+            </Link>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

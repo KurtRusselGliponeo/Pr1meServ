@@ -1,5 +1,10 @@
+import { relations } from 'drizzle-orm';
 import { index, pgTable, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
 
+import { ape } from './ape';
+import { nap } from './nap';
+import { per } from './per';
+import { rec } from './rec';
 import { userAccounts } from './user-accounts';
 
 export const agentProfiles = pgTable(
@@ -18,3 +23,14 @@ export const agentProfiles = pgTable(
   },
   (table) => [index('idx_agentprofiles_userid').on(table.userId)],
 );
+
+export const agentProfilesRelations = relations(agentProfiles, ({ many, one }) => ({
+  userAccount: one(userAccounts, {
+    fields: [agentProfiles.userId],
+    references: [userAccounts.id],
+  }),
+  naps: many(nap),
+  apes: many(ape),
+  pers: many(per),
+  recs: many(rec),
+}));

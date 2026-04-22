@@ -1,7 +1,7 @@
 import { db } from '@/db/client';
-import { agentProfiles, clientProfiles, lapsationRecords, userAccounts } from '@/db/schema';
+import { agentProfiles, clientProfiles, lapsationRecords, nap, userAccounts } from '@/db/schema';
 import { emailQueueService } from '@/features/notifications/email-queue.service';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { decryptEmail } from '@/shared/lib/encryption';
 import * as Sentry from '@sentry/node';
 
@@ -27,10 +27,10 @@ function safeSentryException(error: unknown) {
 }
 
 /**
- * Sweeps the DB scanning for isolated DATEDIFF threshold violations (Processing_Days)
+ * Sweeps imported corporate NAP data for lapsation events and mirrors them into tracked records.
  */
 export async function runAtRiskDailyScanner() {
-  console.log('[Scanner CRON] Starting daily at-risk sweep identifying gap delays...');
+  console.log('[Scanner CRON] Starting daily at-risk sweep from NAP corporate ingestion data...');
   
   const checkInId = safeSentryCheckIn({
     monitorSlug: MONITOR_SLUG,
@@ -38,26 +38,68 @@ export async function runAtRiskDailyScanner() {
   });
 
   try {
-    // Scans identifying isolated instances greater than roughly 30 days gap limit.
-    const criticalProfiles = await db.select({
-        id: clientProfiles.id,
+    // Lapsation is now driven strictly by corporate NAP ingestion rows rather than elapsed-time heuristics.
+    // We only surface policies whose assigned agent maps back to the same imported agent code.
+    const criticalProfiles = await db
+      .select({
+        policyNumberId: clientProfiles.id,
         encryptedEmail: userAccounts.encryptedEmail,
-    }).from(clientProfiles)
-      .leftJoin(agentProfiles, eq(agentProfiles.id, clientProfiles.assignedAgentId))
+        lapseDateUtc: nap.transactionDate,
+      })
+      .from(nap)
+      .innerJoin(
+        agentProfiles,
+        and(
+          eq(agentProfiles.agentCode, nap.agentCode),
+          isNull(agentProfiles.deletedAtUtc),
+        ),
+      )
+      .innerJoin(
+        clientProfiles,
+        and(
+          eq(clientProfiles.policyNumber, nap.policyNumber),
+          eq(clientProfiles.assignedAgentId, agentProfiles.id),
+          isNull(clientProfiles.deletedAtUtc),
+        ),
+      )
       .leftJoin(userAccounts, eq(userAccounts.id, agentProfiles.userId))
-      .where(sql`EXTRACT(DAY FROM (NOW() - "CreatedAtUtc")) > 30`);
+      .where(
+        sql`UPPER(TRIM(COALESCE(${nap.transactionType}, ''))) IN ('LAPSE', 'SURRENDER', 'CANCEL')`,
+      );
 
     for (const profile of criticalProfiles) {
-        await db.update(lapsationRecords)
-          .set({ isAtRisk: true })
-          .where(eq(lapsationRecords.policyNumberId, profile.id));
+        const [existingRecord] = await db
+          .select({ id: lapsationRecords.id })
+          .from(lapsationRecords)
+          .where(eq(lapsationRecords.policyNumberId, profile.policyNumberId))
+          .limit(1);
+
+        const lapseDateUtc = profile.lapseDateUtc ?? new Date();
+
+        if (existingRecord) {
+          await db
+            .update(lapsationRecords)
+            .set({
+              isAtRisk: true,
+              reinstatedAtUtc: null,
+              lapseDateUtc,
+            })
+            .where(eq(lapsationRecords.id, existingRecord.id));
+        } else {
+          await db.insert(lapsationRecords).values({
+            policyNumberId: profile.policyNumberId,
+            isAtRisk: true,
+            lapseDateUtc,
+            reinstatedAtUtc: null,
+          });
+        }
           
-        // Queueing automated logic alerts
+        // Alerting follows the imported agent_code -> assigned agent mapping so the correct agent receives the dashboard signal.
         if (profile.encryptedEmail) {
           await emailQueueService.enqueueEmail({
               to: decryptEmail(profile.encryptedEmail),
-              subject: 'CRITICAL: Policy Lapsation Risk Limit Reached',
-              text: 'Processing Days threshold has officially been exceeded on one of your records.'
+              subject: 'CRITICAL: Policy lapsation event detected',
+              text: 'A policy assigned to you has been marked as at-risk based on the latest corporate NAP lapsation transaction.'
           });
         }
     }

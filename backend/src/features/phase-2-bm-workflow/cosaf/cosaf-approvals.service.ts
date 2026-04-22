@@ -92,7 +92,13 @@ export class CosafApprovalsService {
        }
        const recipientEmail = await this.findAssignedAgentEmail(approval.clientProfileId);
        
-       await tx.update(cosafApprovals).set({ status: 'REJECTED' }).where(eq(cosafApprovals.id, approvalId));
+       const [rejectedApproval] = await tx
+         .update(cosafApprovals)
+         .set({ status: 'REJECTED', reason })
+         .where(eq(cosafApprovals.id, approvalId))
+         .returning({
+           reason: cosafApprovals.reason,
+         });
        await tx
          .update(clientProfiles)
          .set({ caseStatus: 'Returned' as CaseStatus, updatedAt: new Date() })
@@ -110,7 +116,7 @@ export class CosafApprovalsService {
          await emailQueueService.enqueueEmail({
            to: recipientEmail,
            subject: 'COSAF Form Returned',
-           text: `Branch Manager returned the COSAF request. Reason: ${reason}`,
+           text: `Branch Manager returned the COSAF request. Reason: ${rejectedApproval?.reason ?? reason}`,
          });
        }
        

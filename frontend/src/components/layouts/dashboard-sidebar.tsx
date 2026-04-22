@@ -25,7 +25,7 @@ function NavigationList({
   const { items } = useNavigation();
 
   return (
-    <nav aria-label="Dashboard" className="flex flex-col gap-2">
+    <nav aria-label="Dashboard" className="flex flex-col gap-1 px-2">
       {items.map((item) => {
         const isActive =
           item.matchMode === 'exact'
@@ -39,42 +39,21 @@ function NavigationList({
             onClick={onNavigate}
             aria-current={isActive ? 'page' : undefined}
             className={cn(
-              'group flex min-h-12 items-center gap-3 rounded-3xl border px-3 py-3 text-sm transition-all duration-300 ease-smooth',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+              'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
               isActive
-                ? 'border-brand/20 bg-brand-gradient text-brand-foreground shadow-soft [&>span]:text-brand-foreground'
-                : 'border-transparent text-muted-foreground hover:border-white/60 hover:bg-white/55 hover:text-foreground dark:hover:border-white/10 dark:hover:bg-white/5',
-              collapsed && 'justify-center px-2',
+                ? 'bg-primary text-primary-foreground shadow-md'
+                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+              collapsed && 'justify-center px-2 py-3',
             )}
             title={collapsed ? item.label : undefined}
           >
-            <span
-              className={cn(
-                'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
-                isActive
-                  ? 'bg-white/15 text-brand-foreground'
-                  : 'bg-brand-gradient-soft text-foreground group-hover:bg-brand-gradient-soft group-hover:text-brand',
-              )}
-            >
-              <item.icon className="h-5 w-5" aria-hidden="true" />
-            </span>
+            <item.icon
+              className={cn('h-5 w-5 shrink-0 transition-colors', isActive ? 'text-primary-foreground' : 'text-muted-foreground group-hover:text-foreground')}
+              aria-hidden="true"
+            />
             <span className={cn('min-w-0 flex-1', collapsed && 'hidden')}>
-              <span
-                className={cn(
-                  'block truncate font-medium',
-                  isActive ? 'text-primary-foreground' : 'text-foreground',
-                )}
-              >
-                {item.label}
-              </span>
-              <span
-                className={cn(
-                  'mt-0.5 block truncate text-xs',
-                  isActive ? 'text-primary-foreground/80' : 'text-muted-foreground',
-                )}
-              >
-                {item.description}
-              </span>
+              <span className="block truncate">{item.label}</span>
             </span>
           </Link>
         );
@@ -87,45 +66,29 @@ export { NavigationList };
 
 export function DashboardSidebar({ collapsed, onToggleCollapsed }: DashboardSidebarProps) {
   return (
-    <aside className="hidden lg:flex lg:w-[300px] lg:flex-col lg:px-4 lg:py-4">
-      <div
-        className={cn(
-          'floating-card sticky top-4 flex h-[calc(100vh-2rem)] flex-col p-4',
-          collapsed && 'items-center',
-        )}
-      >
-        <div className="mb-6 flex items-center justify-between gap-3 px-2">
-          <div className={cn('min-w-0', collapsed && 'hidden')}>
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand/75">
+    <aside className="hidden lg:flex lg:w-[280px] lg:flex-col lg:border-r lg:bg-background/95 lg:backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="flex h-full flex-col gap-4 p-4">
+        <div className="flex h-[60px] items-center gap-3 px-2">
+          <div className={cn('flex flex-col', collapsed && 'hidden')}>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
               A1 Prime
-            </p>
-            <h1 className="mt-2 text-xl font-semibold tracking-tight text-foreground">
-              Branch Workspace
-            </h1>
+            </span>
+            <span className="text-lg font-semibold tracking-tight">Workspace</span>
           </div>
           <Button
             type="button"
             variant="ghost"
             size="icon"
             onClick={onToggleCollapsed}
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            className="h-11 w-11 shrink-0 rounded-full"
+            className="ml-auto h-8 w-8 text-muted-foreground hover:text-foreground"
           >
             <PanelLeftClose
-              className={cn('h-5 w-5 transition-transform', collapsed && 'rotate-180')}
-              aria-hidden="true"
+              className={cn('h-4 w-4 transition-transform', collapsed && 'rotate-180')}
             />
           </Button>
         </div>
 
-        {!collapsed ? (
-          <p className="mb-6 rounded-3xl bg-brand-gradient-soft px-4 py-4 text-sm leading-6 text-muted-foreground">
-            Move between operational views, performance tracking, and administrative work without
-            losing context.
-          </p>
-        ) : null}
-
-        <div className="flex-1 overflow-y-auto pr-1">
+        <div className="flex-1 overflow-y-auto">
           <NavigationList collapsed={collapsed} />
         </div>
       </div>

@@ -15,6 +15,13 @@
       "when": 1776746669742,
       "tag": "0001_black_thing",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1776837697738,
+      "tag": "0002_magical_vivisector",
+      "breakpoints": true
     }
   ]
 }

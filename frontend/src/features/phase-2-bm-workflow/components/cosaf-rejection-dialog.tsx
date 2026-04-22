@@ -50,6 +50,7 @@ export function CosafRejectionDialog({
 }: CosafRejectionDialogProps) {
   const form = useForm<RejectionReasonValues>({
     resolver: zodResolver(rejectionReasonSchema),
+    mode: 'onChange',
     defaultValues: {
       rejectionReason: '',
     },
@@ -86,7 +87,7 @@ export function CosafRejectionDialog({
                   return;
                 }
 
-                onSubmit(approvalId, values.rejectionReason);
+                onSubmit(approvalId, values.rejectionReason.trim());
               })}
             >
               <FormField
@@ -117,7 +118,11 @@ export function CosafRejectionDialog({
                 >
                   Cancel
                 </Button>
-                <Button type="submit" variant="destructive" disabled={!approvalId || isPending}>
+                <Button
+                  type="submit"
+                  variant="destructive"
+                  disabled={!approvalId || isPending || !form.formState.isValid}
+                >
                   {isPending ? (
                     <>
                       <LoaderCircle className="h-4 w-4 animate-spin" />

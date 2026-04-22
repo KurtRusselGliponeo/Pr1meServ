@@ -13,6 +13,7 @@ export const cosafApprovals = pgTable(
       .references(() => userAccounts.id)
       .notNull(),
     status: varchar('Status', { length: 20 }).default('PENDING').notNull(),
+    reason: varchar('Reason', { length: 500 }),
     createdAtUtc: timestamp('CreatedAtUtc', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
