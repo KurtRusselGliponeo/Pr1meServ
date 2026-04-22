@@ -59,29 +59,65 @@ export default function DashboardPage() {
       {/* Quick Stats Grid */}
       <section className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {quickStats.map((stat) => (
-          <Card key={stat.title} className="group relative overflow-hidden rounded-3xl border-border/50 bg-background/50 shadow-sm backdrop-blur-sm transition-all hover:shadow-md dark:bg-white/5">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                {stat.title}
-              </CardTitle>
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 transition-colors group-hover:bg-primary/20">
-                <stat.icon className="h-5 w-5 text-primary" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-foreground">{stat.value}</div>
-              <p className="mt-1 text-xs text-muted-foreground">{stat.description}</p>
-              <div className="mt-4 flex items-center text-xs">
-                <span
-                  className={
-                    stat.trendUp ? 'font-medium text-emerald-600 dark:text-emerald-400' : 'font-medium text-destructive'
-                  }
-                >
-                  {stat.trend}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
+          stat.title === 'At-Risk Policies' ? (
+            <Link key={stat.title} href="/dashboard/lapsation?filter=urgent" className="block">
+              <Card className="group relative overflow-hidden rounded-3xl border-destructive/30 bg-destructive/5 shadow-sm backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:border-destructive/50 hover:shadow-md dark:bg-destructive/10">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    {stat.title}
+                  </CardTitle>
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10 transition-colors group-hover:bg-destructive/20">
+                      <stat.icon className="h-5 w-5 text-destructive" />
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-destructive transition-transform group-hover:translate-x-1" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-foreground">{stat.value}</div>
+                  <p className="mt-1 text-xs text-muted-foreground">{stat.description}</p>
+                  <div className="mt-4 flex items-center justify-between text-xs">
+                    <span
+                      className={
+                        stat.trendUp
+                          ? 'font-medium text-emerald-600 dark:text-emerald-400'
+                          : 'font-medium text-destructive'
+                      }
+                    >
+                      {stat.trend}
+                    </span>
+                    <span className="font-semibold uppercase tracking-[0.2em] text-destructive">
+                      Review now
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          ) : (
+            <Card key={stat.title} className="group relative overflow-hidden rounded-3xl border-border/50 bg-background/50 shadow-sm backdrop-blur-sm transition-all hover:shadow-md dark:bg-white/5">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  {stat.title}
+                </CardTitle>
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 transition-colors group-hover:bg-primary/20">
+                  <stat.icon className="h-5 w-5 text-primary" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-foreground">{stat.value}</div>
+                <p className="mt-1 text-xs text-muted-foreground">{stat.description}</p>
+                <div className="mt-4 flex items-center text-xs">
+                  <span
+                    className={
+                      stat.trendUp ? 'font-medium text-emerald-600 dark:text-emerald-400' : 'font-medium text-destructive'
+                    }
+                  >
+                    {stat.trend}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          )
         ))}
       </section>
 

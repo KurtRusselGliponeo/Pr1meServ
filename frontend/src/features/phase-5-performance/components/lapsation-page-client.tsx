@@ -1,6 +1,9 @@
 'use client';
 
+import * as React from 'react';
 import { AlertTriangle, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +12,8 @@ import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
 import { useAuth } from '@/features/identity/context/auth-context';
 import { useGetLapsationDashboard } from '../hooks/use-get-lapsation-dashboard';
 import { useReinstateLapsationRecord } from '../hooks/use-reinstate-lapsation-record';
+import type { LapsationRecordSummary } from '../types/lapsation.types';
+import { LapsationResolutionDialog } from './lapsation-resolution-dialog';
 import { NapUploadPortal } from './nap-upload-portal';
 
 function formatCurrency(value: string) {
@@ -21,8 +26,11 @@ function formatCurrency(value: string) {
 
 export function LapsationPageClient() {
   const { user, isHydrated } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const dashboardQuery = useGetLapsationDashboard();
   const reinstateMutation = useReinstateLapsationRecord();
+  const [selectedRecord, setSelectedRecord] = React.useState<LapsationRecordSummary | null>(null);
 
   if (dashboardQuery.isPending) {
     return <LoadingSkeleton rows={6} columns={5} />;
@@ -40,6 +48,29 @@ export function LapsationPageClient() {
 
   const dashboard = dashboardQuery.data;
   const isAdmin = isHydrated && user?.role === 'Admin';
+  const activeFilter = searchParams.get('filter');
+  const visibleRecords = dashboard.records.filter((record) => {
+    if (record.reinstatedAtUtc) {
+      return false;
+    }
+
+    if (activeFilter === 'urgent') {
+      return record.riskLevel === 'CRITICAL' || record.riskLevel === 'HIGH';
+    }
+
+    return true;
+  });
+
+  const handleResolutionSubmit = React.useCallback(
+    async (recordId: string) => {
+      await reinstateMutation.mutateAsync(recordId);
+      setSelectedRecord(null);
+      toast.success('Lapsation resolved and removed from your active queue.');
+      await dashboardQuery.refetch();
+      router.refresh();
+    },
+    [dashboardQuery, reinstateMutation, router],
+  );
 
   return (
     <div className="space-y-6">
@@ -85,11 +116,15 @@ export function LapsationPageClient() {
         </Card>
       </div>
 
-      {dashboard.records.length === 0 ? (
+      {visibleRecords.length === 0 ? (
         <EmptyState
           icon={CheckCircle2}
           title="No lapsation records found"
-          description="Import or create lapsation records to start tracking branch risk."
+          description={
+            activeFilter === 'urgent'
+              ? 'Your urgent lapsation queue is clear right now.'
+              : 'Import or create lapsation records to start tracking branch risk.'
+          }
         />
       ) : (
         <Card>
@@ -117,16 +152,16 @@ export function LapsationPageClient() {
                     <th className="pb-3 pr-4">Premium</th>
                     <th className="pb-3 pr-4">Days since lapse</th>
                     <th className="pb-3 pr-4">Risk</th>
-                    <th className="pb-3 text-right">Action</th>
+                    <th className="pb-3 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/20 dark:divide-white/10">
-                  {dashboard.records.map((record) => (
+                  {visibleRecords.map((record) => (
                     <tr key={record.id}>
                       <td className="py-4 pr-4">
                         <p className="font-semibold text-foreground">{record.policyNumber}</p>
                         <p className="text-xs text-muted-foreground">
-                          {record.clientName} · {record.reinstatedAtUtc ? 'Reinstated' : 'Open'}
+                          {record.clientName} | Open
                         </p>
                       </td>
                       <td className="py-4 pr-4">{record.assignedAgentName}</td>
@@ -141,11 +176,10 @@ export function LapsationPageClient() {
                         <Button
                           type="button"
                           size="sm"
-                          variant="outline"
-                          disabled={Boolean(record.reinstatedAtUtc) || reinstateMutation.isPending}
-                          onClick={() => reinstateMutation.mutate(record.id)}
+                          disabled={reinstateMutation.isPending}
+                          onClick={() => setSelectedRecord(record)}
                         >
-                          {record.reinstatedAtUtc ? 'Reinstated' : 'Mark reinstated'}
+                          Resolve lapsation
                         </Button>
                       </td>
                     </tr>
@@ -156,6 +190,20 @@ export function LapsationPageClient() {
           </CardContent>
         </Card>
       )}
+
+      <LapsationResolutionDialog
+        open={Boolean(selectedRecord)}
+        recordId={selectedRecord?.id ?? null}
+        policyNumber={selectedRecord?.policyNumber ?? null}
+        clientName={selectedRecord?.clientName ?? null}
+        isPending={reinstateMutation.isPending}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedRecord(null);
+          }
+        }}
+        onSubmit={(recordId) => handleResolutionSubmit(recordId)}
+      />
     </div>
   );
 }
