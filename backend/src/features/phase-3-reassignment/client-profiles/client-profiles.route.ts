@@ -19,6 +19,18 @@ import { clientProfilesService } from '@/features/phase-3-reassignment/client-pr
  */
 const clientProfilesRoutes: FastifyPluginAsync = async (app) => {
   app.get(
+    '/clients/orphans',
+    {
+      preHandler: [app.authenticate, requireRole(['Admin', 'BranchManager'])],
+    },
+    async (_request, reply) => {
+      const result = await clientProfilesService.listOrphanClients();
+
+      return reply.code(200).send(result);
+    },
+  );
+
+  app.get(
     '/client-profiles',
     {
       preHandler: [app.authenticate, requireRole(['Admin', 'BranchManager', 'Agent'])],

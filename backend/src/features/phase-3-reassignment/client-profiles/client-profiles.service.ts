@@ -10,6 +10,7 @@ import type {
   ClientProfileReassignIssue,
   ClientProfileReassignPreflightResponse,
   ClientProfileReassignResponse,
+  ListOrphanClientsResponse,
   ListClientProfilesQuery,
   ListClientProfilesResponse,
 } from '@a1prime/schemas';
@@ -51,6 +52,41 @@ type AllowedImportMimeType = (typeof ALLOWED_IMPORT_MIME_TYPES)[number];
 const NON_REASSIGNABLE_CASE_STATUSES = new Set<ClientProfile['caseStatus']>(['BM Signed', 'Done']);
 
 export class ClientProfilesService {
+  async listOrphanClients(): Promise<ListOrphanClientsResponse> {
+    const rows = await db
+      .select({
+        id: clientProfiles.id,
+        assignedAgentId: clientProfiles.assignedAgentId,
+        firstName: clientProfiles.firstName,
+        lastName: clientProfiles.lastName,
+        policyNumber: clientProfiles.policyNumber,
+        modalPremium: clientProfiles.modalPremium,
+        api: clientProfiles.api,
+        sumAssured: clientProfiles.sumAssured,
+        commissionAmount: clientProfiles.commissionAmount,
+        caseStatus: clientProfiles.caseStatus,
+        policyStatus: clientProfiles.policyStatus,
+        createdAtUtc: clientProfiles.createdAt,
+        updatedAtUtc: clientProfiles.updatedAt,
+      })
+      .from(clientProfiles)
+      .where(
+        and(
+          isNull(clientProfiles.deletedAtUtc),
+          isNull(clientProfiles.assignedAgentId),
+          eq(clientProfiles.caseStatus, 'Orphan'),
+        ),
+      )
+      .orderBy(desc(clientProfiles.updatedAt), desc(clientProfiles.createdAt));
+
+    return {
+      data: rows.map((row) => this.mapClientProfile(row)),
+      meta: {
+        total: rows.length,
+      },
+    };
+  }
+
   async listClientProfiles(
     query: ListClientProfilesQuery,
     actorUser: AuthTokenPayload,

@@ -1,5 +1,9 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { ListAgentsQuerySchema, UpdateAgentProfileSchema } from '@a1prime/schemas';
+import {
+  DelistAgentRequestSchema,
+  ListAgentsQuerySchema,
+  UpdateAgentProfileSchema,
+} from '@a1prime/schemas';
 import { requireRole } from '@/app/middleware/require-role';
 import { agentsService } from '@/features/phase-4-agent-workbench/agents/agents.service';
 
@@ -47,6 +51,18 @@ const agentsRoutes: FastifyPluginAsync = async (app) => {
         body,
         request.authUser.id,
       );
+      return reply.code(200).send(result);
+    },
+  );
+
+  app.post(
+    '/agents/delist',
+    {
+      preHandler: [app.authenticate, requireRole(['Admin', 'BranchManager'])],
+    },
+    async (request, reply) => {
+      const body = DelistAgentRequestSchema.parse(request.body);
+      const result = await agentsService.delistAgent(body.targetAgentCode, request.authUser.id);
       return reply.code(200).send(result);
     },
   );

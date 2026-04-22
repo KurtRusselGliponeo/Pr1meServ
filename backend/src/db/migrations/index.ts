@@ -12,6 +12,8 @@ import { rowLevelSecurityMigration } from './011_RowLevelSecurity';
 import { rlsPoliciesMigration } from './012_RlsPolicies';
 import { needsPasswordResetMigration } from './013_NeedsPasswordReset';
 import { prospectsMigration } from './014_Prospects';
+import { agentStatusesMigration } from './015_AgentStatuses';
+import { orphanPoolAgentMigration } from './016_OrphanPoolAgent';
 
 export const phaseOneMigrations = [
   userAccountsMigration,
@@ -44,4 +46,6 @@ export const applicationMigrations = [
   ...phaseFourMigrations,
   needsPasswordResetMigration,
   prospectsMigration,
+  agentStatusesMigration,
+  orphanPoolAgentMigration,
 ];

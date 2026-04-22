@@ -11,15 +11,18 @@ const {
   importClientProfileMock,
   reassignClientProfilesMock,
   preflightReassignmentMock,
+  listOrphanClientsMock,
 } = vi.hoisted(() => ({
   listClientProfilesMock: vi.fn(),
   importClientProfileMock: vi.fn(),
   reassignClientProfilesMock: vi.fn(),
   preflightReassignmentMock: vi.fn(),
+  listOrphanClientsMock: vi.fn(),
 }));
 
 vi.mock('@/features/phase-3-reassignment/client-profiles/client-profiles.service', () => ({
   clientProfilesService: {
+    listOrphanClients: listOrphanClientsMock,
     listClientProfiles: listClientProfilesMock,
     importClientProfile: importClientProfileMock,
     preflightReassignment: preflightReassignmentMock,
@@ -85,6 +88,56 @@ describe('client-profiles.routes', () => {
     importClientProfileMock.mockReset();
     preflightReassignmentMock.mockReset();
     reassignClientProfilesMock.mockReset();
+    listOrphanClientsMock.mockReset();
+  });
+
+  it('returns orphan-pool clients for BranchManager review', async () => {
+    listOrphanClientsMock.mockResolvedValue({
+      data: [
+        {
+          id: '3a3b00ff-bbdf-4a76-b0c1-9a222fce0db8',
+          assignedAgentId: null,
+          firstName: 'Ava',
+          lastName: 'Santos',
+          policyNumber: 'POL-101',
+          modalPremium: '1200.0000',
+          api: '14000.0000',
+          sumAssured: '450000.0000',
+          commissionAmount: '1500.0000',
+          caseStatus: 'Orphan',
+          policyStatus: 'Active',
+          createdAtUtc: new Date().toISOString(),
+          updatedAtUtc: new Date().toISOString(),
+        },
+      ],
+      meta: {
+        total: 1,
+      },
+    });
+
+    const app = await buildApp();
+    const token = await app.jwt.sign({
+      id: 'manager-user-id',
+      sub: 'manager-user-id',
+      role: 'BranchManager',
+      agentId: null,
+      agentCode: null,
+      tokenType: 'access',
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/clients/orphans',
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().meta.total).toBe(1);
+    expect(response.json().data[0].caseStatus).toBe('Orphan');
+
+    await app.close();
   });
 
   it('returns reassignment preflight results for a BranchManager token', async () => {

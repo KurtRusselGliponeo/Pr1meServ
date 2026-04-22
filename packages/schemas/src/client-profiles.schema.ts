@@ -49,3 +49,11 @@ export const ListClientProfilesResponseSchema = z.object({
   }),
 });
 export type ListClientProfilesResponse = z.infer<typeof ListClientProfilesResponseSchema>;
+
+export const ListOrphanClientsResponseSchema = z.object({
+  data: z.array(ClientProfileSchema),
+  meta: z.object({
+    total: z.number().int().nonnegative(),
+  }),
+});
+export type ListOrphanClientsResponse = z.infer<typeof ListOrphanClientsResponseSchema>;

@@ -6,10 +6,11 @@ process.env.REDIS_PORT = process.env.REDIS_PORT ?? '6379';
 process.env.DATABASE_URL =
   process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/postgres';
 
-const { getAgentProfileMock, updateAgentProfileMock, listAgentsMock } = vi.hoisted(() => ({
+const { getAgentProfileMock, updateAgentProfileMock, listAgentsMock, delistAgentMock } = vi.hoisted(() => ({
   getAgentProfileMock: vi.fn(),
   updateAgentProfileMock: vi.fn(),
   listAgentsMock: vi.fn(),
+  delistAgentMock: vi.fn(),
 }));
 
 vi.mock('@/features/phase-4-agent-workbench/agents/agents.service', () => ({
@@ -17,6 +18,7 @@ vi.mock('@/features/phase-4-agent-workbench/agents/agents.service', () => ({
     listAgents: listAgentsMock,
     getAgentProfile: getAgentProfileMock,
     updateAgentProfile: updateAgentProfileMock,
+    delistAgent: delistAgentMock,
   },
 }));
 
@@ -118,6 +120,7 @@ describe('agents.routes', () => {
     listAgentsMock.mockReset();
     getAgentProfileMock.mockReset();
     updateAgentProfileMock.mockReset();
+    delistAgentMock.mockReset();
   });
 
   it('lists agents for BranchManager lookups', async () => {
@@ -128,6 +131,7 @@ describe('agents.routes', () => {
           displayName: 'Agent Prime',
           agentCode: 'AG-001',
           email: 'agent@example.com',
+          status: 'Active',
         },
       ],
     });
@@ -163,6 +167,7 @@ describe('agents.routes', () => {
       lastName: 'Prime',
       displayName: 'Agent Prime',
       agentCode: 'AG-001',
+      status: 'Active',
       role: 'Agent',
       createdAtUtc: new Date().toISOString(),
       updatedAtUtc: new Date().toISOString(),
@@ -224,6 +229,7 @@ describe('agents.routes', () => {
       lastName: 'Prime',
       displayName: 'Agent Prime',
       agentCode: 'AG-001',
+      status: 'Active',
       role: 'Agent',
       createdAtUtc: new Date().toISOString(),
       updatedAtUtc: new Date().toISOString(),
@@ -282,6 +288,46 @@ describe('agents.routes', () => {
     });
 
     expect(response.statusCode).toBe(400);
+
+    await app.close();
+  });
+
+  it('allows a BranchManager to delist an agent and orphan their portfolio', async () => {
+    delistAgentMock.mockResolvedValue({
+      targetAgentCode: 'AG-001',
+      agentStatus: 'Terminated',
+      orphanedClientProfiles: 12,
+      migratedNapRecords: 48,
+      migratedApeRecords: 17,
+    });
+
+    const app = await buildApp();
+    const token = await app.jwt.sign({
+      id: 'manager-id',
+      sub: 'manager-id',
+      role: 'BranchManager',
+      agentId: null,
+      agentCode: null,
+      tokenType: 'access',
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/agents/delist',
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        targetAgentCode: 'AG-001',
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      targetAgentCode: 'AG-001',
+      agentStatus: 'Terminated',
+      orphanedClientProfiles: 12,
+      migratedNapRecords: 48,
+      migratedApeRecords: 17,
+    });
 
     await app.close();
   });

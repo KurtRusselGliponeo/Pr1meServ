@@ -2,6 +2,9 @@ import { z } from 'zod';
 
 import { userRoleSchema } from './auth.schema';
 
+export const agentStatusSchema = z.enum(['Active', 'Terminated']);
+export type AgentStatus = z.infer<typeof agentStatusSchema>;
+
 export const AgentAuditTrailEntrySchema = z.object({
   id: z.string().min(1),
   action: z.string().min(1),
@@ -19,6 +22,7 @@ export const AgentProfileSchema = z.object({
   lastName: z.string().min(1),
   displayName: z.string().min(1),
   agentCode: z.string().min(1),
+  status: agentStatusSchema,
   role: userRoleSchema,
   createdAtUtc: z.string().datetime(),
   updatedAtUtc: z.string().datetime(),
@@ -45,6 +49,7 @@ export const AgentLookupItemSchema = z.object({
   displayName: z.string().min(1),
   agentCode: z.string().min(1),
   email: z.string().email(),
+  status: agentStatusSchema,
 });
 export type AgentLookupItem = z.infer<typeof AgentLookupItemSchema>;
 
@@ -52,3 +57,17 @@ export const AgentLookupResponseSchema = z.object({
   data: z.array(AgentLookupItemSchema),
 });
 export type AgentLookupResponse = z.infer<typeof AgentLookupResponseSchema>;
+
+export const DelistAgentRequestSchema = z.object({
+  targetAgentCode: z.string().trim().min(1, 'Agent code is required.'),
+});
+export type DelistAgentRequest = z.infer<typeof DelistAgentRequestSchema>;
+
+export const DelistAgentResponseSchema = z.object({
+  targetAgentCode: z.string().min(1),
+  agentStatus: agentStatusSchema,
+  orphanedClientProfiles: z.number().int().nonnegative(),
+  migratedNapRecords: z.number().int().nonnegative(),
+  migratedApeRecords: z.number().int().nonnegative(),
+});
+export type DelistAgentResponse = z.infer<typeof DelistAgentResponseSchema>;

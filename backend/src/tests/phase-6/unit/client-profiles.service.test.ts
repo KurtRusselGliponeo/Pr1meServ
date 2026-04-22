@@ -209,6 +209,39 @@ describe('ClientProfilesService', () => {
     });
   });
 
+  it('returns the orphan pool client list for reassignment review', async () => {
+    selectMock.mockReturnValueOnce({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          orderBy: vi.fn().mockResolvedValue([
+            {
+              id: '53e2d073-c2f4-4509-8064-dfbf9f163159',
+              assignedAgentId: null,
+              firstName: 'Orla',
+              lastName: 'Reyes',
+              policyNumber: 'POL-404',
+              modalPremium: '1000.0000',
+              api: '12000.0000',
+              sumAssured: '500000.0000',
+              commissionAmount: '1500.0000',
+              caseStatus: 'Orphan',
+              policyStatus: 'Active',
+              createdAtUtc: new Date('2026-01-01T00:00:00.000Z'),
+              updatedAtUtc: new Date('2026-01-02T00:00:00.000Z'),
+            },
+          ]),
+        })),
+      })),
+    });
+
+    const service = new ClientProfilesService();
+    const result = await service.listOrphanClients();
+
+    expect(result.meta.total).toBe(1);
+    expect(result.data[0]?.assignedAgentId).toBeNull();
+    expect(result.data[0]?.caseStatus).toBe('Orphan');
+  });
+
   it('uploads a valid client profile import file to R2', async () => {
     fileTypeFromBufferMock.mockResolvedValue({
       ext: 'pdf',

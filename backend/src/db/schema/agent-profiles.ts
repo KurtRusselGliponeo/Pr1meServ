@@ -1,11 +1,13 @@
 import { relations } from 'drizzle-orm';
-import { index, pgTable, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
+import { index, pgEnum, pgTable, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
 
 import { ape } from './ape';
 import { nap } from './nap';
 import { per } from './per';
 import { rec } from './rec';
 import { userAccounts } from './user-accounts';
+
+export const agentStatusEnum = pgEnum('agent_status', ['Active', 'Terminated']);
 
 export const agentProfiles = pgTable(
   'AgentProfiles',
@@ -17,6 +19,7 @@ export const agentProfiles = pgTable(
       .unique(),
     agentCode: varchar('AgentCode', { length: 50 }).notNull().unique(),
     displayName: varchar('DisplayName', { length: 200 }).notNull(),
+    status: agentStatusEnum('Status').notNull().default('Active'),
     createdAt: timestamp('CreatedAtUtc', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('UpdatedAtUtc', { withTimezone: true }).defaultNow().notNull(),
     deletedAtUtc: timestamp('DeletedAtUtc', { withTimezone: true }),
