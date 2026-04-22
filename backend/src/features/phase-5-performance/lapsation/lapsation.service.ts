@@ -15,6 +15,8 @@ type LapsationRow = {
   id: string;
   policyNumberId: string;
   policyNumber: string;
+  clientFirstName: string;
+  clientLastName: string;
   assignedAgentId: string | null;
   assignedAgentName: string | null;
   modalPremium: string;
@@ -51,6 +53,7 @@ function toSummary(row: LapsationRow): LapsationRecordSummary {
     id: row.id,
     policyNumberId: row.policyNumberId,
     policyNumber: row.policyNumber,
+    clientName: `${row.clientFirstName} ${row.clientLastName}`.trim(),
     assignedAgentId: row.assignedAgentId,
     assignedAgentName: row.assignedAgentName ?? 'Unassigned',
     modalPremium: String(row.modalPremium),
@@ -70,6 +73,8 @@ export class LapsationService {
         id: lapsationRecords.id,
         policyNumberId: lapsationRecords.policyNumberId,
         policyNumber: clientProfiles.policyNumber,
+        clientFirstName: clientProfiles.firstName,
+        clientLastName: clientProfiles.lastName,
         assignedAgentId: clientProfiles.assignedAgentId,
         assignedAgentName: agentProfiles.displayName,
         modalPremium: clientProfiles.modalPremium,
