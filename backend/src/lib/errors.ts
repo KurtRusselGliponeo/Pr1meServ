@@ -29,6 +29,12 @@ export class NotFoundError extends AppError {
   }
 }
 
+export class BadRequestError extends AppError {
+  constructor(message = 'Bad request.') {
+    super(message, 400);
+  }
+}
+
 /**
  * Creates a 422 business rule error.
  *

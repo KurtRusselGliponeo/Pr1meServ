@@ -91,3 +91,11 @@ export const RecImportJobPayloadSchema = z.object({
   rows: z.array(RecImportRowSchema).min(1),
 });
 export type RecImportJobPayload = z.infer<typeof RecImportJobPayloadSchema>;
+
+export const LapsationUploadJobPayloadSchema = z.object({
+  importBatchId: z.string().trim().min(1),
+  fileName: z.string().trim().min(1),
+  initiatedByUserId: z.string().uuid(),
+  workbookBase64: z.string().trim().min(1),
+});
+export type LapsationUploadJobPayload = z.infer<typeof LapsationUploadJobPayloadSchema>;

@@ -19,7 +19,13 @@ import notificationsRoutes from './features/notifications/notifications.route';
 import usersRoutes from './features/users/users.route';
 import { assertRedisConnection, isRedisEnabled, redis } from './lib/redis';
 import { logger } from './lib/logger';
-import { BusinessRuleError, ForbiddenError, NotFoundError, UnauthorizedError } from './lib/errors';
+import {
+  BadRequestError,
+  BusinessRuleError,
+  ForbiddenError,
+  NotFoundError,
+  UnauthorizedError,
+} from './lib/errors';
 import { getJwtSecret } from './shared/lib/auth';
 import { assertDatabaseConnection } from './db/client';
 import { validateRequiredConstraints } from './db/migrations/validation';
@@ -109,6 +115,10 @@ const buildApp = async () => {
 
     if (error instanceof NotFoundError) {
       statusCode = 404;
+      errorType = error.name;
+      message = error.message;
+    } else if (error instanceof BadRequestError) {
+      statusCode = 400;
       errorType = error.name;
       message = error.message;
     } else if (error instanceof BusinessRuleError) {

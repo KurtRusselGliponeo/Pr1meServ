@@ -1,12 +1,14 @@
 import { createQueue, type QueueDefinition } from '../shared/lib/queue';
 import type {
   ApeImportJobPayload,
+  LapsationUploadJobPayload,
   NapImportJobPayload,
   PerImportJobPayload,
   RecImportJobPayload,
 } from '@a1prime/schemas';
 
 export interface ImportQueueJobs {
+  'process-lapsation-upload': LapsationUploadJobPayload;
   'process-nap-import': NapImportJobPayload;
   'process-per-import': PerImportJobPayload;
   'process-ape-import': ApeImportJobPayload;
