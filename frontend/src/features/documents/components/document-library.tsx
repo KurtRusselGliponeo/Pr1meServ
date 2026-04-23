@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +10,9 @@ import { Input } from '@/components/ui/input';
 import { Download, FileIcon, Pin, Search, Upload } from 'lucide-react';
 import { DocumentUploadModal } from './document-upload-modal';
 import { DocumentLibraryTableSkeleton } from '@/components/ui/panel-skeletons';
+import { useGetDocuments } from '@/features/phase-2-bm-workflow/hooks/use-get-documents';
+import api from '@/services/api-client';
+import { queryKeys } from '@/services/query-client';
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat(undefined, {
@@ -19,30 +22,13 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
-interface Document {
-  id: string;
-  fileName: string;
-  category: string;
-  version: string;
-  fileUrl: string;
-  isPinned: boolean;
-  createdAtUtc: string;
-}
-
 export function DocumentLibrary() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const queryClient = useQueryClient();
-
-  const { data: documents, isLoading } = useQuery<Document[]>({
-    queryKey: ['documents'],
-    queryFn: async () => {
-      const response = await fetch('/api/v1/documents');
-      if (!response.ok) throw new Error('Failed to fetch documents');
-      return response.json();
-    },
-  });
+  const categoryFilter = activeCategory === 'All' ? undefined : activeCategory;
+  const { data: documents, isLoading } = useGetDocuments(categoryFilter);
 
   const filteredDocuments = React.useMemo(() => {
     if (!documents) return [];
@@ -64,16 +50,15 @@ export function DocumentLibrary() {
 
   const { mutate: togglePin } = useMutation({
     mutationFn: async ({ id, isPinned }: { id: string; isPinned: boolean }) => {
-      const response = await fetch(`/api/v1/documents/${id}/pin`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isPinned }),
-      });
-      if (!response.ok) throw new Error('Failed to pin document');
-      return response.json();
+      const response = await api.patch(`/documents/${id}/pin`, { isPinned });
+
+      return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['documents'] });
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          Array.isArray(query.queryKey) && query.queryKey[0] === queryKeys.documents()[0],
+      });
     },
   });
 
