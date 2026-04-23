@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Command as CommandIcon, Search, ShieldCheck, Users } from 'lucide-react';
 import { Command } from 'cmdk';
 
@@ -37,6 +38,7 @@ function useCommandPalette(open: boolean, onOpenChange: (next: boolean) => void)
 export function AdminHome() {
   const [isCommandOpen, setIsCommandOpen] = React.useState(false);
   const [search, setSearch] = React.useState('');
+  const router = useRouter();
   useCommandPalette(isCommandOpen, setIsCommandOpen);
 
   const logsQuery = useGetNotificationLogs();
@@ -45,6 +47,7 @@ export function AdminHome() {
     1,
     { search },
     8,
+    isCommandOpen,
   );
 
   const recentLogs = logsQuery.data?.data.slice(0, 6) ?? [];
@@ -187,7 +190,8 @@ export function AdminHome() {
                     key={agent.id}
                     value={`${agent.displayName} ${agent.agentCode}`}
                     onSelect={() => {
-                      window.location.href = `/dashboard/agents/${agent.id}`;
+                      setIsCommandOpen(false);
+                      router.push(`/dashboard/agents/${agent.id}`);
                     }}
                     className="flex cursor-pointer items-center justify-between rounded-2xl px-3 py-3 text-sm data-[selected=true]:bg-brand-gradient-soft"
                   >
@@ -208,7 +212,8 @@ export function AdminHome() {
                     key={client.id}
                     value={`${client.firstName} ${client.lastName} ${client.policyNumber}`}
                     onSelect={() => {
-                      window.location.href = '/dashboard/cosaf/reassign';
+                      setIsCommandOpen(false);
+                      router.push('/dashboard/cosaf/reassign');
                     }}
                     className="flex cursor-pointer items-center justify-between rounded-2xl px-3 py-3 text-sm data-[selected=true]:bg-brand-gradient-soft"
                   >

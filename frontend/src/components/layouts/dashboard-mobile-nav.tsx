@@ -1,6 +1,8 @@
 'use client';
 
 import * as React from 'react';
+import type { Route } from 'next';
+import { useRouter } from 'next/navigation';
 import { PanelLeftOpen } from 'lucide-react';
 
 import { NavigationList } from '@/components/layouts/dashboard-sidebar';
@@ -12,9 +14,18 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { useNavigation } from '@/features/navigation/hooks/use-navigation';
 
 export function DashboardMobileNav() {
   const [isOpen, setIsOpen] = React.useState(false);
+  const router = useRouter();
+  const { items } = useNavigation();
+
+  React.useEffect(() => {
+    items.forEach((item) => {
+      router.prefetch(item.href as Route);
+    });
+  }, [items, router]);
 
   return (
     <div className="lg:hidden">

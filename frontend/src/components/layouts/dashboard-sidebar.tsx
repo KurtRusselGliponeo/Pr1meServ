@@ -1,8 +1,9 @@
 'use client';
 
+import * as React from 'react';
 import Link from 'next/link';
 import type { Route } from 'next';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { PanelLeftClose } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -22,7 +23,14 @@ function NavigationList({
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { items } = useNavigation();
+
+  React.useEffect(() => {
+    items.forEach((item) => {
+      router.prefetch(item.href as Route);
+    });
+  }, [items, router]);
 
   return (
     <nav aria-label="Dashboard" className="flex flex-col gap-1 px-2">

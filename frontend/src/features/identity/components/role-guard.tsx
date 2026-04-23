@@ -21,12 +21,7 @@ export function RoleGuard({ allowedRoles, children }: RoleGuardProps) {
       return;
     }
 
-    if (!user) {
-      router.replace('/login');
-      return;
-    }
-
-    if (!allowedRoles.includes(user.role)) {
+    if (user && !allowedRoles.includes(user.role)) {
       router.replace('/unauthorized');
     }
   }, [allowedRoles, isHydrated, router, user]);

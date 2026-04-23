@@ -13,7 +13,12 @@ export interface ClientProfilesFilters {
   search?: string;
 }
 
-export function useGetClientProfiles(page: number, filters: ClientProfilesFilters, pageSize = 10) {
+export function useGetClientProfiles(
+  page: number,
+  filters: ClientProfilesFilters,
+  pageSize = 10,
+  enabled = true,
+) {
   const validStatuses = [
     'Uncontacted',
     'Contacted',
@@ -39,6 +44,7 @@ export function useGetClientProfiles(page: number, filters: ClientProfilesFilter
       search: normalizedSearch,
       status: filters.status,
     }),
+    enabled,
     queryFn: async () => {
       const response = await api.get('/client-profiles', {
         params: parsedQuery,

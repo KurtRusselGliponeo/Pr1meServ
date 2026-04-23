@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { startTransition } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 
 import {
@@ -62,6 +63,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
     } finally {
       setIsRestoringSession(false);
+      setIsHydrated(true);
     }
   }, []);
 
@@ -88,8 +90,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       setUser(session.user);
-      router.replace('/dashboard');
-      router.refresh();
+      startTransition(() => {
+        router.replace('/dashboard');
+        router.refresh();
+      });
     },
     [router],
   );
@@ -100,11 +104,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       clearAuthSession();
       setUser(null);
-      router.replace('/login');
+      startTransition(() => {
+        router.replace('/login');
 
-      if (pathname?.startsWith('/dashboard')) {
-        router.refresh();
-      }
+        if (pathname?.startsWith('/dashboard')) {
+          router.refresh();
+        }
+      });
     }
   }, [pathname, router]);
 
@@ -118,8 +124,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       setUser(currentUser);
-      router.replace('/dashboard');
-      router.refresh();
+      startTransition(() => {
+        router.replace('/dashboard');
+        router.refresh();
+      });
     },
     [router],
   );

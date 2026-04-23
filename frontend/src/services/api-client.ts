@@ -33,6 +33,7 @@ api.interceptors.request.use(
 
 let isRefreshing = false;
 let refreshSubscribers: Array<(token: string | null) => void> = [];
+let hasShownSessionExpiredToast = false;
 
 function subscribeToRefresh(callback: (token: string | null) => void) {
   refreshSubscribers.push(callback);
@@ -46,6 +47,10 @@ function notifyRefreshSubscribers(token: string | null) {
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
+    if (error.response?.status !== 401) {
+      hasShownSessionExpiredToast = false;
+    }
+
     const originalRequest = error.config as
       | (typeof error.config & { _retry?: boolean })
       | undefined;
@@ -73,7 +78,12 @@ api.interceptors.response.use(
           clearAuthSession();
 
           if (typeof window !== 'undefined') {
-            window.location.href = '/login';
+            if (!hasShownSessionExpiredToast) {
+              hasShownSessionExpiredToast = true;
+              toast.error('Your session expired. Please sign in again.');
+            }
+
+            window.location.replace('/login');
           }
 
           return Promise.reject(refreshError);
