@@ -12,14 +12,25 @@ if (Number.isNaN(redisPort)) {
 
 export const isRedisEnabled = redisEnabled;
 
-export const redis = new IORedis({
-  host: redisHost,
-  port: redisPort,
-  password: process.env.REDIS_PASSWORD?.trim() || undefined,
-  maxRetriesPerRequest: null,
-  enableReadyCheck: true,
-  lazyConnect: true,
-});
+function createRedisClient() {
+  return new IORedis({
+    host: redisHost,
+    port: redisPort,
+    password: process.env.REDIS_PASSWORD?.trim() || undefined,
+    maxRetriesPerRequest: 1,
+    enableReadyCheck: true,
+    lazyConnect: true,
+    retryStrategy: (attempt) => {
+      if (!isRedisEnabled || attempt > 1) {
+        return null;
+      }
+
+      return 250;
+    },
+  });
+}
+
+export const redis = createRedisClient();
 
 let hasLoggedRedisError = false;
 

@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { AlertTriangle, CheckCircle2, ShieldAlert } from 'lucide-react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -26,7 +26,6 @@ function formatCurrency(value: string) {
 
 export function LapsationPageClient() {
   const { user, isHydrated } = useAuth();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const dashboardQuery = useGetLapsationDashboard();
   const reinstateMutation = useReinstateLapsationRecord();
@@ -67,9 +66,8 @@ export function LapsationPageClient() {
       setSelectedRecord(null);
       toast.success('Lapsation resolved and removed from your active queue.');
       await dashboardQuery.refetch();
-      router.refresh();
     },
-    [dashboardQuery, reinstateMutation, router],
+    [dashboardQuery, reinstateMutation],
   );
 
   return (

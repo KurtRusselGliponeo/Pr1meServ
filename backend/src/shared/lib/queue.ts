@@ -48,6 +48,10 @@ export interface QueueHandle<TJobs extends QueueJobDefinitions> {
 }
 
 function getQueueConnection(): ConnectionOptions {
+  if (!isRedisEnabled) {
+    throw new Error('Redis-backed queue connection requested while Redis is disabled.');
+  }
+
   return redis.duplicate();
 }
 

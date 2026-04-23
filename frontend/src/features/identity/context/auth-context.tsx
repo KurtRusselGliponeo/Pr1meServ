@@ -92,7 +92,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session.user);
       startTransition(() => {
         router.replace('/dashboard');
-        router.refresh();
       });
     },
     [router],
@@ -106,10 +105,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       startTransition(() => {
         router.replace('/login');
-
-        if (pathname?.startsWith('/dashboard')) {
-          router.refresh();
-        }
       });
     }
   }, [pathname, router]);
@@ -126,7 +121,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(currentUser);
       startTransition(() => {
         router.replace('/dashboard');
-        router.refresh();
       });
     },
     [router],
