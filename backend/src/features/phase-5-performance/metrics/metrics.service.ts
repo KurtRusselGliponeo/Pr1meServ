@@ -9,6 +9,7 @@ import type {
 } from '@a1prime/schemas';
 import { db } from '@/db/client';
 import { agentProfiles, clientProfiles, lapsationRecords, performanceMetrics } from '@/schema';
+import type { AuthTokenPayload } from '@/shared/lib/auth';
 
 function toNumber(value: string | number | null | undefined) {
   return new Decimal(value ?? 0).toNumber();
@@ -17,12 +18,22 @@ function toNumber(value: string | number | null | undefined) {
 export class MetricsService {
   async getPerformanceMetrics(
     query: GetPerformanceMetricsQuery,
+    actorUser: AuthTokenPayload,
   ): Promise<PerformanceMetricsResponse> {
     const startMonth = `${query.year}-01`;
     const nextMonthDate = new Date(Date.UTC(query.year, query.month, 1));
     const endMonth = `${nextMonthDate.getUTCFullYear()}-${String(nextMonthDate.getUTCMonth() + 1).padStart(2, '0')}`;
     const selectedMonth = `${query.year}-${String(query.month).padStart(2, '0')}`;
     const monthFormatter = new Intl.DateTimeFormat('en', { month: 'short' });
+
+    const metricConditions = [
+      gte(performanceMetrics.recordMonth, startMonth),
+      lt(performanceMetrics.recordMonth, endMonth),
+    ];
+
+    if (actorUser.role === 'Agent' && actorUser.agentId) {
+      metricConditions.push(eq(performanceMetrics.agentId, actorUser.agentId));
+    }
 
     const [summaryRows, pointRows] = await Promise.all([
       db
@@ -33,12 +44,7 @@ export class MetricsService {
           totalCommission: sql<string>`coalesce(sum(${performanceMetrics.commissionAmount}), 0)::text`,
         })
         .from(performanceMetrics)
-        .where(
-          and(
-            gte(performanceMetrics.recordMonth, startMonth),
-            lt(performanceMetrics.recordMonth, endMonth),
-          ),
-        ),
+        .where(and(...metricConditions)),
       db
         .select({
           month: performanceMetrics.recordMonth,
@@ -48,12 +54,7 @@ export class MetricsService {
           commissionAmount: sql<string>`coalesce(sum(${performanceMetrics.commissionAmount}), 0)::text`,
         })
         .from(performanceMetrics)
-        .where(
-          and(
-            gte(performanceMetrics.recordMonth, startMonth),
-            lt(performanceMetrics.recordMonth, endMonth),
-          ),
-        )
+        .where(and(...metricConditions))
         .groupBy(performanceMetrics.recordMonth)
         .orderBy(performanceMetrics.recordMonth),
     ]);
@@ -82,8 +83,17 @@ export class MetricsService {
     };
   }
 
-  async getLeaderboard(query: PerformanceLeaderboardQuery): Promise<PerformanceLeaderboardResponse> {
+  async getLeaderboard(
+    query: PerformanceLeaderboardQuery,
+    actorUser: AuthTokenPayload,
+  ): Promise<PerformanceLeaderboardResponse> {
     const recordMonth = `${query.year}-${String(query.month).padStart(2, '0')}`;
+    const leaderboardConditions = [eq(performanceMetrics.recordMonth, recordMonth)];
+
+    if (actorUser.role === 'Agent' && actorUser.agentId) {
+      leaderboardConditions.push(eq(performanceMetrics.agentId, actorUser.agentId));
+    }
+
     const rows = await db
       .select({
         agentId: performanceMetrics.agentId,
@@ -99,7 +109,13 @@ export class MetricsService {
         agentProfiles,
         and(eq(agentProfiles.id, performanceMetrics.agentId), isNull(agentProfiles.deletedAtUtc)),
       )
-      .where(eq(performanceMetrics.recordMonth, recordMonth));
+      .where(and(...leaderboardConditions));
+
+    const lapsationConditions = [and(isNull(lapsationRecords.reinstatedAtUtc), eq(lapsationRecords.isAtRisk, true))!];
+
+    if (actorUser.role === 'Agent' && actorUser.agentId) {
+      lapsationConditions.push(eq(clientProfiles.assignedAgentId, actorUser.agentId));
+    }
 
     const lapsationRows = await db
       .select({
@@ -108,7 +124,7 @@ export class MetricsService {
       })
       .from(lapsationRecords)
       .innerJoin(clientProfiles, eq(clientProfiles.id, lapsationRecords.policyNumberId))
-      .where(and(isNull(lapsationRecords.reinstatedAtUtc), eq(lapsationRecords.isAtRisk, true)))
+      .where(and(...lapsationConditions))
       .groupBy(clientProfiles.assignedAgentId);
 
     const lapsationCountByAgent = new Map(

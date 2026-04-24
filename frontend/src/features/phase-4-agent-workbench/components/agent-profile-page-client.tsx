@@ -6,6 +6,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
 import { AuditTrailTimeline } from '@/features/phase-3-reassignment/components/audit-trail-timeline';
 import { useGetAgentProfile } from '../hooks/use-get-agent-profile';
+import { useUploadAgentProfilePhoto } from '../hooks/use-upload-agent-profile-photo';
 import { useUpdateAgentProfile } from '../hooks/use-update-agent-profile';
 import { AgentProfileEditForm } from './agent-profile-edit-form';
 
@@ -16,6 +17,7 @@ interface AgentProfilePageClientProps {
 export function AgentProfilePageClient({ agentId }: AgentProfilePageClientProps) {
   const profileQuery = useGetAgentProfile(agentId);
   const updateMutation = useUpdateAgentProfile(agentId);
+  const uploadPhotoMutation = useUploadAgentProfilePhoto(agentId);
 
   if (profileQuery.isPending) {
     return <LoadingSkeleton rows={6} columns={2} />;
@@ -50,14 +52,25 @@ export function AgentProfilePageClient({ agentId }: AgentProfilePageClientProps)
             </p>
           </div>
           <div className="flex items-center gap-4 rounded-[28px] border border-white/50 bg-brand-gradient-soft px-5 py-4 shadow-soft dark:border-white/10">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-gradient text-xl font-semibold text-brand-foreground shadow-soft">
-              {profile.displayName.slice(0, 1).toUpperCase()}
-            </div>
+            {profile.profileImageUrl ? (
+              <img
+                src={profile.profileImageUrl}
+                alt={`${profile.displayName} profile`}
+                className="h-16 w-16 rounded-full object-cover shadow-soft"
+              />
+            ) : (
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-gradient text-xl font-semibold text-brand-foreground shadow-soft">
+                {profile.displayName.slice(0, 1).toUpperCase()}
+              </div>
+            )}
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand/75">
                 Agent code
               </p>
               <p className="mt-2 text-lg font-semibold text-foreground">{profile.agentCode}</p>
+              <p className="mt-1 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                Branch {profile.branchCode}
+              </p>
             </div>
           </div>
         </div>
@@ -67,8 +80,12 @@ export function AgentProfilePageClient({ agentId }: AgentProfilePageClientProps)
         <AgentProfileEditForm
           profile={profile}
           isPending={updateMutation.isPending}
+          isPhotoPending={uploadPhotoMutation.isPending}
           onSubmit={async (payload) => {
             await updateMutation.mutateAsync(payload);
+          }}
+          onPhotoUpload={async (file) => {
+            await uploadPhotoMutation.mutateAsync(file);
           }}
         />
         <AuditTrailTimeline

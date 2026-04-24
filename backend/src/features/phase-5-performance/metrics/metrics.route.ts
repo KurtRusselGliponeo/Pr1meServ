@@ -18,7 +18,7 @@ const metricsRoutes: FastifyPluginAsync = async (app) => {
     },
     async (request, reply) => {
       const query = GetPerformanceMetricsQuerySchema.parse(request.query);
-      const result = await metricsService.getPerformanceMetrics(query);
+      const result = await metricsService.getPerformanceMetrics(query, request.authUser);
       return reply.code(200).send(result);
     },
   );
@@ -30,7 +30,7 @@ const metricsRoutes: FastifyPluginAsync = async (app) => {
     },
     async (request, reply) => {
       const query = PerformanceLeaderboardQuerySchema.parse(request.query);
-      const result = await metricsService.getLeaderboard(query);
+      const result = await metricsService.getLeaderboard(query, request.authUser);
       return reply.code(200).send(result);
     },
   );

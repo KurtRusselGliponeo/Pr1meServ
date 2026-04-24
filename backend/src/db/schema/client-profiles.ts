@@ -13,6 +13,9 @@ export const clientProfiles = pgTable(
     firstName: varchar('FirstName', { length: 100 }).notNull(),
     lastName: varchar('LastName', { length: 100 }).notNull(),
     policyNumber: varchar('PolicyNumber', { length: 50 }).notNull().unique(),
+    branchCode: varchar('BranchCode', { length: 50 }).notNull().default('UNASSIGNED'),
+    productType: varchar('ProductType', { length: 120 }),
+    planCode: varchar('PlanCode', { length: 50 }),
     modalPremium: decimal('ModalPremium', { precision: 19, scale: 4 }).notNull(),
     api: decimal('Api', { precision: 19, scale: 4 }).notNull(),
     sumAssured: decimal('SumAssured', { precision: 19, scale: 4 }).notNull(),
@@ -27,5 +30,6 @@ export const clientProfiles = pgTable(
     index('idx_clientprofiles_agentid')
       .on(table.assignedAgentId)
       .where(sql`${table.deletedAtUtc} IS NULL`),
+    index('idx_clientprofiles_branchcode').on(table.branchCode),
   ],
 );

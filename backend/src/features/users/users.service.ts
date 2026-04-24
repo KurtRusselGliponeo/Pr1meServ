@@ -1,4 +1,3 @@
-import { randomUUID } from 'crypto';
 import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 
 import type {
@@ -11,10 +10,16 @@ import type {
 } from '@a1prime/schemas';
 import { db, withDbTransaction } from '@/db/client';
 import { BusinessRuleError, NotFoundError } from '@/lib/errors';
-import { agentProfiles, clientProfiles, systemAuditLogs, userAccounts } from '@/schema';
+import {
+  agentProfiles,
+  clientAssignmentHistory,
+  clientProfiles,
+  systemAuditLogs,
+  userAccounts,
+} from '@/schema';
 import { hashPassword } from '@/shared/lib/auth';
 import { logSystemAudit } from '@/shared/lib/audit';
-import { encryptEmail, hashEmail, normalizeEmail, decryptEmail } from '@/shared/lib/encryption';
+import { decryptEmail, encryptEmail, hashEmail, normalizeEmail } from '@/shared/lib/encryption';
 import { emailQueueService } from '@/features/notifications/email-queue.service';
 
 type UserRow = {
@@ -23,6 +28,7 @@ type UserRow = {
   firstName: string;
   lastName: string;
   role: ManagedUser['role'];
+  needsPasswordReset: boolean;
   createdAtUtc: Date;
   updatedAtUtc: Date;
   deletedAtUtc: Date | null;
@@ -35,30 +41,24 @@ function mapManagedUser(row: UserRow): ManagedUser {
     lastName: row.lastName,
     email: decryptEmail(row.encryptedEmail),
     role: row.role,
+    needsPasswordReset: row.needsPasswordReset,
     createdAtUtc: row.createdAtUtc.toISOString(),
     updatedAtUtc: row.updatedAtUtc.toISOString(),
     deletedAtUtc: row.deletedAtUtc?.toISOString() ?? null,
   };
 }
 
-function buildAgentCode() {
-  return `AG-${randomUUID().replace(/-/g, '').slice(0, 8).toUpperCase()}`;
-}
-
 function buildTemporaryPassword() {
-  return randomUUID().replace(/-/g, '').slice(0, 12);
+  return `${Math.floor(10000000 + Math.random() * 90000000)}`;
 }
 
-/**
- * Provides admin-facing user management operations.
- */
+function assertPrulifeEmail(email: string) {
+  if (!/@.*prulife/i.test(email)) {
+    throw new BusinessRuleError('Agent accounts must use a PRULife email address.');
+  }
+}
+
 export class UsersService {
-  /**
-   * Returns a paginated user list.
-   *
-   * @param query Validated pagination and role filters.
-   * @returns A paginated user response.
-   */
   async listUsers(query: ListUsersQuery): Promise<ListUsersResponse> {
     const offset = (query.page - 1) * query.pageSize;
     const conditions = [];
@@ -77,6 +77,7 @@ export class UsersService {
           firstName: userAccounts.firstName,
           lastName: userAccounts.lastName,
           role: userAccounts.role,
+          needsPasswordReset: userAccounts.needsPasswordReset,
           createdAtUtc: userAccounts.createdAt,
           updatedAtUtc: userAccounts.updatedAt,
           deletedAtUtc: userAccounts.deletedAtUtc,
@@ -107,17 +108,14 @@ export class UsersService {
     };
   }
 
-  /**
-   * Creates a new user account and provisions an AgentProfile when needed.
-   *
-   * @param input Validated user-creation payload.
-   * @param actorUserId Authenticated admin user id.
-   * @returns The created managed user.
-   * @throws {BusinessRuleError} When a user with the same email already exists.
-   */
   async createUser(input: CreateUser, actorUserId: string): Promise<ManagedUser> {
     const normalizedEmail = normalizeEmail(input.email);
     const emailHashValue = hashEmail(normalizedEmail);
+    const isAgent = input.role === 'Agent';
+
+    if (isAgent) {
+      assertPrulifeEmail(normalizedEmail);
+    }
 
     const [existingUser] = await db
       .select({ id: userAccounts.id })
@@ -130,12 +128,25 @@ export class UsersService {
     }
 
     return withDbTransaction('users.create', async (tx) => {
+      if (isAgent && input.agentCode) {
+        const [existingAgentProfile] = await tx
+          .select({ id: agentProfiles.id })
+          .from(agentProfiles)
+          .where(eq(agentProfiles.agentCode, input.agentCode))
+          .limit(1);
+
+        if (existingAgentProfile) {
+          throw new BusinessRuleError('An agent with that 8-digit agent code already exists.');
+        }
+      }
+
+      const password = isAgent ? input.agentCode! : input.password!;
       const [createdUser] = await tx
         .insert(userAccounts)
         .values({
           emailHash: emailHashValue,
           encryptedEmail: encryptEmail(normalizedEmail),
-          passwordHash: await hashPassword(input.password),
+          passwordHash: await hashPassword(password),
           firstName: input.firstName.trim(),
           lastName: input.lastName.trim(),
           role: input.role,
@@ -148,15 +159,17 @@ export class UsersService {
           firstName: userAccounts.firstName,
           lastName: userAccounts.lastName,
           role: userAccounts.role,
+          needsPasswordReset: userAccounts.needsPasswordReset,
           createdAtUtc: userAccounts.createdAt,
           updatedAtUtc: userAccounts.updatedAt,
           deletedAtUtc: userAccounts.deletedAtUtc,
         });
 
-      if (input.role === 'Agent') {
+      if (isAgent) {
         await tx.insert(agentProfiles).values({
           userId: createdUser.id,
-          agentCode: buildAgentCode(),
+          agentCode: input.agentCode!,
+          branchCode: input.branchCode!,
           displayName: `${createdUser.firstName} ${createdUser.lastName}`.trim(),
           updatedAt: new Date(),
         });
@@ -171,6 +184,15 @@ export class UsersService {
           newValue: {
             role: createdUser.role,
             email: decryptEmail(createdUser.encryptedEmail),
+            onboarding: isAgent
+              ? {
+                  agentCode: input.agentCode,
+                  branchCode: input.branchCode,
+                  temporaryPasswordSource: 'agentCode',
+                }
+              : {
+                  temporaryPasswordSource: 'manual',
+                },
           },
         },
         tx,
@@ -180,14 +202,6 @@ export class UsersService {
     });
   }
 
-  /**
-   * Updates an existing user's mutable profile fields.
-   *
-   * @param userId Target user id.
-   * @param input Validated update payload.
-   * @param actorUserId Authenticated admin user id.
-   * @returns The updated managed user.
-   */
   async updateUser(userId: string, input: UpdateUser, actorUserId: string): Promise<ManagedUser> {
     return withDbTransaction('users.update', async (tx) => {
       const [existingUser] = await tx
@@ -197,6 +211,7 @@ export class UsersService {
           firstName: userAccounts.firstName,
           lastName: userAccounts.lastName,
           role: userAccounts.role,
+          needsPasswordReset: userAccounts.needsPasswordReset,
           createdAtUtc: userAccounts.createdAt,
           updatedAtUtc: userAccounts.updatedAt,
           deletedAtUtc: userAccounts.deletedAtUtc,
@@ -225,6 +240,7 @@ export class UsersService {
           firstName: userAccounts.firstName,
           lastName: userAccounts.lastName,
           role: userAccounts.role,
+          needsPasswordReset: userAccounts.needsPasswordReset,
           createdAtUtc: userAccounts.createdAt,
           updatedAtUtc: userAccounts.updatedAt,
           deletedAtUtc: userAccounts.deletedAtUtc,
@@ -235,6 +251,8 @@ export class UsersService {
       const [existingAgentProfile] = await tx
         .select({
           id: agentProfiles.id,
+          agentCode: agentProfiles.agentCode,
+          branchCode: agentProfiles.branchCode,
           deletedAtUtc: agentProfiles.deletedAtUtc,
         })
         .from(agentProfiles)
@@ -263,7 +281,8 @@ export class UsersService {
       if (needsAgentProfile && !existingAgentProfile) {
         await tx.insert(agentProfiles).values({
           userId,
-          agentCode: buildAgentCode(),
+          agentCode: buildTemporaryPassword(),
+          branchCode: 'UNASSIGNED',
           displayName: nextDisplayName,
           updatedAt: updatedAtUtc,
         });
@@ -271,6 +290,7 @@ export class UsersService {
         await tx
           .update(agentProfiles)
           .set({
+            branchCode: existingAgentProfile.branchCode,
             displayName: nextDisplayName,
             deletedAtUtc: null,
             updatedAt: updatedAtUtc,
@@ -310,14 +330,6 @@ export class UsersService {
     });
   }
 
-  /**
-   * Soft-deletes a user account and any linked agent profile.
-   *
-   * @param userId Target user id.
-   * @param actorUserId Authenticated admin user id.
-   * @returns A completion promise.
-   * @throws {NotFoundError} When the user does not exist.
-   */
   async softDeleteUser(userId: string, actorUserId: string): Promise<void> {
     if (userId === actorUserId) {
       throw new BusinessRuleError('You cannot archive your own account.');
@@ -370,6 +382,7 @@ export class UsersService {
           .select({
             id: clientProfiles.id,
             assignedAgentId: clientProfiles.assignedAgentId,
+            branchCode: clientProfiles.branchCode,
           })
           .from(clientProfiles)
           .where(and(eq(clientProfiles.assignedAgentId, linkedAgent.id), isNull(clientProfiles.deletedAtUtc)));
@@ -386,7 +399,7 @@ export class UsersService {
 
           await tx.insert(systemAuditLogs).values(
             orphanedProfiles.map((profile) => ({
-              actorUserId: actorUserId,
+              actorUserId,
               action: 'client-profile.orphaned',
               entityName: 'ClientProfile',
               entityId: profile.id,
@@ -397,6 +410,18 @@ export class UsersService {
                 assignedAgentId: null,
                 caseStatus: 'Orphan',
               },
+            })),
+          );
+
+          await tx.insert(clientAssignmentHistory).values(
+            orphanedProfiles.map((profile) => ({
+              clientProfileId: profile.id,
+              fromAgentId: linkedAgent.id,
+              toAgentId: null,
+              actorUserId,
+              branchCode: profile.branchCode,
+              reason: 'User archived; client moved to orphan handling.',
+              createdAtUtc: deletedAtUtc,
             })),
           );
         }
@@ -421,13 +446,6 @@ export class UsersService {
     });
   }
 
-  /**
-   * Restores a soft-deleted user account and any linked agent profile.
-   *
-   * @param userId Target user id.
-   * @param actorUserId Authenticated admin user id.
-   * @returns A confirmation payload.
-   */
   async restoreUser(userId: string, actorUserId: string): Promise<UserActionResponse> {
     return withDbTransaction('users.restore', async (tx) => {
       const [existingUser] = await tx
@@ -492,13 +510,6 @@ export class UsersService {
     });
   }
 
-  /**
-   * Resets a user's password and sends the temporary password over the queued email channel.
-   *
-   * @param userId Target user id.
-   * @param actorUserId Authenticated admin user id.
-   * @returns A confirmation payload.
-   */
   async resetPassword(userId: string, actorUserId: string): Promise<UserActionResponse> {
     const emailPayload = await withDbTransaction('users.reset-password', async (tx) => {
       const [existingUser] = await tx
@@ -506,6 +517,7 @@ export class UsersService {
           id: userAccounts.id,
           encryptedEmail: userAccounts.encryptedEmail,
           firstName: userAccounts.firstName,
+          role: userAccounts.role,
           deletedAtUtc: userAccounts.deletedAtUtc,
         })
         .from(userAccounts)
@@ -520,7 +532,18 @@ export class UsersService {
         throw new BusinessRuleError('Archived users cannot receive password resets.');
       }
 
-      const temporaryPassword = buildTemporaryPassword();
+      const [linkedAgent] = await tx
+        .select({
+          agentCode: agentProfiles.agentCode,
+        })
+        .from(agentProfiles)
+        .where(and(eq(agentProfiles.userId, userId), isNull(agentProfiles.deletedAtUtc)))
+        .limit(1);
+
+      const temporaryPassword =
+        existingUser.role === 'Agent' && linkedAgent?.agentCode
+          ? linkedAgent.agentCode
+          : buildTemporaryPassword();
       const updatedAtUtc = new Date();
 
       await tx
@@ -543,6 +566,8 @@ export class UsersService {
           newValue: {
             deliveredVia: 'queued-email',
             resetAtUtc: updatedAtUtc.toISOString(),
+            temporaryPasswordSource:
+              existingUser.role === 'Agent' && linkedAgent?.agentCode ? 'agentCode' : 'generated',
           },
         },
         tx,

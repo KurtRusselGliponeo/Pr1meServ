@@ -18,13 +18,18 @@ export const agentProfiles = pgTable(
       .notNull()
       .unique(),
     agentCode: varchar('AgentCode', { length: 50 }).notNull().unique(),
+    branchCode: varchar('BranchCode', { length: 50 }).notNull(),
     displayName: varchar('DisplayName', { length: 200 }).notNull(),
+    profileImageKey: varchar('ProfileImageKey', { length: 255 }),
     status: agentStatusEnum('Status').notNull().default('Active'),
     createdAt: timestamp('CreatedAtUtc', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('UpdatedAtUtc', { withTimezone: true }).defaultNow().notNull(),
     deletedAtUtc: timestamp('DeletedAtUtc', { withTimezone: true }),
   },
-  (table) => [index('idx_agentprofiles_userid').on(table.userId)],
+  (table) => [
+    index('idx_agentprofiles_userid').on(table.userId),
+    index('idx_agentprofiles_branchcode').on(table.branchCode),
+  ],
 );
 
 export const agentProfilesRelations = relations(agentProfiles, ({ many, one }) => ({

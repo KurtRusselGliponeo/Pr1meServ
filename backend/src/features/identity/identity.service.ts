@@ -13,6 +13,7 @@ import { db, withDbTransaction } from '@/db/client';
 import { UnauthorizedError } from '@/lib/errors';
 import { agentProfiles, userAccounts } from '@/schema';
 import { getJwtSecret, hashPassword, verifyPassword } from '@/shared/lib/auth';
+import { logSystemAudit } from '@/shared/lib/audit';
 import { decryptEmail, hashEmail, normalizeEmail } from '@/shared/lib/encryption';
 
 type LoginUser = LoginResponse['user'];
@@ -155,17 +156,7 @@ async function findAuthRecordByRefreshTokenHash(
   return record ?? null;
 }
 
-/**
- * Provides authentication use cases for Phase 3 auth endpoints.
- */
 export class AuthService {
-  /**
-   * Returns the current authenticated user profile for `/auth/me`.
-   *
-   * @param userId Authenticated user id from the access token.
-   * @returns The hydrated authenticated user profile.
-   * @throws {UnauthorizedError} if the user no longer exists.
-   */
   async getCurrentUser(userId: string): Promise<AuthenticatedUser> {
     const [record] = await db
       .select({
@@ -199,14 +190,6 @@ export class AuthService {
     return mapLoginUser(record);
   }
 
-  /**
-   * Authenticates a user with an email/password pair.
-   *
-   * @param email Submitted email address.
-   * @param password Submitted plaintext password.
-   * @returns LoginResponse with a rotated refresh token.
-   * @throws {UnauthorizedError} if credentials are invalid.
-   */
   async login(email: string, password: string): Promise<LoginResult> {
     const normalizedEmail = normalizeEmail(email);
     const record = await findAuthRecordByEmailHash(hashEmail(normalizedEmail));
@@ -237,6 +220,21 @@ export class AuthService {
           updatedAt: new Date(),
         })
         .where(eq(userAccounts.id, record.userId));
+
+      await logSystemAudit(
+        {
+          action: 'auth.login',
+          userId: record.userId,
+          entityName: 'UserAccount',
+          resourceId: record.userId,
+          newValue: {
+            role: record.role,
+            agentCode: record.agentCode,
+            needsPasswordReset: record.needsPasswordReset,
+          },
+        },
+        tx,
+      );
     });
 
     return {
@@ -246,13 +244,6 @@ export class AuthService {
     };
   }
 
-  /**
-   * Rotates a submitted refresh token and returns a new access token.
-   *
-   * @param rawRefreshToken Raw refresh token value from the cookie.
-   * @returns A new access token plus the rotated refresh token.
-   * @throws {UnauthorizedError} if the refresh token is invalid or expired.
-   */
   async refreshToken(rawRefreshToken: string): Promise<RefreshResult> {
     const refreshTokenHashValue = crypto
       .createHash('sha256')
@@ -294,6 +285,8 @@ export class AuthService {
         .set({
           passwordHash: await hashPassword(input.password),
           needsPasswordReset: false,
+          refreshTokenHash: null,
+          refreshTokenExpiresAtUtc: null,
           updatedAt,
         })
         .where(and(eq(userAccounts.id, userId), isNull(userAccounts.deletedAtUtc)))
@@ -324,6 +317,19 @@ export class AuthService {
         .from(agentProfiles)
         .where(and(eq(agentProfiles.userId, userId), isNull(agentProfiles.deletedAtUtc)))
         .limit(1);
+
+      await logSystemAudit(
+        {
+          action: 'auth.password-reset',
+          userId,
+          entityName: 'UserAccount',
+          resourceId: userId,
+          newValue: {
+            needsPasswordReset: false,
+          },
+        },
+        tx,
+      );
 
       return [
         {

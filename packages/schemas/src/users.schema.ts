@@ -15,6 +15,7 @@ export const ManagedUserSchema = z.object({
   lastName: z.string().min(1),
   email: z.string().email(),
   role: userRoleSchema,
+  needsPasswordReset: z.boolean(),
   createdAtUtc: z.string().datetime(),
   updatedAtUtc: z.string().datetime(),
   deletedAtUtc: z.string().datetime().nullable(),
@@ -32,16 +33,45 @@ export const ListUsersResponseSchema = z.object({
 });
 export type ListUsersResponse = z.infer<typeof ListUsersResponseSchema>;
 
-export const CreateUserSchema = z.object({
-  firstName: z.string().trim().min(2, 'First name is required.'),
-  lastName: z.string().trim().min(2, 'Last name is required.'),
-  email: z.string().trim().email('Enter a valid email address.'),
-  password: z
-    .string()
-    .min(8, 'Password must be at least 8 characters.')
-    .max(128, 'Password is too long.'),
-  role: userRoleSchema,
-});
+export const CreateUserSchema = z
+  .object({
+    firstName: z.string().trim().min(2, 'First name is required.'),
+    lastName: z.string().trim().min(2, 'Last name is required.'),
+    email: z.string().trim().email('Enter a valid email address.'),
+    password: z
+      .string()
+      .min(8, 'Password must be at least 8 characters.')
+      .max(128, 'Password is too long.')
+      .optional(),
+    role: userRoleSchema,
+    agentCode: z.string().trim().regex(/^\d{8}$/, 'Agent code must be exactly 8 digits.').optional(),
+    branchCode: z.string().trim().min(2, 'Branch code is required.').max(50).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.role === 'Agent') {
+      if (!value.agentCode) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['agentCode'],
+          message: 'Agent code is required for agent accounts.',
+        });
+      }
+
+      if (!value.branchCode) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['branchCode'],
+          message: 'Branch code is required for agent accounts.',
+        });
+      }
+    } else if (!value.password) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['password'],
+        message: 'Password is required for non-agent accounts.',
+      });
+    }
+  });
 export type CreateUser = z.infer<typeof CreateUserSchema>;
 
 export const UpdateUserSchema = z.object({

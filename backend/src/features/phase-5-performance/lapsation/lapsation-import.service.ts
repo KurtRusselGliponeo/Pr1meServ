@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 import { LapsationUploadJobPayloadSchema, type LapsationUploadJobPayload } from '@a1prime/schemas';
 
 import { BusinessRuleError } from '@/lib/errors';
+import { importValidationService } from '@/features/imports/import-validation.service';
 
 const REQUIRED_HEADERS = [
   'Agent ID',
@@ -75,6 +76,13 @@ function parseWorksheetRows(worksheet: XLSX.WorkSheet): ParsedLapsationRow[] {
     } catch (error) {
       if (error instanceof z.ZodError) {
         const message = error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join('; ');
+        void importValidationService.recordIssue({
+          sourceType: 'NAP',
+          issueCode: 'INVALID_LAPSATION_ROW',
+          details: `Lapsation row ${index + 2} is invalid: ${message}`,
+          externalKey: String(row['Policy Number'] ?? row['Agent ID'] ?? index + 2),
+          rawPayload: row,
+        });
         throw new BusinessRuleError(`Lapsation row ${index + 2} is invalid: ${message}`);
       }
 

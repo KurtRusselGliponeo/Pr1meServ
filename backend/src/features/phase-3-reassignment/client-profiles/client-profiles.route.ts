@@ -43,6 +43,22 @@ const clientProfilesRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 
+  app.get(
+    '/client-profiles/:clientProfileId/history',
+    {
+      preHandler: [app.authenticate, requireRole(['Admin', 'BranchManager', 'Agent'])],
+    },
+    async (request, reply) => {
+      const params = request.params as { clientProfileId: string };
+      const result = await clientProfilesService.getClientAssignmentHistory(
+        params.clientProfileId,
+        request.authUser,
+      );
+
+      return reply.code(200).send(result);
+    },
+  );
+
   app.post(
     '/client-profiles/import',
     {

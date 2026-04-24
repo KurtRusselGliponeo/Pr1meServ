@@ -25,9 +25,12 @@ export type ListClientProfilesQuery = z.infer<typeof ListClientProfilesQuerySche
 export const ClientProfileSchema = z.object({
   id: z.string().uuid(),
   assignedAgentId: z.string().uuid().nullable(),
+  branchCode: z.string().min(1),
   firstName: z.string(),
   lastName: z.string(),
   policyNumber: z.string(),
+  productType: z.string().nullable().optional(),
+  planCode: z.string().nullable().optional(),
   modalPremium: z.string(),
   api: z.string(),
   sumAssured: z.string(),

@@ -4,6 +4,7 @@ import { nanoid } from 'nanoid';
 import type { MultipartFile } from '@fastify/multipart';
 
 import type {
+  ClientAssignmentHistoryResponse,
   ClientProfile,
   ClientProfileImportResponse,
   ClientProfileReassign,
@@ -15,7 +16,7 @@ import type {
   ListClientProfilesResponse,
 } from '@a1prime/schemas';
 import { db, type DbTransaction, withDbTransaction } from '@/db/client';
-import { agentProfiles, clientProfiles, systemAuditLogs, userAccounts } from '@/schema';
+import { agentProfiles, clientAssignmentHistory, clientProfiles, systemAuditLogs, userAccounts } from '@/schema';
 import { BusinessRuleError, ForbiddenError, NotFoundError } from '@/lib/errors';
 import type { AuthTokenPayload } from '@/shared/lib/auth';
 import { emailQueueService } from '@/features/notifications/email-queue.service';
@@ -25,9 +26,12 @@ import { decryptEmail } from '@/shared/lib/encryption';
 type ClientProfileRow = {
   id: string;
   assignedAgentId: string | null;
+  branchCode: string;
   firstName: string;
   lastName: string;
   policyNumber: string;
+  productType: string | null;
+  planCode: string | null;
   modalPremium: string;
   api: string;
   sumAssured: string;
@@ -52,14 +56,81 @@ type AllowedImportMimeType = (typeof ALLOWED_IMPORT_MIME_TYPES)[number];
 const NON_REASSIGNABLE_CASE_STATUSES = new Set<ClientProfile['caseStatus']>(['BM Signed', 'Done']);
 
 export class ClientProfilesService {
+  async getClientAssignmentHistory(
+    clientProfileId: string,
+    actorUser: AuthTokenPayload,
+  ): Promise<ClientAssignmentHistoryResponse> {
+    const [client] = await db
+      .select({
+        id: clientProfiles.id,
+        assignedAgentId: clientProfiles.assignedAgentId,
+      })
+      .from(clientProfiles)
+      .where(and(eq(clientProfiles.id, clientProfileId), isNull(clientProfiles.deletedAtUtc)))
+      .limit(1);
+
+    if (!client) {
+      throw new NotFoundError('Client profile was not found.');
+    }
+
+    if (actorUser.role === 'Agent') {
+      if (!actorUser.agentId || client.assignedAgentId !== actorUser.agentId) {
+        throw new ForbiddenError('Agents can only view history for their own assigned clients.');
+      }
+    }
+
+    const rows = await db
+      .select({
+        id: clientAssignmentHistory.id,
+        clientProfileId: clientAssignmentHistory.clientProfileId,
+        fromAgentId: clientAssignmentHistory.fromAgentId,
+        toAgentId: clientAssignmentHistory.toAgentId,
+        branchCode: clientAssignmentHistory.branchCode,
+        reason: clientAssignmentHistory.reason,
+        createdAtUtc: clientAssignmentHistory.createdAtUtc,
+      })
+      .from(clientAssignmentHistory)
+      .where(eq(clientAssignmentHistory.clientProfileId, clientProfileId))
+      .orderBy(desc(clientAssignmentHistory.createdAtUtc));
+
+    const agentIds = [...new Set(rows.flatMap((row) => [row.fromAgentId, row.toAgentId]).filter(Boolean))] as string[];
+    const agents = agentIds.length
+      ? await db
+          .select({
+            id: agentProfiles.id,
+            displayName: agentProfiles.displayName,
+          })
+          .from(agentProfiles)
+          .where(inArray(agentProfiles.id, agentIds))
+      : [];
+    const agentNameById = new Map(agents.map((agent) => [agent.id, agent.displayName]));
+
+    return {
+      data: rows.map((row) => ({
+        id: row.id,
+        clientProfileId: row.clientProfileId,
+        fromAgentId: row.fromAgentId,
+        toAgentId: row.toAgentId,
+        fromAgentName: row.fromAgentId ? agentNameById.get(row.fromAgentId) ?? null : null,
+        toAgentName: row.toAgentId ? agentNameById.get(row.toAgentId) ?? null : null,
+        branchCode: row.branchCode,
+        reason: row.reason,
+        createdAtUtc: row.createdAtUtc.toISOString(),
+      })),
+    };
+  }
+
   async listOrphanClients(): Promise<ListOrphanClientsResponse> {
     const rows = await db
       .select({
         id: clientProfiles.id,
         assignedAgentId: clientProfiles.assignedAgentId,
+        branchCode: clientProfiles.branchCode,
         firstName: clientProfiles.firstName,
         lastName: clientProfiles.lastName,
         policyNumber: clientProfiles.policyNumber,
+        productType: clientProfiles.productType,
+        planCode: clientProfiles.planCode,
         modalPremium: clientProfiles.modalPremium,
         api: clientProfiles.api,
         sumAssured: clientProfiles.sumAssured,
@@ -130,9 +201,12 @@ export class ClientProfilesService {
         .select({
           id: clientProfiles.id,
           assignedAgentId: clientProfiles.assignedAgentId,
+          branchCode: clientProfiles.branchCode,
           firstName: clientProfiles.firstName,
           lastName: clientProfiles.lastName,
           policyNumber: clientProfiles.policyNumber,
+          productType: clientProfiles.productType,
+          planCode: clientProfiles.planCode,
           modalPremium: clientProfiles.modalPremium,
           api: clientProfiles.api,
           sumAssured: clientProfiles.sumAssured,
@@ -270,7 +344,7 @@ export class ClientProfilesService {
         .update(clientProfiles)
         .set({
           assignedAgentId: preflight.destinationAgentId,
-          caseStatus: preflight.destinationAgentId ? 'For Approval' : 'Orphan',
+          caseStatus: preflight.destinationAgentId ? 'Contacted' : 'Orphan',
           updatedAt,
         })
         .where(inArray(clientProfiles.id, preflight.validClientProfileIds));
@@ -286,8 +360,30 @@ export class ClientProfilesService {
           },
           newValue: {
             assignedAgentId: preflight.destinationAgentId,
-            caseStatus: preflight.destinationAgentId ? 'For Approval' : 'Orphan',
+            caseStatus: preflight.destinationAgentId ? 'Contacted' : 'Orphan',
           },
+        })),
+      );
+
+      const historyRows = await tx
+        .select({
+          id: clientProfiles.id,
+          branchCode: clientProfiles.branchCode,
+        })
+        .from(clientProfiles)
+        .where(inArray(clientProfiles.id, preflight.validClientProfileIds));
+
+      await tx.insert(clientAssignmentHistory).values(
+        rows.map((row) => ({
+          clientProfileId: row.id,
+          fromAgentId: row.assignedAgentId,
+          toAgentId: preflight.destinationAgentId,
+          actorUserId: actorUser.sub,
+          branchCode: historyRows.find((historyRow) => historyRow.id === row.id)?.branchCode ?? 'UNASSIGNED',
+          reason: preflight.destinationAgentId
+            ? 'Manual reassignment completed.'
+            : 'Client moved to orphan handling.',
+          createdAtUtc: updatedAt,
         })),
       );
 
@@ -414,9 +510,12 @@ export class ClientProfilesService {
     return {
       id: row.id,
       assignedAgentId: row.assignedAgentId,
+      branchCode: row.branchCode,
       firstName: row.firstName,
       lastName: row.lastName,
       policyNumber: row.policyNumber,
+      productType: row.productType ?? null,
+      planCode: row.planCode ?? null,
       modalPremium: String(row.modalPremium),
       api: String(row.api),
       sumAssured: String(row.sumAssured),

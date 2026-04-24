@@ -3,7 +3,7 @@ import { ReassignPageClient } from '@/features/phase-3-reassignment/components/r
 
 export default function CosafReassignPage() {
   return (
-    <RoleGuard allowedRoles={['Admin']}>
+    <RoleGuard allowedRoles={['Admin', 'BranchManager']}>
       <ReassignPageClient />
     </RoleGuard>
   );

@@ -32,6 +32,7 @@ interface ClientReassignmentFormProps {
   agentSearch: string;
   onClientSearchChange: (value: string) => void;
   onAgentSearchChange: (value: string) => void;
+  onViewHistory: (clientId: string) => void;
   onSubmit: (payload: ClientProfileReassign) => Promise<void>;
   isClientsPending?: boolean;
   isAgentsPending?: boolean;
@@ -89,10 +90,12 @@ function OrphanClientCard({
   client,
   isSelected,
   onToggle,
+  onViewHistory,
 }: {
   client: ClientProfile;
   isSelected: boolean;
   onToggle: (clientId: string) => void;
+  onViewHistory: (clientId: string) => void;
 }) {
   return (
     <button
@@ -134,6 +137,19 @@ function OrphanClientCard({
           <dd className="mt-1 text-foreground">{formatCurrency(client.api)}</dd>
         </div>
       </dl>
+      <div className="mt-4 flex justify-end">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={(event) => {
+            event.stopPropagation();
+            onViewHistory(client.id);
+          }}
+        >
+          View history
+        </Button>
+      </div>
     </button>
   );
 }
@@ -182,6 +198,7 @@ export function ClientReassignmentForm({
   agentSearch,
   onClientSearchChange,
   onAgentSearchChange,
+  onViewHistory,
   onSubmit,
   isClientsPending = false,
   isAgentsPending = false,
@@ -383,6 +400,7 @@ export function ClientReassignmentForm({
                     client={client}
                     isSelected={selectedClientIds.includes(client.id)}
                     onToggle={toggleClient}
+                    onViewHistory={onViewHistory}
                   />
                 </motion.div>
               ))}

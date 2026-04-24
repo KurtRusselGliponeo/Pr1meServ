@@ -17,9 +17,10 @@ import {
   RecImportJobPayloadSchema,
 } from '@a1prime/schemas';
 
-import { db, withDbTransaction, type DbTransaction } from '@/db/client';
+import { withDbTransaction, type DbTransaction } from '@/db/client';
 import { BusinessRuleError } from '@/lib/errors';
 import { clientProfiles, lapsationRecords, performanceMetrics } from '@/schema';
+import { importValidationService } from '@/features/imports/import-validation.service';
 
 const IMPORT_BATCH_SIZE = 200;
 
@@ -152,6 +153,11 @@ export class PerformanceImportService {
     const parsedPayload = NapImportJobPayloadSchema.parse(payload);
 
     if (parsedPayload.rows.length === 0) {
+      await importValidationService.recordIssue({
+        sourceType: 'NAP',
+        issueCode: 'EMPTY_IMPORT',
+        details: 'NAP import requires at least one row.',
+      });
       throw new BusinessRuleError('NAP import requires at least one row.');
     }
 
@@ -265,6 +271,13 @@ export class PerformanceImportService {
       const existing = existingRows.get(metricKey(row));
 
       if (!existing) {
+        await importValidationService.recordIssue({
+          sourceType: importType,
+          issueCode: 'MISSING_METRIC_ROW',
+          details: `${importType} import could not find an existing metric row for ${row.agentId} ${row.recordMonth}.`,
+          externalKey: `${row.agentId}:${row.recordMonth}`,
+          rawPayload: row,
+        });
         throw new BusinessRuleError(
           `${importType} import could not find an existing metric row for ${row.agentId} ${row.recordMonth}.`,
         );

@@ -4,6 +4,7 @@ import { db } from '@/db/client';
 import { clientProfiles, cosafApprovals, documentLibrary, userAccounts } from '@/db/schema';
 import { and, desc, eq } from 'drizzle-orm';
 import type { CaseStatus, SystemRole } from '@a1prime/schemas';
+import type { AuthTokenPayload } from '@/shared/lib/auth';
 
 
 
@@ -58,12 +59,22 @@ export class DocumentsService {
   /**
    * Safe fetch queries enforcing Enum Category mapping logic (e.g. filter by 'COSAF')
    */
-  async fetchDocuments(category?: string) {
+  async fetchDocuments(category?: string, actorUser?: AuthTokenPayload) {
+    const conditions = [];
+
     if (category) {
+      conditions.push(eq(documentLibrary.category, category));
+    }
+
+    if (actorUser?.role === 'Agent') {
+      conditions.push(eq(documentLibrary.uploadedByUserId, actorUser.sub));
+    }
+
+    if (conditions.length > 0) {
       return db
         .select()
         .from(documentLibrary)
-        .where(eq(documentLibrary.category, category))
+        .where(and(...conditions))
         .orderBy(desc(documentLibrary.isPinned), desc(documentLibrary.createdAtUtc));
     }
 

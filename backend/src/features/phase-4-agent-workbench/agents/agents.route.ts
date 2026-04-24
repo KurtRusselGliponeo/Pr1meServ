@@ -5,6 +5,8 @@ import {
   UpdateAgentProfileSchema,
 } from '@a1prime/schemas';
 import { requireRole } from '@/app/middleware/require-role';
+import { scanForMalware } from '@/app/middleware/malware-scanner';
+import { BusinessRuleError } from '@/lib/errors';
 import { agentsService } from '@/features/phase-4-agent-workbench/agents/agents.service';
 
 /**
@@ -33,7 +35,7 @@ const agentsRoutes: FastifyPluginAsync = async (app) => {
     },
     async (request, reply) => {
       const params = request.params as { agentId: string };
-      const result = await agentsService.getAgentProfile(params.agentId);
+      const result = await agentsService.getAgentProfile(params.agentId, request.authUser);
       return reply.code(200).send(result);
     },
   );
@@ -49,6 +51,47 @@ const agentsRoutes: FastifyPluginAsync = async (app) => {
       const result = await agentsService.updateAgentProfile(
         params.agentId,
         body,
+        request.authUser,
+        request.authUser.id,
+      );
+      return reply.code(200).send(result);
+    },
+  );
+
+  app.post(
+    '/agents/:agentId/profile-photo',
+    {
+      preHandler: [app.authenticate, requireRole(['Admin', 'BranchManager', 'Agent'])],
+    },
+    async (request, reply) => {
+      const params = request.params as { agentId: string };
+      let upload;
+
+      try {
+        upload = await request.file();
+      } catch (error) {
+        if (
+          typeof error === 'object' &&
+          error !== null &&
+          'code' in error &&
+          error.code === 'FST_INVALID_MULTIPART_CONTENT_TYPE'
+        ) {
+          throw new BusinessRuleError('A profile image file is required.');
+        }
+
+        throw error;
+      }
+
+      if (!upload) {
+        throw new BusinessRuleError('A profile image file is required.');
+      }
+
+      await scanForMalware(upload);
+
+      const result = await agentsService.uploadProfilePhoto(
+        params.agentId,
+        upload,
+        request.authUser,
         request.authUser.id,
       );
       return reply.code(200).send(result);

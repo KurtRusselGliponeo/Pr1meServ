@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ReassignmentBoardSkeleton } from '@/components/ui/panel-skeletons';
 import { useGetClientProfiles } from '@/features/phase-2-bm-workflow/hooks/use-get-client-profiles';
 import { useGetAgents } from '@/features/phase-3-reassignment/hooks/use-get-agents';
+import { useGetClientHistory } from '@/features/phase-3-reassignment/hooks/use-get-client-history';
 import { useReassignClients } from '@/features/phase-3-reassignment/hooks/use-reassign-clients';
 import { AuditTrailTimeline } from './audit-trail-timeline';
 import { ClientReassignmentForm } from './client-reassignment-form';
@@ -27,6 +28,8 @@ export function ReassignPageClient() {
   );
   const agentsQuery = useGetAgents(deferredAgentSearch);
   const reassignMutation = useReassignClients();
+  const [historyClientId, setHistoryClientId] = React.useState<string | undefined>(undefined);
+  const historyQuery = useGetClientHistory(historyClientId);
 
   const auditItems = (orphanClientsQuery.data?.data ?? []).slice(0, 5).map((profile, index) => ({
     id: profile.id,
@@ -78,11 +81,35 @@ export function ReassignPageClient() {
           isClientsPending={orphanClientsQuery.isPending}
           isAgentsPending={agentsQuery.isPending}
           isPending={reassignMutation.isPending}
+          onViewHistory={setHistoryClientId}
           onSubmit={async (payload) => {
             await reassignMutation.mutateAsync(payload);
           }}
         />
-        <AuditTrailTimeline items={auditItems} />
+        <div className="space-y-6">
+          <AuditTrailTimeline items={auditItems} />
+          {historyClientId ? (
+            <section className="floating-card bg-white/72 p-6 dark:bg-card/82">
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand/75">
+                Client assignment history
+              </p>
+              {historyQuery.isPending ? (
+                <p className="mt-4 text-sm text-muted-foreground">Loading client history…</p>
+              ) : historyQuery.errorMessage ? (
+                <p className="mt-4 text-sm text-destructive">{historyQuery.errorMessage}</p>
+              ) : (
+                <AuditTrailTimeline
+                  items={(historyQuery.data?.data ?? []).map((entry) => ({
+                    id: entry.id,
+                    title: `${entry.fromAgentName ?? 'Unassigned'} -> ${entry.toAgentName ?? 'Unassigned'}`,
+                    description: `${entry.reason ?? 'Assignment updated'} Branch: ${entry.branchCode}.`,
+                    timestampUtc: entry.createdAtUtc,
+                  }))}
+                />
+              )}
+            </section>
+          ) : null}
+        </div>
       </div>
     </div>
   );

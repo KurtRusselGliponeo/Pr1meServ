@@ -1,8 +1,10 @@
 import { EmailQueuePayloadSchema, type EmailQueuePayload } from '@a1prime/schemas';
 import { addBreadcrumb } from '@sentry/core';
 
+import { db } from '@/db/client';
 import { isRedisEnabled } from '@/lib/redis';
 import { createNotificationQueue } from '@/queues/notification.queue';
+import { notifications } from '@/schema';
 import { logSystemAudit } from '@/shared/lib/audit';
 import { sendQueuedEmail } from '@/shared/mail/mailer';
 
@@ -33,6 +35,16 @@ export class EmailQueueService {
         to: parsedPayload.to,
         subject: parsedPayload.subject,
       },
+    });
+
+    await db.insert(notifications).values({
+      channel: 'email',
+      subject: parsedPayload.subject,
+      message: parsedPayload.html ?? parsedPayload.text ?? '',
+      status: isRedisEnabled ? 'queued' : 'sent',
+      metadata: JSON.stringify({
+        to: parsedPayload.to,
+      }),
     });
   }
 
@@ -70,6 +82,15 @@ export class EmailQueueService {
           subject: parsedPayload.subject,
         },
       });
+      await db.insert(notifications).values({
+        channel: 'email',
+        subject: parsedPayload.subject,
+        message: parsedPayload.html ?? parsedPayload.text ?? '',
+        status: 'sent',
+        metadata: JSON.stringify({
+          to: parsedPayload.to,
+        }),
+      });
     } catch (error) {
       await logSystemAudit({
         action: 'email.failed',
@@ -78,6 +99,15 @@ export class EmailQueueService {
           to: parsedPayload.to,
           subject: parsedPayload.subject,
         },
+      });
+      await db.insert(notifications).values({
+        channel: 'email',
+        subject: parsedPayload.subject,
+        message: parsedPayload.html ?? parsedPayload.text ?? '',
+        status: 'failed',
+        metadata: JSON.stringify({
+          to: parsedPayload.to,
+        }),
       });
       throw error;
     }

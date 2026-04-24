@@ -2,7 +2,8 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { AlertTriangle, ArrowRight, ShieldCheck, TrendingUp } from 'lucide-react';
+import type { Route } from 'next';
+import { AlertTriangle, ArrowRight, CheckCircle2, ShieldCheck, TrendingUp } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -88,6 +89,45 @@ export function AgentHome() {
         </div>
       </section>
 
+      <section className="grid gap-4 lg:grid-cols-3">
+        {[
+          {
+            step: 'Step 1',
+            title: 'Review urgent policies',
+            description: 'Start with high-risk policies so you clear the most urgent client follow-ups first.',
+            href: '/dashboard/lapsation?filter=urgent',
+            cta: 'Open urgent queue',
+          },
+          {
+            step: 'Step 2',
+            title: 'Resolve and update status',
+            description: 'Mark reinstated records as soon as you close them so your queue stays accurate.',
+            href: '/dashboard/lapsation',
+            cta: 'Update lapsation tracker',
+          },
+          {
+            step: 'Step 3',
+            title: 'Check your production pulse',
+            description: 'Review your performance view after follow-ups so you can track your month clearly.',
+            href: '/dashboard/performance',
+            cta: 'View performance',
+          },
+        ].map((item) => (
+          <Card key={item.title}>
+            <CardHeader>
+              <CardDescription>{item.step}</CardDescription>
+              <CardTitle className="text-xl">{item.title}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">{item.description}</p>
+              <Button asChild variant="outline" className="mt-4 min-h-11 rounded-full">
+                <Link href={item.href as Route}>{item.cta}</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        ))}
+      </section>
+
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
         <Card className="border-destructive/30 bg-destructive/5 dark:bg-destructive/10">
           <CardHeader>
@@ -136,7 +176,7 @@ export function AgentHome() {
         <Card>
           <CardHeader>
             <CardTitle className="text-xl">My Next Best Moves</CardTitle>
-            <CardDescription>Shortcuts into the actions that matter most today.</CardDescription>
+            <CardDescription>Follow this order to keep the day simple and consistent.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
             <Link href="/dashboard/lapsation" className="block">
@@ -162,6 +202,17 @@ export function AgentHome() {
                 Work at-risk queue <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
+            <div className="rounded-[24px] border border-white/50 bg-background/75 p-4 dark:border-white/10">
+              <div className="flex items-start gap-3">
+                <CheckCircle2 className="mt-0.5 h-5 w-5 text-brand" />
+                <div>
+                  <p className="font-semibold text-foreground">Daily workflow</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    1. Open urgent queue. 2. Resolve calls and reinstatements. 3. Check performance before you sign off.
+                  </p>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>

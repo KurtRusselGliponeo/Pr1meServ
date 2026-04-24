@@ -11,6 +11,8 @@ import { Download, FileIcon, Pin, Search, Upload } from 'lucide-react';
 import { DocumentUploadModal } from './document-upload-modal';
 import { DocumentLibraryTableSkeleton } from '@/components/ui/panel-skeletons';
 import { useGetDocuments } from '@/features/phase-2-bm-workflow/hooks/use-get-documents';
+import { EmptyState } from '@/components/ui/empty-state';
+import { useAuth } from '@/features/identity';
 import api from '@/services/api-client';
 import { queryKeys } from '@/services/query-client';
 
@@ -23,12 +25,14 @@ function formatDate(value: string) {
 }
 
 export function DocumentLibrary() {
+  const { user } = useAuth();
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const queryClient = useQueryClient();
   const categoryFilter = activeCategory === 'All' ? undefined : activeCategory;
-  const { data: documents, isLoading } = useGetDocuments(categoryFilter);
+  const { data: documents, isLoading, errorMessage } = useGetDocuments(categoryFilter);
+  const canManageDocuments = user?.role === 'Admin' || user?.role === 'BranchManager';
 
   const filteredDocuments = React.useMemo(() => {
     if (!documents) return [];
@@ -66,6 +70,16 @@ export function DocumentLibrary() {
     return <DocumentLibraryTableSkeleton />;
   }
 
+  if (!isLoading && errorMessage) {
+    return (
+      <EmptyState
+        icon={FileIcon}
+        title="Document library unavailable"
+        description={errorMessage}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -75,10 +89,12 @@ export function DocumentLibrary() {
             Centralized repository for all official branch forms and templates.
           </p>
         </div>
-        <Button onClick={() => setIsUploadModalOpen(true)}>
-          <Upload className="mr-2 h-4 w-4" />
-          Upload Form
-        </Button>
+        {canManageDocuments ? (
+          <Button onClick={() => setIsUploadModalOpen(true)}>
+            <Upload className="mr-2 h-4 w-4" />
+            Upload Form
+          </Button>
+        ) : null}
       </div>
 
       <div className="rounded-md border">
@@ -94,7 +110,7 @@ export function DocumentLibrary() {
             />
           </div>
           <div className="flex flex-wrap gap-2">
-            {['All', 'COSAF', 'Compliance', 'Performance', 'Recruitment'].map((category) => {
+            {['All', 'COSAF', 'Compliance', 'Performance', 'Recruitment', 'Lapsation'].map((category) => {
               const isActive = activeCategory === category;
 
               return (
@@ -174,14 +190,16 @@ export function DocumentLibrary() {
                   <TableCell>{formatDate(doc.createdAtUtc)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => togglePin({ id: doc.id, isPinned: !doc.isPinned })}
-                        title={doc.isPinned ? "Unpin" : "Pin"}
-                      >
-                        <Pin className="h-4 w-4" />
-                      </Button>
+                      {canManageDocuments ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => togglePin({ id: doc.id, isPinned: !doc.isPinned })}
+                          title={doc.isPinned ? 'Unpin' : 'Pin'}
+                        >
+                          <Pin className="h-4 w-4" />
+                        </Button>
+                      ) : null}
                       <Button variant="outline" size="sm" asChild>
                         <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer">
                           <Download className="h-4 w-4 mr-2" />
@@ -197,9 +215,9 @@ export function DocumentLibrary() {
         </Table>
       </div>
 
-      <DocumentUploadModal 
-        isOpen={isUploadModalOpen} 
-        onClose={() => setIsUploadModalOpen(false)} 
+      <DocumentUploadModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
       />
     </div>
   );

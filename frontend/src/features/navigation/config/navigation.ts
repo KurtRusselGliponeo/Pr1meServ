@@ -50,7 +50,7 @@ export const dashboardNavigationItems: readonly NavigationItem[] = [
     label: 'Performance Leaderboard',
     description: 'Track agent rankings and KPIs.',
     icon: Trophy,
-    allowedRoles: ['Admin', 'BranchManager'],
+    allowedRoles: ['Admin', 'BranchManager', 'Agent'],
     matchMode: 'startsWith',
   },
   {

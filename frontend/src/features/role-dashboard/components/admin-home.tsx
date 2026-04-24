@@ -2,8 +2,9 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import type { Route } from 'next';
 import { useRouter } from 'next/navigation';
-import { Command as CommandIcon, Search, ShieldCheck, Users } from 'lucide-react';
+import { CheckCircle2, Command as CommandIcon, Search, ShieldCheck, Users } from 'lucide-react';
 import { Command } from 'cmdk';
 
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
@@ -81,6 +82,48 @@ export function AdminHome() {
         </div>
       </section>
 
+      <section className="grid gap-4 lg:grid-cols-3">
+        {[
+          {
+            step: 'Step 1',
+            title: 'Check system health',
+            description: 'Start by reviewing the latest notification activity so you can spot broken deliveries fast.',
+            href: '/dashboard/admin/notifications',
+            cta: 'Open notification logs',
+          },
+          {
+            step: 'Step 2',
+            title: 'Manage user access',
+            description: 'Create, reset, archive, or restore accounts before people get blocked from their workflows.',
+            href: '/dashboard/admin/users',
+            cta: 'Open user management',
+          },
+          {
+            step: 'Step 3',
+            title: 'Search branch operations',
+            description: 'Use global search to jump straight into agents and client records that need investigation.',
+            href: '/dashboard/cosaf/reassign',
+            cta: 'Open operations view',
+          },
+        ].map((item) => (
+          <Card key={item.title}>
+            <CardHeader>
+              <CardDescription>{item.step}</CardDescription>
+              <CardTitle className="text-xl">{item.title}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">{item.description}</p>
+              <Link
+                href={item.href as Route}
+                className="mt-4 inline-flex min-h-11 items-center rounded-full border border-white/50 px-4 text-sm font-medium shadow-soft dark:border-white/10"
+              >
+                {item.cta}
+              </Link>
+            </CardContent>
+          </Card>
+        ))}
+      </section>
+
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
         <Card>
           <CardHeader>
@@ -113,6 +156,17 @@ export function AdminHome() {
               <p className="font-semibold text-foreground">Notification logs</p>
               <p className="mt-2 text-sm text-muted-foreground">Review queue outcomes, failures, and recent outbound activity.</p>
             </Link>
+            <div className="rounded-[24px] border border-white/40 bg-brand-gradient-soft p-4 shadow-soft dark:border-white/10">
+              <div className="flex items-start gap-3">
+                <CheckCircle2 className="mt-0.5 h-5 w-5 text-brand" />
+                <div>
+                  <p className="font-semibold text-foreground">Recommended admin flow</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    1. Check logs. 2. Fix user access. 3. Search impacted agents or clients. 4. Review operational pages.
+                  </p>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
 

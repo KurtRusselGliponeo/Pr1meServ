@@ -31,10 +31,14 @@ export function UserCreationForm({ onSubmit, isPending = false }: UserCreationFo
       firstName: '',
       lastName: '',
       email: '',
-      password: '',
+      password: undefined,
       role: 'Agent',
+      agentCode: '',
+      branchCode: '',
     },
   });
+  const selectedRole = form.watch('role');
+  const isAgent = selectedRole === 'Agent';
 
   return (
     <Card>
@@ -100,19 +104,6 @@ export function UserCreationForm({ onSubmit, isPending = false }: UserCreationFo
             />
             <FormField
               control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Temporary password</FormLabel>
-                  <FormControl>
-                    <Input type="password" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
               name="role"
               render={({ field }) => (
                 <FormItem>
@@ -132,6 +123,54 @@ export function UserCreationForm({ onSubmit, isPending = false }: UserCreationFo
                 </FormItem>
               )}
             />
+            {isAgent ? (
+              <>
+                <FormField
+                  control={form.control}
+                  name="agentCode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>8-digit agent code</FormLabel>
+                      <FormControl>
+                        <Input inputMode="numeric" maxLength={8} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="branchCode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Branch code</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="md:col-span-2 rounded-2xl border border-border/70 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+                  Agent accounts use the `PRULife` email as login and the `8-digit agent code` as the
+                  temporary password. First login will require a password change.
+                </div>
+              </>
+            ) : (
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Temporary password</FormLabel>
+                    <FormControl>
+                      <Input type="password" {...field} value={field.value ?? ''} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
             <div className="md:col-span-2">
               <Button
                 type="submit"

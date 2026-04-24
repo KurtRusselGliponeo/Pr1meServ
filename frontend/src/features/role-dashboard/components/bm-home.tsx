@@ -2,7 +2,8 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { AlertTriangle, ArrowRightLeft, Trophy, Users } from 'lucide-react';
+import type { Route } from 'next';
+import { AlertTriangle, ArrowRightLeft, CheckCircle2, Trophy, Users } from 'lucide-react';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -78,6 +79,48 @@ export function BMHome() {
         </div>
       </section>
 
+      <section className="grid gap-4 lg:grid-cols-3">
+        {[
+          {
+            step: 'Step 1',
+            title: 'Check orphan count',
+            description: 'Look at the orphan pool first so you know whether reassignment work needs immediate attention.',
+            href: '/dashboard/cosaf/reassign',
+            cta: 'Review orphan queue',
+          },
+          {
+            step: 'Step 2',
+            title: 'Reassign blocked clients',
+            description: 'Move detached clients to active agents before they get stuck in downstream COSAF steps.',
+            href: '/dashboard/cosaf/reassign',
+            cta: 'Open reassignment board',
+          },
+          {
+            step: 'Step 3',
+            title: 'Review approvals and branch pulse',
+            description: 'After reassignment, check approvals and leaderboard progress for the branch.',
+            href: '/dashboard/cosaf',
+            cta: 'Open COSAF approvals',
+          },
+        ].map((item) => (
+          <Card key={item.title}>
+            <CardHeader>
+              <CardDescription>{item.step}</CardDescription>
+              <CardTitle className="text-xl">{item.title}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">{item.description}</p>
+              <Link
+                href={item.href as Route}
+                className="mt-4 inline-flex min-h-11 items-center rounded-full border border-white/50 px-4 text-sm font-medium shadow-soft dark:border-white/10"
+              >
+                {item.cta}
+              </Link>
+            </CardContent>
+          </Card>
+        ))}
+      </section>
+
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <Card>
           <CardHeader>
@@ -150,7 +193,7 @@ export function BMHome() {
           <Card>
             <CardHeader>
               <CardTitle className="text-xl">Branch Actions</CardTitle>
-              <CardDescription>Fast entry points into the operational queue.</CardDescription>
+              <CardDescription>Use this sequence to keep the branch moving every day.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3">
               <Link href="/dashboard/cosaf" className="rounded-[24px] border border-white/40 bg-background/75 p-4 dark:border-white/10">
@@ -161,6 +204,17 @@ export function BMHome() {
                 <p className="font-semibold text-foreground">Document repository</p>
                 <p className="mt-2 text-sm text-muted-foreground">Open templates, upload references, and pin branch files.</p>
               </Link>
+              <div className="rounded-[24px] border border-white/40 bg-brand-gradient-soft p-4 dark:border-white/10">
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="mt-0.5 h-5 w-5 text-brand" />
+                  <div>
+                    <p className="font-semibold text-foreground">Suggested daily order</p>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      1. Review orphan pool. 2. Reassign blocked clients. 3. Approve COSAF queue. 4. Check branch leaderboard.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>

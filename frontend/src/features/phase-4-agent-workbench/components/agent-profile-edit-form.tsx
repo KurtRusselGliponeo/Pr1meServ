@@ -21,13 +21,17 @@ import type { AgentProfile, UpdateAgentProfilePayload } from '../types/agent-pro
 interface AgentProfileEditFormProps {
   profile: AgentProfile;
   isPending?: boolean;
+  isPhotoPending?: boolean;
   onSubmit: (payload: UpdateAgentProfilePayload) => Promise<void>;
+  onPhotoUpload: (file: File) => Promise<void>;
 }
 
 export function AgentProfileEditForm({
   profile,
   isPending = false,
+  isPhotoPending = false,
   onSubmit,
+  onPhotoUpload,
 }: AgentProfileEditFormProps) {
   const form = useForm<UpdateAgentProfilePayload>({
     resolver: zodResolver(UpdateAgentProfileSchema as never),
@@ -36,6 +40,7 @@ export function AgentProfileEditForm({
       firstName: profile.firstName,
       lastName: profile.lastName,
       email: profile.email,
+      branchCode: profile.branchCode,
     },
   });
 
@@ -57,6 +62,23 @@ export function AgentProfileEditForm({
       <CardContent>
         <Form {...form}>
           <form className="grid gap-5 md:grid-cols-2" onSubmit={form.handleSubmit(onSubmit)}>
+            <div className="md:col-span-2">
+              <FormLabel>Profile photo</FormLabel>
+              <div className="mt-2 flex items-center gap-3">
+                <Input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={async (event) => {
+                    const file = event.target.files?.[0];
+                    if (file) {
+                      await onPhotoUpload(file);
+                      event.currentTarget.value = '';
+                    }
+                  }}
+                  disabled={isPhotoPending}
+                />
+              </div>
+            </div>
             <FormField
               control={form.control}
               name="displayName"
@@ -110,6 +132,19 @@ export function AgentProfileEditForm({
                   <FormLabel>Email</FormLabel>
                   <FormControl>
                     <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="branchCode"
+              render={({ field }) => (
+                <FormItem className="md:col-span-2">
+                  <FormLabel>Branch code</FormLabel>
+                  <FormControl>
+                    <Input {...field} value={field.value ?? ''} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

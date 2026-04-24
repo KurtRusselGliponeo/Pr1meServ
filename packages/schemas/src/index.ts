@@ -4,6 +4,7 @@ export * from './auth.schema';
 export * from './agents.schema';
 export * from './background-jobs.schema';
 export * from './client-profile-import.schema';
+export * from './client-assignment-history.schema';
 export * from './client-profile-reassign.schema';
 export * from './client-profiles.schema';
 export * from './cosaf-approvals.schema';

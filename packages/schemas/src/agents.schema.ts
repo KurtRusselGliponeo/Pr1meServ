@@ -22,6 +22,8 @@ export const AgentProfileSchema = z.object({
   lastName: z.string().min(1),
   displayName: z.string().min(1),
   agentCode: z.string().min(1),
+  branchCode: z.string().min(1),
+  profileImageUrl: z.string().url().nullable(),
   status: agentStatusSchema,
   role: userRoleSchema,
   createdAtUtc: z.string().datetime(),
@@ -35,6 +37,7 @@ export const UpdateAgentProfileSchema = z.object({
   firstName: z.string().trim().min(2, 'First name is required.'),
   lastName: z.string().trim().min(2, 'Last name is required.'),
   email: z.string().trim().email('Enter a valid email address.'),
+  branchCode: z.string().trim().min(2, 'Branch code is required.').max(50).optional(),
 });
 export type UpdateAgentProfile = z.infer<typeof UpdateAgentProfileSchema>;
 

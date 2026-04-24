@@ -39,7 +39,7 @@ export const documentsRoutes: FastifyPluginAsync = async (app) => {
     preHandler: [app.authenticate]
   }, async (request, reply) => {
     const parsed = z.object({ category: z.string().optional() }).parse(request.query);
-    return reply.code(200).send(await documentsService.fetchDocuments(parsed.category));
+    return reply.code(200).send(await documentsService.fetchDocuments(parsed.category, request.authUser));
   });
 
   app.get('/documents/:id/history', {

@@ -1,4 +1,6 @@
 import { and, asc, eq, ilike, isNull, or } from 'drizzle-orm';
+import { fileTypeFromBuffer } from 'file-type';
+import type { MultipartFile } from '@fastify/multipart';
 
 import type {
   AgentStatus,
@@ -9,12 +11,24 @@ import type {
   UpdateAgentProfile,
 } from '@a1prime/schemas';
 import { db, withDbTransaction } from '@/db/client';
-import { BusinessRuleError, NotFoundError } from '@/lib/errors';
-import { agentProfiles, ape, clientProfiles, nap, systemAuditLogs, userAccounts } from '@/schema';
+import { BusinessRuleError, ForbiddenError, NotFoundError } from '@/lib/errors';
+import {
+  agentProfiles,
+  ape,
+  clientAssignmentHistory,
+  clientProfiles,
+  nap,
+  systemAuditLogs,
+  userAccounts,
+} from '@/schema';
+import type { AuthTokenPayload } from '@/shared/lib/auth';
 import { logSystemAudit } from '@/shared/lib/audit';
 import { decryptEmail, encryptEmail, hashEmail, normalizeEmail } from '@/shared/lib/encryption';
+import { r2Service } from '@/lib/r2';
 
 const ORPHAN_POOL_AGENT_CODE = 'ORPHAN_POOL';
+const PROFILE_PHOTO_URL_EXPIRY_SECONDS = 15 * 60;
+const ALLOWED_PROFILE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 type AgentProfileRow = {
   id: string;
@@ -24,16 +38,30 @@ type AgentProfileRow = {
   lastName: string;
   displayName: string;
   agentCode: string;
+  branchCode: string;
+  profileImageKey: string | null;
   status: AgentStatus;
   role: AgentProfile['role'];
   createdAtUtc: Date;
   updatedAtUtc: Date;
 };
 
-function mapAgentProfile(
+async function resolveProfileImageUrl(profileImageKey: string | null): Promise<string | null> {
+  if (!profileImageKey) {
+    return null;
+  }
+
+  try {
+    return await r2Service.getSignedObjectUrl(profileImageKey, PROFILE_PHOTO_URL_EXPIRY_SECONDS);
+  } catch {
+    return null;
+  }
+}
+
+async function mapAgentProfile(
   row: AgentProfileRow,
   auditTrail: AgentProfile['auditTrail'],
-): AgentProfile {
+): Promise<AgentProfile> {
   return {
     id: row.id,
     userId: row.userId,
@@ -42,6 +70,8 @@ function mapAgentProfile(
     lastName: row.lastName,
     displayName: row.displayName,
     agentCode: row.agentCode,
+    branchCode: row.branchCode,
+    profileImageUrl: await resolveProfileImageUrl(row.profileImageKey),
     status: row.status,
     role: row.role,
     createdAtUtc: row.createdAtUtc.toISOString(),
@@ -50,10 +80,13 @@ function mapAgentProfile(
   };
 }
 
-/**
- * Provides agent profile queries and mutations.
- */
 export class AgentsService {
+  private assertAgentSelfAccess(targetAgentId: string, actorUser: AuthTokenPayload) {
+    if (actorUser.role === 'Agent' && actorUser.agentId !== targetAgentId) {
+      throw new ForbiddenError('Agents can only access their own profile.');
+    }
+  }
+
   private async getAgentProfileRecord(agentId: string): Promise<AgentProfileRow | null> {
     const [record] = await db
       .select({
@@ -64,6 +97,8 @@ export class AgentsService {
         lastName: userAccounts.lastName,
         displayName: agentProfiles.displayName,
         agentCode: agentProfiles.agentCode,
+        branchCode: agentProfiles.branchCode,
+        profileImageKey: agentProfiles.profileImageKey,
         status: agentProfiles.status,
         role: userAccounts.role,
         createdAtUtc: agentProfiles.createdAt,
@@ -83,14 +118,9 @@ export class AgentsService {
     return record ?? null;
   }
 
-  /**
-   * Returns a single agent profile and recent audit trail entries.
-   *
-   * @param agentId Target agent profile id.
-   * @returns The hydrated agent profile.
-   * @throws {NotFoundError} When the agent profile does not exist.
-   */
-  async getAgentProfile(agentId: string): Promise<AgentProfile> {
+  async getAgentProfile(agentId: string, actorUser: AuthTokenPayload): Promise<AgentProfile> {
+    this.assertAgentSelfAccess(agentId, actorUser);
+
     const record = await this.getAgentProfileRecord(agentId);
 
     if (!record) {
@@ -130,6 +160,7 @@ export class AgentsService {
         or(
           ilike(agentProfiles.displayName, searchTerm),
           ilike(agentProfiles.agentCode, searchTerm),
+          ilike(agentProfiles.branchCode, searchTerm),
           ilike(userAccounts.firstName, searchTerm),
           ilike(userAccounts.lastName, searchTerm),
         )!,
@@ -161,19 +192,14 @@ export class AgentsService {
     };
   }
 
-  /**
-   * Updates agent-facing identity fields and records an audit log entry.
-   *
-   * @param agentId Target agent profile id.
-   * @param input Validated profile update payload.
-   * @param actorUserId Authenticated user id performing the update.
-   * @returns The updated agent profile.
-   */
   async updateAgentProfile(
     agentId: string,
     input: UpdateAgentProfile,
+    actorUser: AuthTokenPayload,
     actorUserId: string,
   ): Promise<AgentProfile> {
+    this.assertAgentSelfAccess(agentId, actorUser);
+
     return withDbTransaction('agents.update-profile', async (tx) => {
       const [existing] = await tx
         .select({
@@ -184,6 +210,8 @@ export class AgentsService {
           lastName: userAccounts.lastName,
           displayName: agentProfiles.displayName,
           agentCode: agentProfiles.agentCode,
+          branchCode: agentProfiles.branchCode,
+          profileImageKey: agentProfiles.profileImageKey,
           status: agentProfiles.status,
           role: userAccounts.role,
           createdAtUtc: agentProfiles.createdAt,
@@ -221,6 +249,7 @@ export class AgentsService {
       await tx
         .update(agentProfiles)
         .set({
+          branchCode: input.branchCode?.trim() || existing.branchCode,
           displayName: input.displayName.trim(),
           updatedAt,
         })
@@ -237,19 +266,73 @@ export class AgentsService {
             firstName: existing.firstName,
             lastName: existing.lastName,
             displayName: existing.displayName,
+            branchCode: existing.branchCode,
           },
           newValue: {
             email: normalizedEmail,
             firstName: input.firstName.trim(),
             lastName: input.lastName.trim(),
             displayName: input.displayName.trim(),
+            branchCode: input.branchCode?.trim() || existing.branchCode,
           },
         },
         tx,
       );
 
-      return this.getAgentProfile(agentId);
+      return this.getAgentProfile(agentId, actorUser);
     });
+  }
+
+  async uploadProfilePhoto(
+    agentId: string,
+    upload: MultipartFile,
+    actorUser: AuthTokenPayload,
+    actorUserId: string,
+  ) {
+    this.assertAgentSelfAccess(agentId, actorUser);
+
+    const existing = await this.getAgentProfileRecord(agentId);
+
+    if (!existing) {
+      throw new NotFoundError('Agent profile was not found.');
+    }
+
+    const buffer = await upload.toBuffer();
+    const detectedType = await fileTypeFromBuffer(buffer);
+    const mimeType = detectedType?.mime ?? upload.mimetype;
+
+    if (!ALLOWED_PROFILE_MIME_TYPES.has(mimeType)) {
+      throw new BusinessRuleError('Profile photo must be a JPG, PNG, or WEBP image.');
+    }
+
+    const extension = detectedType?.ext ?? 'bin';
+    const key = `agents/profile-photos/${existing.agentCode}.${extension}`;
+
+    await r2Service.uploadPrivateObject({
+      key,
+      body: buffer,
+      contentType: mimeType,
+    });
+
+    await db
+      .update(agentProfiles)
+      .set({
+        profileImageKey: key,
+        updatedAt: new Date(),
+      })
+      .where(eq(agentProfiles.id, agentId));
+
+    await logSystemAudit({
+      action: 'agent-profile.photo-updated',
+      userId: actorUserId,
+      entityName: 'AgentProfile',
+      resourceId: agentId,
+      newValue: {
+        profileImageKey: key,
+      },
+    });
+
+    return this.getAgentProfile(agentId, actorUser);
   }
 
   async delistAgent(targetAgentCode: string, actorUserId: string): Promise<DelistAgentResponse> {
@@ -269,6 +352,7 @@ export class AgentsService {
           id: agentProfiles.id,
           userId: agentProfiles.userId,
           agentCode: agentProfiles.agentCode,
+          branchCode: agentProfiles.branchCode,
           status: agentProfiles.status,
         })
         .from(agentProfiles)
@@ -298,7 +382,21 @@ export class AgentsService {
           updatedAt,
         })
         .where(eq(clientProfiles.assignedAgentId, existingAgent.id))
-        .returning({ id: clientProfiles.id });
+        .returning({ id: clientProfiles.id, branchCode: clientProfiles.branchCode });
+
+      if (orphanedClientRows.length > 0) {
+        await tx.insert(clientAssignmentHistory).values(
+          orphanedClientRows.map((row) => ({
+            clientProfileId: row.id,
+            fromAgentId: existingAgent.id,
+            toAgentId: null,
+            actorUserId,
+            branchCode: row.branchCode,
+            reason: 'Agent delisted; reassigned to orphan handling.',
+            createdAtUtc: updatedAt,
+          })),
+        );
+      }
 
       const migratedNapRows = await tx
         .update(nap)
