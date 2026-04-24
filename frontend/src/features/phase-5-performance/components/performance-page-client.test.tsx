@@ -120,6 +120,6 @@ describe('PerformancePageClient', () => {
     expect(screen.getByText(/download report/i)).toBeInTheDocument();
     expect(screen.getByText(/branch comparison/i)).toBeInTheDocument();
     expect(screen.getByText(/alex agent/i)).toBeInTheDocument();
-    expect(screen.getByText(/total sales/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/total sales/i)).not.toHaveLength(0);
   });
 });

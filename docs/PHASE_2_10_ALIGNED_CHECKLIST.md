@@ -205,6 +205,23 @@ Because of that, the original checklist needed downstream corrections.
   - do not blindly recompress DOCX/XLSX if it risks corruption
 - [ ] Add antivirus/malware scan and upload validation.
 
+## Phase 9.5: Performance, Routing, and UX Hardening
+
+- [ ] Make dashboard navigation feel instant on localhost and production-like for common routes such as `COSAF`, `Lapsation`, `Documents`, and `Reassignment`.
+- [ ] Add route-local loading boundaries for heavy dashboard modules so the router never feels blocked while data loads.
+- [ ] Reduce route-transition friction in the dashboard shell so animations do not amplify slow page entry.
+- [ ] Prefetch likely next routes and warm critical React Query data for common dashboard flows.
+- [ ] Keep React Query cache warm enough that revisiting recent modules does not trigger avoidable cold-load behavior.
+- [ ] Profile and optimize critical first-load endpoints, especially client-profile and reporting routes that sit on the page-entry path.
+- [ ] Remove blank hydration moments on protected dashboard pages so users see immediate shell feedback instead of null states.
+- [ ] Verify Supabase/Supavisor pooling, signed-download flows, and other infrastructure choices are not adding avoidable navigation latency.
+- [ ] Re-test the main operator journeys after performance work:
+  - dashboard -> COSAF
+  - COSAF -> reassignment
+  - dashboard -> documents
+  - dashboard -> lapsation
+  - back/forward navigation across protected pages
+
 ## Phase 10: Prospecting, QA, and Go-Live
 
 - [ ] Build `Agent Prospecting` page.

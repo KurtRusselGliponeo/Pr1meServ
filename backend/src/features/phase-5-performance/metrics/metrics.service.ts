@@ -13,8 +13,8 @@ import {
   agentProfiles,
   clientProfiles,
   lapsationRecords,
+  nap,
   performanceMetrics,
-  per,
   policies,
   policyTransactions,
 } from '@/schema';
@@ -31,6 +31,58 @@ function recordMonth(month: number, year: number) {
 function monthLabel(value: string) {
   return new Intl.DateTimeFormat('en', { month: 'short' }).format(
     new Date(`${value}-01T00:00:00.000Z`),
+  );
+}
+
+function persistencyWindowStart(year: number, month: number) {
+  return new Date(Date.UTC(year, month - 13, 1));
+}
+
+function persistencyWindowEnd(year: number, month: number) {
+  return new Date(Date.UTC(year, month - 1, 1));
+}
+
+const UNCOLLECTED_TRANSACTION_TYPES = new Set([
+  'LAPSE',
+  'SURRENDER',
+  'CANCEL',
+  'UNIT CANCEL',
+  'UNIT CANCELLED',
+  'CANCELLED',
+]);
+
+type PersistencySourceRow = {
+  agentCode: string | null;
+  api: string | null;
+  transactionType: string | null;
+};
+
+function buildPersistencyByAgentCode(rows: PersistencySourceRow[]) {
+  const totals = new Map<string, { collected: number; uncollected: number }>();
+
+  for (const row of rows) {
+    if (!row.agentCode) {
+      continue;
+    }
+
+    const api = toNumber(row.api);
+    const transactionType = row.transactionType?.trim().toUpperCase() ?? '';
+    const bucket = totals.get(row.agentCode) ?? { collected: 0, uncollected: 0 };
+
+    if (UNCOLLECTED_TRANSACTION_TYPES.has(transactionType)) {
+      bucket.uncollected += api;
+    } else {
+      bucket.collected += api;
+    }
+
+    totals.set(row.agentCode, bucket);
+  }
+
+  return new Map(
+    [...totals.entries()].map(([agentCode, value]) => {
+      const denominator = value.collected + value.uncollected;
+      return [agentCode, denominator > 0 ? (value.collected / denominator) * 100 : 100];
+    }),
   );
 }
 
@@ -84,6 +136,8 @@ export class MetricsService {
     const selectedMonth = recordMonth(query.month, query.year);
     const scopedAgentIds = await this.getScopedAgentIds(actorUser);
     const branchCode = actorUser.role === 'Admin' ? null : await this.getActorBranchCode(actorUser);
+    const persistencyStart = persistencyWindowStart(query.year, query.month);
+    const persistencyEnd = persistencyWindowEnd(query.year, query.month);
 
     const metricConditions = [eq(performanceMetrics.recordMonth, selectedMonth)];
     if (scopedAgentIds) {
@@ -119,7 +173,7 @@ export class MetricsService {
       lapseConditions.push(eq(clientProfiles.branchCode, branchCode));
     }
 
-    const [lapsationRows, reinstatementRows, perRows] = await Promise.all([
+    const [lapsationRows, reinstatementRows, persistencyRows] = await Promise.all([
       db
         .select({
           agentId: clientProfiles.assignedAgentId,
@@ -159,26 +213,24 @@ export class MetricsService {
         .groupBy(clientProfiles.assignedAgentId),
       db
         .select({
-          agentCode: per.agentCode,
-          personalPersistency: per.personalPersistency,
+          agentCode: agentProfiles.agentCode,
+          api: nap.api,
+          transactionType: nap.transactionType,
         })
-        .from(per)
+        .from(nap)
+        .innerJoin(
+          agentProfiles,
+          and(eq(agentProfiles.agentCode, nap.agentCode), isNull(agentProfiles.deletedAtUtc)),
+        )
         .where(
           and(
-            gte(per.month, new Date(`${selectedMonth}-01T00:00:00.000Z`)),
-            lt(
-              per.month,
-              new Date(
-                query.month === 12
-                  ? `${query.year + 1}-01-01T00:00:00.000Z`
-                  : `${query.year}-${String(query.month + 1).padStart(2, '0')}-01T00:00:00.000Z`,
-              ),
-            ),
+            gte(nap.transactionDate, persistencyStart),
+            lt(nap.transactionDate, persistencyEnd),
             actorUser.role === 'Admin'
               ? undefined
               : actorUser.role === 'Agent' && actorUser.agentId
-                ? eq(per.agentCode, actorUser.agentCode!)
-                : eq(per.branch, branchCode!),
+                ? eq(agentProfiles.id, actorUser.agentId)
+                : eq(agentProfiles.branchCode, branchCode!),
           ),
         ),
     ]);
@@ -189,11 +241,7 @@ export class MetricsService {
     const reinstatementCountByAgent = new Map(
       reinstatementRows.filter((row) => row.agentId).map((row) => [row.agentId as string, row.count]),
     );
-    const persistencyByAgentCode = new Map(
-      perRows
-        .filter((row) => row.agentCode)
-        .map((row) => [row.agentCode as string, toNumber(row.personalPersistency)]),
-    );
+    const persistencyByAgentCode = buildPersistencyByAgentCode(persistencyRows);
 
     return rows
       .map((row) => {
@@ -204,7 +252,7 @@ export class MetricsService {
         const reinstatementCount = reinstatementCountByAgent.get(row.agentId) ?? 0;
         const recruitmentCount = row.recruitmentCount ?? 0;
         const lapsationRate = modalPremium > 0 ? lapsationCount / modalPremium : 0;
-        const persistencyRate = persistencyByAgentCode.get(row.agentCode);
+        const persistencyRate = persistencyByAgentCode.get(row.agentCode) ?? 100;
 
         const score =
           api +
@@ -225,7 +273,7 @@ export class MetricsService {
           recruitmentCount,
           lapsationCount,
           reinstatementCount,
-          persistencyRate: persistencyRate ?? Math.max(0, (1 - lapsationRate) * 100),
+          persistencyRate,
           lapsationRate,
           score,
         };

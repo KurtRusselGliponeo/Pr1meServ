@@ -3,7 +3,7 @@ import { nanoid } from 'nanoid';
 import { gdriveService } from '@/lib/gdrive';
 import { r2Service } from '@/lib/r2';
 
-export type StorageProvider = 'R2' | 'Supabase' | 'GoogleDrive';
+export type StorageProvider = 'R2' | 'GoogleDrive';
 
 export type UploadStoredDocumentInput = {
   fileName: string;
@@ -28,7 +28,7 @@ function getSignedUrlExpirySeconds() {
 function getConfiguredProvider(): StorageProvider {
   const explicitProvider = process.env.DOCUMENT_STORAGE_PROVIDER;
 
-  if (explicitProvider === 'R2' || explicitProvider === 'Supabase' || explicitProvider === 'GoogleDrive') {
+  if (explicitProvider === 'R2' || explicitProvider === 'GoogleDrive') {
     return explicitProvider;
   }
 

@@ -56,6 +56,13 @@ type ExistingMetricRow = {
   commissionAmount: string;
 };
 
+type ExistingLapsationRow = {
+  id: string;
+  isAtRisk: boolean;
+  reinstatedAtUtc: Date | null;
+  lapseDateUtc: Date;
+};
+
 function chunkRows<T>(rows: T[], chunkSize: number): T[][] {
   const chunks: T[][] = [];
 
@@ -158,6 +165,18 @@ function getAtRiskThresholdDays() {
 
 function diffInDays(from: Date, to: Date) {
   return Math.max(0, Math.floor((to.getTime() - from.getTime()) / 86400000));
+}
+
+function getRiskLevelForDays(daysSinceLapse: number): 'Warning' | 'Urgent' | 'Lapsed' {
+  if (daysSinceLapse >= 90) {
+    return 'Lapsed';
+  }
+
+  if (daysSinceLapse >= 60) {
+    return 'Urgent';
+  }
+
+  return 'Warning';
 }
 
 /**
@@ -406,17 +425,24 @@ export class PerformanceImportService {
         .where(eq(policies.clientProfileId, policyNumberId))
         .limit(1);
 
-      const [existing] = await tx
+      const [existing]: ExistingLapsationRow[] = await tx
         .select({
           id: lapsationRecords.id,
           isAtRisk: lapsationRecords.isAtRisk,
           reinstatedAtUtc: lapsationRecords.reinstatedAtUtc,
+          lapseDateUtc: lapsationRecords.lapseDateUtc,
         })
         .from(lapsationRecords)
         .where(eq(lapsationRecords.policyNumberId, policyNumberId))
         .limit(1);
 
-      const becameAtRisk = diffInDays(lapseDateUtc, now) >= thresholdDays;
+      const daysSinceLapse = diffInDays(lapseDateUtc, now);
+      const becameAtRisk = daysSinceLapse >= thresholdDays;
+      const nextRiskLevel = getRiskLevelForDays(daysSinceLapse);
+      const previousRiskLevel =
+        existing && !existing.reinstatedAtUtc
+          ? getRiskLevelForDays(diffInDays(existing.lapseDateUtc, now))
+          : null;
 
       if (existing) {
         await tx
@@ -447,7 +473,7 @@ export class PerformanceImportService {
           payload: JSON.stringify(row),
         });
 
-        if (!existing || existing.reinstatedAtUtc) {
+        if (!existing || existing.reinstatedAtUtc || previousRiskLevel !== 'Lapsed') {
           await this.notifyAssignedAgent(
             tx,
             policyRow.userId,
@@ -459,32 +485,36 @@ export class PerformanceImportService {
               policyNumber: policyRow.policyNumber,
               branchCode: policyRow.branchCode,
               eventType: 'LAPSED',
+              riskLevel: 'Lapsed',
             },
           );
         }
 
-        if (becameAtRisk && (!existing || !existing.isAtRisk)) {
+        if (becameAtRisk && (!existing || existing.reinstatedAtUtc || previousRiskLevel !== nextRiskLevel)) {
           await tx.insert(policyTransactions).values({
             policyId: policyRow.id,
             sourceType: 'NAP',
             transactionType: 'AT_RISK',
-            transactionStatus: `${thresholdDays}_DAYS`,
+            transactionStatus: nextRiskLevel.toUpperCase(),
             effectiveAtUtc: lapseDateUtc,
-            payload: JSON.stringify({ thresholdDays, source: 'NAP', row }),
+            payload: JSON.stringify({ thresholdDays, source: 'NAP', row, riskLevel: nextRiskLevel }),
           });
 
           await this.notifyAssignedAgent(
             tx,
             policyRow.userId,
             policyRow.encryptedEmail,
-            'Policy at risk',
-            `Policy ${policyRow.policyNumber} reached the at-risk threshold of ${thresholdDays} days.`,
+            nextRiskLevel === 'Urgent' ? 'Policy urgently at risk' : 'Policy warning',
+            nextRiskLevel === 'Urgent'
+              ? `Policy ${policyRow.policyNumber} has reached the urgent lapsation state and needs immediate follow-up.`
+              : `Policy ${policyRow.policyNumber} has entered the warning lapsation state.`,
             {
               policyNumberId,
               policyNumber: policyRow.policyNumber,
               branchCode: policyRow.branchCode,
               eventType: 'AT_RISK',
               thresholdDays,
+              riskLevel: nextRiskLevel,
             },
           );
         }

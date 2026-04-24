@@ -31,6 +31,8 @@ const ALLOWED_MIME_TYPES = [
   'application/msword',
   'application/vnd.ms-excel',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'image/jpeg',
+  'image/png',
 ];
 
 interface DocumentUploadModalProps {
@@ -63,7 +65,7 @@ export function DocumentUploadModal({ isOpen, onClose }: DocumentUploadModalProp
 
   function validateAndSetFile(selectedFile: File) {
     if (!ALLOWED_MIME_TYPES.includes(selectedFile.type)) {
-      setFileError('Invalid file type. Please upload a PDF, Word, or Excel document.');
+      setFileError('Invalid file type. Please upload a PDF, Office document, or supported image.');
       return;
     }
 
@@ -195,7 +197,7 @@ export function DocumentUploadModal({ isOpen, onClose }: DocumentUploadModalProp
               ref={fileInputRef}
               type="file"
               className="sr-only"
-              accept=".pdf,.doc,.docx,.xls,.xlsx"
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
               onChange={handleFileInput}
               aria-label="Upload document file"
             />

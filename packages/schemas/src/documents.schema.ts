@@ -9,7 +9,7 @@ export const documentCategorySchema = z.enum([
 ]);
 export type DocumentCategory = z.infer<typeof documentCategorySchema>;
 
-export const documentStorageProviderSchema = z.enum(['R2', 'Supabase', 'GoogleDrive']);
+export const documentStorageProviderSchema = z.enum(['R2', 'GoogleDrive']);
 export type DocumentStorageProvider = z.infer<typeof documentStorageProviderSchema>;
 
 export const documentLibraryItemSchema = z.object({
