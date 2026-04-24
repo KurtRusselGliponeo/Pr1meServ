@@ -198,7 +198,7 @@ export function AdminHome() {
                 description="Recent operational activity will appear here once background work is recorded."
               />
             ) : (
-              recentLogs.map((log) => (
+              recentLogs.map((log: (typeof recentLogs)[number]) => (
                 <div
                   key={log.id}
                   className="rounded-[24px] border border-white/40 bg-background/75 p-4 shadow-soft dark:border-white/10"
@@ -239,7 +239,7 @@ export function AdminHome() {
               </Command.Empty>
 
               <Command.Group heading="Agents">
-                {agentsQuery.data?.data.map((agent) => (
+                {agentsQuery.data?.data.map((agent: NonNullable<typeof agentsQuery.data>['data'][number]) => (
                   <Command.Item
                     key={agent.id}
                     value={`${agent.displayName} ${agent.agentCode}`}
@@ -261,7 +261,7 @@ export function AdminHome() {
               </Command.Group>
 
               <Command.Group heading="Clients">
-                {clientsQuery.data?.data.slice(0, 8).map((client) => (
+                {clientsQuery.data?.data.slice(0, 8).map((client: NonNullable<typeof clientsQuery.data>['data'][number]) => (
                   <Command.Item
                     key={client.id}
                     value={`${client.firstName} ${client.lastName} ${client.policyNumber}`}

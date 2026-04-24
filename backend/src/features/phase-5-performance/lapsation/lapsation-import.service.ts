@@ -75,7 +75,12 @@ function parseWorksheetRows(worksheet: XLSX.WorkSheet): ParsedLapsationRow[] {
       return parsedLapsationRowSchema.parse(row);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        const message = error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join('; ');
+        const validationError = error as {
+          issues: Array<{ path: Array<string | number>; message: string }>;
+        };
+        const message = validationError.issues
+          .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+          .join('; ');
         void importValidationService.recordIssue({
           sourceType: 'NAP',
           issueCode: 'INVALID_LAPSATION_ROW',
@@ -86,7 +91,11 @@ function parseWorksheetRows(worksheet: XLSX.WorkSheet): ParsedLapsationRow[] {
         throw new BusinessRuleError(`Lapsation row ${index + 2} is invalid: ${message}`);
       }
 
-      throw error;
+      if (error instanceof Error) {
+        throw error;
+      }
+
+      throw new BusinessRuleError(`Lapsation row ${index + 2} is invalid.`);
     }
   });
 }

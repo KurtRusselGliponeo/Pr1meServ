@@ -5,7 +5,7 @@ import cors from '@fastify/cors';
 import fastifyJwt from '@fastify/jwt';
 import multipart from '@fastify/multipart';
 import rateLimit from '@fastify/rate-limit';
-import { ZodError } from 'zod';
+import { z } from 'zod';
 import sentryPlugin from './app/plugins/sentry';
 import contractsRoutes from './app/routes/contracts.route';
 import authRoutes from './features/identity/identity.route';
@@ -126,11 +126,16 @@ const buildApp = async () => {
       statusCode = 422;
       errorType = error.name;
       message = error.message;
-    } else if (error instanceof ZodError || isZodLikeError(error)) {
+    } else if (error instanceof z.ZodError || isZodLikeError(error)) {
       statusCode = 400;
       errorType = 'ValidationError';
       message = 'Request validation failed.';
-      details = error.issues.map((issue) => `${issue.path.join('.') || 'body'}: ${issue.message}`);
+      const validationError = error as {
+        issues: Array<{ path: Array<string | number>; message: string }>;
+      };
+      details = validationError.issues.map((issue) =>
+        `${issue.path.join('.') || 'body'}: ${issue.message}`,
+      );
     } else if (error instanceof UnauthorizedError) {
       statusCode = 401;
       errorType = error.name;
@@ -143,7 +148,7 @@ const buildApp = async () => {
       typeof error === 'object' &&
       error !== null &&
       'statusCode' in error &&
-      error.statusCode === 429
+      (error as { statusCode?: number }).statusCode === 429
     ) {
       statusCode = 429;
       errorType = 'RateLimitExceeded';

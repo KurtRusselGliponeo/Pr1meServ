@@ -150,7 +150,7 @@ export class PerformanceImportService {
    * @throws {BusinessRuleError} When the payload is empty.
    */
   async processNapImport(payload: NapImportJobPayload): Promise<{ insertedRows: number }> {
-    const parsedPayload = NapImportJobPayloadSchema.parse(payload);
+    const parsedPayload = NapImportJobPayloadSchema.parse(payload) as NapImportJobPayload;
 
     if (parsedPayload.rows.length === 0) {
       await importValidationService.recordIssue({
@@ -163,7 +163,7 @@ export class PerformanceImportService {
 
     let insertedRows = 0;
 
-    for (const chunk of chunkRows(parsedPayload.rows, IMPORT_BATCH_SIZE)) {
+    for (const chunk of chunkRows(parsedPayload.rows as NapImportRow[], IMPORT_BATCH_SIZE)) {
       await withDbTransaction('imports.nap.batch-insert', async (tx) => {
         await tx.insert(performanceMetrics).values(toMetricInsertValues(chunk));
         await this.applyNapLapsationTransitions(tx, chunk);
@@ -175,10 +175,10 @@ export class PerformanceImportService {
   }
 
   async processRecImport(payload: RecImportJobPayload): Promise<{ updatedRows: number }> {
-    const parsedPayload = RecImportJobPayloadSchema.parse(payload);
+    const parsedPayload = RecImportJobPayloadSchema.parse(payload) as RecImportJobPayload;
     let updatedRows = 0;
 
-    for (const chunk of chunkRows(parsedPayload.rows, IMPORT_BATCH_SIZE)) {
+    for (const chunk of chunkRows(parsedPayload.rows as RecImportRow[], IMPORT_BATCH_SIZE)) {
       await withDbTransaction('imports.rec.batch-update', async (tx) => {
         updatedRows += await this.applyRecruitmentUpdates(tx, chunk);
       });
@@ -195,10 +195,10 @@ export class PerformanceImportService {
    * @throws {BusinessRuleError} When imported rows do not map to existing metrics.
    */
   async processPerImport(payload: PerImportJobPayload): Promise<{ updatedRows: number }> {
-    const parsedPayload = PerImportJobPayloadSchema.parse(payload);
+    const parsedPayload = PerImportJobPayloadSchema.parse(payload) as PerImportJobPayload;
     let updatedRows = 0;
 
-    for (const chunk of chunkRows(parsedPayload.rows, IMPORT_BATCH_SIZE)) {
+    for (const chunk of chunkRows(parsedPayload.rows as PerImportRow[], IMPORT_BATCH_SIZE)) {
       await withDbTransaction('imports.per.batch-update', async (tx) => {
         updatedRows += await this.applyExistingMetricUpdates(tx, chunk, 'PER');
       });
@@ -216,12 +216,12 @@ export class PerformanceImportService {
   async processApeImport(
     payload: ApeImportJobPayload,
   ): Promise<{ updatedRows: number; insertedRows: number }> {
-    const parsedPayload = ApeImportJobPayloadSchema.parse(payload);
+    const parsedPayload = ApeImportJobPayloadSchema.parse(payload) as ApeImportJobPayload;
     const aggregatedRows = aggregateRows(parsedPayload.rows);
     let updatedRows = 0;
     let insertedRows = 0;
 
-    for (const chunk of chunkRows(aggregatedRows, IMPORT_BATCH_SIZE)) {
+    for (const chunk of chunkRows(aggregatedRows as MetricLikeRow[], IMPORT_BATCH_SIZE)) {
       await withDbTransaction('imports.ape.aggregate-update', async (tx) => {
         const existingRows = await findExistingMetrics(tx, chunk);
         const rowsToInsert: MetricLikeRow[] = [];

@@ -5,10 +5,10 @@ export const prospectTemperatureSchema = z.enum(prospectTemperatures);
 export type ProspectTemperature = z.infer<typeof prospectTemperatureSchema>;
 
 export const prospectPipelineStages = [
-  'Cold Prospect',
   'Contacted',
+  'Client Agreed',
   'Presentation',
-  'Agreed',
+  'Approved',
   'Closed',
 ] as const;
 export const prospectPipelineStageSchema = z.enum(prospectPipelineStages);

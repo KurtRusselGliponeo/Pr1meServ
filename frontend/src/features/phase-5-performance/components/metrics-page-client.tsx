@@ -254,7 +254,10 @@ export function MetricsPageClient() {
               />
             ) : (
               <LineMetricChart
-                data={points.map((point) => ({ label: point.label, value: point.api }))}
+                data={points.map((point: (typeof points)[number]) => ({
+                  label: point.label,
+                  value: point.api,
+                }))}
                 formatValue={formatCurrency}
               />
             )}
@@ -274,7 +277,7 @@ export function MetricsPageClient() {
               />
             ) : (
               <BarMetricChart
-                data={points.map((point) => ({
+                data={points.map((point: (typeof points)[number]) => ({
                   label: point.label,
                   value: point.commissionAmount,
                 }))}
@@ -311,7 +314,8 @@ export function MetricsPageClient() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {leaderboardQuery.data.rows.map((row, index) => (
+                  {leaderboardQuery.data.rows.map(
+                    (row: (typeof leaderboardQuery.data.rows)[number], index: number) => (
                     <TableRow key={row.agentId}>
                       <TableCell className="font-semibold text-brand">#{index + 1}</TableCell>
                       <TableCell>
@@ -325,7 +329,8 @@ export function MetricsPageClient() {
                       <TableCell>{formatCurrency(row.score)}</TableCell>
                       <TableCell>{formatCurrency(row.api)}</TableCell>
                     </TableRow>
-                  ))}
+                    ),
+                  )}
                 </TableBody>
               </Table>
             </div>

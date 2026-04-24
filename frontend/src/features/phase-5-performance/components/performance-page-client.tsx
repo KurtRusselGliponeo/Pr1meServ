@@ -298,7 +298,10 @@ export function PerformancePageClient() {
               />
             ) : (
               <LineMetricChart
-                data={points.map((point) => ({ label: point.label, value: point.api }))}
+                data={points.map((point: (typeof points)[number]) => ({
+                  label: point.label,
+                  value: point.api,
+                }))}
                 formatValue={formatCurrency}
               />
             )}
@@ -338,7 +341,8 @@ export function PerformancePageClient() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {leaderboardRows.map((row, index) => (
+                    {leaderboardRows.map(
+                      (row: (typeof leaderboardRows)[number], index: number) => (
                       <TableRow key={row.agentId}>
                         <TableCell className="font-semibold text-brand">#{index + 1}</TableCell>
                         <TableCell>
@@ -352,7 +356,8 @@ export function PerformancePageClient() {
                         <TableCell>{formatCurrency(row.api)}</TableCell>
                         <TableCell>{formatPercent(Math.max(0, (1 - row.lapsationRate) * 100))}</TableCell>
                       </TableRow>
-                    ))}
+                      ),
+                    )}
                   </TableBody>
                 </Table>
               </div>

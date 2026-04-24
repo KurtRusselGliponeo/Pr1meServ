@@ -297,8 +297,8 @@ describe('agents.routes', () => {
       targetAgentCode: 'AG-001',
       agentStatus: 'Terminated',
       orphanedClientProfiles: 12,
-      migratedNapRecords: 48,
-      migratedApeRecords: 17,
+      preservedImportedNapRecords: 48,
+      preservedImportedApeRecords: 17,
     });
 
     const app = await buildApp();
@@ -325,8 +325,8 @@ describe('agents.routes', () => {
       targetAgentCode: 'AG-001',
       agentStatus: 'Terminated',
       orphanedClientProfiles: 12,
-      migratedNapRecords: 48,
-      migratedApeRecords: 17,
+      preservedImportedNapRecords: 48,
+      preservedImportedApeRecords: 17,
     });
 
     await app.close();

@@ -42,7 +42,8 @@ export function useReassignClients() {
         }
 
         const nextRows = cachedData.data.filter(
-          (profile) => !parsedPayload.clientProfileIds.includes(profile.id),
+          (profile: ListClientProfilesResponse['data'][number]) =>
+            !parsedPayload.clientProfileIds.includes(profile.id),
         );
 
         if (nextRows.length === cachedData.data.length) {

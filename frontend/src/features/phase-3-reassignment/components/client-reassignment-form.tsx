@@ -436,11 +436,13 @@ export function ClientReassignmentForm({
                   </p>
                 ) : (
                   <ul className="space-y-1 text-sm text-muted-foreground">
-                    {lastPreflight.issues.map((issue) => (
+                    {lastPreflight.issues.map(
+                      (issue: ClientProfileReassignPreflightResponse['issues'][number]) => (
                       <li key={`${issue.code}-${issue.clientProfileId ?? issue.message}`}>
                         {issue.message}
                       </li>
-                    ))}
+                      ),
+                    )}
                   </ul>
                 )}
               </div>
@@ -451,7 +453,7 @@ export function ClientReassignmentForm({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
             <ArrowRightLeft className="h-4 w-4 text-brand" />
-            <span>Selected orphan clients will move to `For Approval` after reassignment.</span>
+            <span>Selected orphan clients will move to `Contacted` after reassignment.</span>
           </div>
           <ReassignmentConfirmDialog
             trigger={

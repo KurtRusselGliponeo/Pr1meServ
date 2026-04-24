@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
 import { useGetNotificationLogs } from '../hooks/use-get-notification-logs';
+import type { NotificationLogsResponse } from '../types/notification-log.types';
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat(undefined, {
@@ -58,7 +59,7 @@ export function NotificationLogsPageClient() {
             <CardDescription>Queued, sent, and failed messages from the notification system.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {logsQuery.data.data.map((item) => (
+            {logsQuery.data.data.map((item: NotificationLogsResponse['data'][number]) => (
               <div
                 key={item.id}
                 className="rounded-[24px] border border-white/40 bg-background/70 p-4 dark:border-white/10"

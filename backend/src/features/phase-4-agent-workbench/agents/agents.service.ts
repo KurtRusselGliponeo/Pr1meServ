@@ -1,23 +1,31 @@
-import { and, asc, eq, ilike, isNull, or } from 'drizzle-orm';
+import { and, asc, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm';
+import Decimal from 'decimal.js';
 import { fileTypeFromBuffer } from 'file-type';
 import type { MultipartFile } from '@fastify/multipart';
 
 import type {
-  AgentStatus,
+  AgentDashboardResponse,
   AgentLookupResponse,
   AgentProfile,
+  AgentStatus,
+  BranchManagerDashboardQuery,
+  BranchManagerDashboardResponse,
   DelistAgentResponse,
   ListAgentsQuery,
   UpdateAgentProfile,
 } from '@a1prime/schemas';
 import { db, withDbTransaction } from '@/db/client';
-import { BusinessRuleError, ForbiddenError, NotFoundError } from '@/lib/errors';
+import { ForbiddenError, BusinessRuleError, NotFoundError } from '@/lib/errors';
 import {
   agentProfiles,
   ape,
   clientAssignmentHistory,
   clientProfiles,
+  cosafApprovals,
+  lapsationRecords,
   nap,
+  performanceMetrics,
+  prospects,
   systemAuditLogs,
   userAccounts,
 } from '@/schema';
@@ -25,6 +33,7 @@ import type { AuthTokenPayload } from '@/shared/lib/auth';
 import { logSystemAudit } from '@/shared/lib/audit';
 import { decryptEmail, encryptEmail, hashEmail, normalizeEmail } from '@/shared/lib/encryption';
 import { r2Service } from '@/lib/r2';
+import { metricsService } from '@/features/phase-5-performance/metrics/metrics.service';
 
 const ORPHAN_POOL_AGENT_CODE = 'ORPHAN_POOL';
 const PROFILE_PHOTO_URL_EXPIRY_SECONDS = 15 * 60;
@@ -45,6 +54,22 @@ type AgentProfileRow = {
   createdAtUtc: Date;
   updatedAtUtc: Date;
 };
+
+function toNumber(value: string | number | null | undefined) {
+  return new Decimal(value ?? 0).toNumber();
+}
+
+function getRiskLevel(daysSinceLapse: number): 'Warning' | 'Urgent' | 'Lapsed' {
+  if (daysSinceLapse >= 90) {
+    return 'Lapsed';
+  }
+
+  if (daysSinceLapse >= 60) {
+    return 'Urgent';
+  }
+
+  return 'Warning';
+}
 
 async function resolveProfileImageUrl(profileImageKey: string | null): Promise<string | null> {
   if (!profileImageKey) {
@@ -149,6 +174,353 @@ export class AgentsService {
         summary: row.action.replace(/\./g, ' '),
       })),
     );
+  }
+
+  async getAgentDashboard(actorUser: AuthTokenPayload): Promise<AgentDashboardResponse> {
+    if (!actorUser.agentId) {
+      throw new ForbiddenError('Agent dashboard requires a linked agent profile.');
+    }
+
+    const record = await this.getAgentProfileRecord(actorUser.agentId);
+
+    if (!record) {
+      throw new NotFoundError('Agent profile was not found.');
+    }
+
+    const [clients, atRiskRows, performanceRows, historyRows, prospectRows] = await Promise.all([
+      db
+        .select({
+          id: clientProfiles.id,
+          firstName: clientProfiles.firstName,
+          lastName: clientProfiles.lastName,
+          policyNumber: clientProfiles.policyNumber,
+          status: clientProfiles.caseStatus,
+          productType: clientProfiles.productType,
+          planCode: clientProfiles.planCode,
+          updatedAtUtc: clientProfiles.updatedAt,
+        })
+        .from(clientProfiles)
+        .where(
+          and(
+            eq(clientProfiles.assignedAgentId, actorUser.agentId),
+            isNull(clientProfiles.deletedAtUtc),
+          ),
+        )
+        .orderBy(desc(clientProfiles.updatedAt)),
+      db
+        .select({
+          id: lapsationRecords.id,
+          firstName: clientProfiles.firstName,
+          lastName: clientProfiles.lastName,
+          policyNumber: clientProfiles.policyNumber,
+          lapseDateUtc: lapsationRecords.lapseDateUtc,
+        })
+        .from(lapsationRecords)
+        .innerJoin(clientProfiles, eq(clientProfiles.id, lapsationRecords.policyNumberId))
+        .where(
+          and(
+            eq(clientProfiles.assignedAgentId, actorUser.agentId),
+            eq(lapsationRecords.isAtRisk, true),
+            isNull(lapsationRecords.reinstatedAtUtc),
+            isNull(clientProfiles.deletedAtUtc),
+          ),
+        )
+        .orderBy(desc(lapsationRecords.lapseDateUtc)),
+      db
+        .select({
+          api: performanceMetrics.api,
+          ape: performanceMetrics.modalPremium,
+          recruitmentCount: performanceMetrics.recruitmentCount,
+        })
+        .from(performanceMetrics)
+        .where(eq(performanceMetrics.agentId, actorUser.agentId))
+        .orderBy(desc(performanceMetrics.recordMonth)),
+      db
+        .select({
+          id: clientAssignmentHistory.id,
+          reason: clientAssignmentHistory.reason,
+          createdAtUtc: clientAssignmentHistory.createdAtUtc,
+        })
+        .from(clientAssignmentHistory)
+        .where(
+          or(
+            eq(clientAssignmentHistory.fromAgentId, actorUser.agentId),
+            eq(clientAssignmentHistory.toAgentId, actorUser.agentId),
+          )!,
+        )
+        .orderBy(desc(clientAssignmentHistory.createdAtUtc))
+        .limit(8),
+      db
+        .select({
+          pipelineStage: prospects.pipelineStage,
+        })
+        .from(prospects)
+        .where(eq(prospects.agentCode, record.agentCode)),
+    ]);
+
+    const totalApi = performanceRows.reduce((sum, row) => sum + toNumber(row.api), 0);
+    const totalApe = performanceRows.reduce((sum, row) => sum + toNumber(row.ape), 0);
+    const recruitmentCount = performanceRows.reduce((sum, row) => sum + (row.recruitmentCount ?? 0), 0);
+    const policyCount = clients.length;
+    const activePolicies = clients.filter((row) => row.status !== 'Done').length;
+    const persistency = policyCount > 0 ? Math.max(0, Math.round(((policyCount - atRiskRows.length) / policyCount) * 100)) : 100;
+
+    const atRiskPolicies = atRiskRows.map((row) => {
+      const daysSinceLapse = Math.max(0, Math.floor((Date.now() - row.lapseDateUtc.getTime()) / 86400000));
+      return {
+        id: row.id,
+        clientName: `${row.firstName} ${row.lastName}`.trim(),
+        policyNumber: row.policyNumber,
+        riskLevel: getRiskLevel(daysSinceLapse),
+        lapseDateUtc: row.lapseDateUtc.toISOString(),
+        daysSinceLapse,
+      };
+    });
+
+    return {
+      generatedAtUtc: new Date().toISOString(),
+      agent: {
+        id: record.id,
+        displayName: record.displayName,
+        agentCode: record.agentCode,
+        branchCode: record.branchCode,
+      },
+      summary: {
+        persistency,
+        activePolicies,
+        totalApi,
+        totalApe,
+        policyCount,
+        recruitmentCount,
+        warningPolicies: atRiskPolicies.filter((row) => row.riskLevel === 'Warning').length,
+        urgentPolicies: atRiskPolicies.filter((row) => row.riskLevel === 'Urgent').length,
+        lapsedPolicies: atRiskPolicies.filter((row) => row.riskLevel === 'Lapsed').length,
+      },
+      assignedClients: clients.map((row) => ({
+        id: row.id,
+        clientName: `${row.firstName} ${row.lastName}`.trim(),
+        policyNumber: row.policyNumber,
+        status: row.status,
+        productType: row.productType,
+        planCode: row.planCode,
+        updatedAtUtc: row.updatedAtUtc.toISOString(),
+      })),
+      recentHistory: historyRows.map((row) => ({
+        id: row.id,
+        action: 'client.assignment-history',
+        actorName: record.displayName,
+        timestampUtc: row.createdAtUtc.toISOString(),
+        summary: row.reason ?? 'Client assignment changed.',
+      })),
+      atRiskPolicies,
+      prospects: {
+        total: prospectRows.length,
+        contacted: prospectRows.filter((row) => row.pipelineStage === 'Contacted').length,
+        clientAgreed: prospectRows.filter((row) => row.pipelineStage === 'Client Agreed').length,
+        presentation: prospectRows.filter((row) => row.pipelineStage === 'Presentation').length,
+        approved: prospectRows.filter((row) => row.pipelineStage === 'Approved').length,
+        closed: prospectRows.filter((row) => row.pipelineStage === 'Closed').length,
+      },
+      quickActions: [
+        {
+          label: 'Update contact status',
+          description: 'Move assigned clients across the visible workflow states you are allowed to edit.',
+          href: '/dashboard/cosaf',
+        },
+        {
+          label: 'Upload COSAF docs',
+          description: 'Submit requirements for BM review without editing imported source records.',
+          href: '/dashboard/cosaf',
+        },
+        {
+          label: 'Open at-risk queue',
+          description: 'Jump straight into your warning, urgent, and lapsed cases.',
+          href: '/dashboard/lapsation',
+        },
+        {
+          label: 'Open prospects',
+          description: 'Continue the prospect pipeline from contacted through closed.',
+          href: '/dashboard/prospects',
+        },
+      ],
+    };
+  }
+
+  async getBranchManagerDashboard(
+    actorUser: AuthTokenPayload,
+    query: BranchManagerDashboardQuery,
+  ): Promise<BranchManagerDashboardResponse> {
+    if (!actorUser.agentId) {
+      throw new ForbiddenError('Branch Manager dashboard requires a linked branch profile.');
+    }
+
+    const manager = await this.getAgentProfileRecord(actorUser.agentId);
+
+    if (!manager) {
+      throw new NotFoundError('Branch Manager profile was not found.');
+    }
+
+    const month = query.month ?? new Date().getMonth() + 1;
+    const year = query.year ?? new Date().getFullYear();
+    const recordMonth = `${year}-${String(month).padStart(2, '0')}`;
+    const leaderboard = await metricsService.getLeaderboardRows({ month, year }, actorUser);
+
+    const clientConditions = [
+      eq(clientProfiles.branchCode, manager.branchCode),
+      isNull(clientProfiles.deletedAtUtc),
+    ];
+
+    if (query.agentId) {
+      clientConditions.push(eq(clientProfiles.assignedAgentId, query.agentId));
+    }
+
+    if (query.status) {
+      clientConditions.push(eq(clientProfiles.caseStatus, query.status));
+    }
+
+    if (query.product) {
+      clientConditions.push(eq(clientProfiles.productType, query.product));
+    }
+
+    const clientRows = await db
+      .select({
+        id: clientProfiles.id,
+        firstName: clientProfiles.firstName,
+        lastName: clientProfiles.lastName,
+        policyNumber: clientProfiles.policyNumber,
+        assignedAgentId: clientProfiles.assignedAgentId,
+        assignedAgentName: agentProfiles.displayName,
+        status: clientProfiles.caseStatus,
+        productType: clientProfiles.productType,
+        updatedAtUtc: clientProfiles.updatedAt,
+        lapseDateUtc: lapsationRecords.lapseDateUtc,
+        reinstatedAtUtc: lapsationRecords.reinstatedAtUtc,
+      })
+      .from(clientProfiles)
+      .leftJoin(
+        agentProfiles,
+        and(eq(agentProfiles.id, clientProfiles.assignedAgentId), isNull(agentProfiles.deletedAtUtc)),
+      )
+      .leftJoin(lapsationRecords, eq(lapsationRecords.policyNumberId, clientProfiles.id))
+      .where(and(...clientConditions))
+      .orderBy(desc(clientProfiles.updatedAt))
+      .limit(50);
+
+    const filteredClients = clientRows
+      .map((row) => {
+        const lapsationState =
+          row.lapseDateUtc && !row.reinstatedAtUtc
+            ? getRiskLevel(
+                Math.max(0, Math.floor((Date.now() - row.lapseDateUtc.getTime()) / 86400000)),
+              )
+            : null;
+
+        return {
+          id: row.id,
+          clientName: `${row.firstName} ${row.lastName}`.trim(),
+          policyNumber: row.policyNumber,
+          assignedAgentId: row.assignedAgentId,
+          assignedAgentName: row.assignedAgentName ?? null,
+          status: row.status,
+          productType: row.productType,
+          lapsationState,
+          updatedAtUtc: row.updatedAtUtc.toISOString(),
+        };
+      })
+      .filter((row) => !query.lapsationState || row.lapsationState === query.lapsationState);
+
+    const [
+      orphanCountRows,
+      pendingCosafRows,
+      atRiskRows,
+      activeAgentRows,
+      totalsRows,
+    ] = await Promise.all([
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(clientProfiles)
+        .where(
+          and(
+            eq(clientProfiles.branchCode, manager.branchCode),
+            isNull(clientProfiles.assignedAgentId),
+            eq(clientProfiles.caseStatus, 'Orphan'),
+            isNull(clientProfiles.deletedAtUtc),
+          ),
+        ),
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(cosafApprovals)
+        .where(and(eq(cosafApprovals.status, 'PENDING'), eq(cosafApprovals.reviewingBmId, actorUser.id))),
+      db
+        .select({ lapseDateUtc: lapsationRecords.lapseDateUtc })
+        .from(lapsationRecords)
+        .innerJoin(clientProfiles, eq(clientProfiles.id, lapsationRecords.policyNumberId))
+        .where(
+          and(
+            eq(clientProfiles.branchCode, manager.branchCode),
+            eq(lapsationRecords.isAtRisk, true),
+            isNull(lapsationRecords.reinstatedAtUtc),
+            isNull(clientProfiles.deletedAtUtc),
+          ),
+        ),
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(agentProfiles)
+        .where(
+          and(
+            eq(agentProfiles.branchCode, manager.branchCode),
+            eq(agentProfiles.status, 'Active'),
+            isNull(agentProfiles.deletedAtUtc),
+          ),
+        ),
+      db
+        .select({
+          totalApi: sql<string>`coalesce(sum(${performanceMetrics.api}), 0)::text`,
+          totalApe: sql<string>`coalesce(sum(${performanceMetrics.modalPremium}), 0)::text`,
+        })
+        .from(performanceMetrics)
+        .innerJoin(agentProfiles, eq(agentProfiles.id, performanceMetrics.agentId))
+        .where(
+          and(
+            eq(agentProfiles.branchCode, manager.branchCode),
+            eq(performanceMetrics.recordMonth, recordMonth),
+            isNull(agentProfiles.deletedAtUtc),
+          ),
+        ),
+    ]);
+
+    const riskSummary = atRiskRows.reduce(
+      (acc, row) => {
+        const state = getRiskLevel(
+          Math.max(0, Math.floor((Date.now() - row.lapseDateUtc.getTime()) / 86400000)),
+        );
+        acc[state] += 1;
+        return acc;
+      },
+      { Warning: 0, Urgent: 0, Lapsed: 0 } as Record<'Warning' | 'Urgent' | 'Lapsed', number>,
+    );
+
+    return {
+      generatedAtUtc: new Date().toISOString(),
+      branch: {
+        branchCode: manager.branchCode,
+        month,
+        year,
+      },
+      summary: {
+        orphanClientCount: orphanCountRows[0]?.count ?? 0,
+        pendingCosafApprovals: pendingCosafRows[0]?.count ?? 0,
+        warningPolicies: riskSummary.Warning,
+        urgentPolicies: riskSummary.Urgent,
+        lapsedPolicies: riskSummary.Lapsed,
+        activeAgents: activeAgentRows[0]?.count ?? 0,
+        totalApi: toNumber(totalsRows[0]?.totalApi),
+        totalApe: toNumber(totalsRows[0]?.totalApe),
+      },
+      topPerformers: leaderboard.slice(0, 5),
+      bottomPerformers: [...leaderboard].reverse().slice(0, 5),
+      filteredClients,
+    };
   }
 
   async listAgents(query: ListAgentsQuery): Promise<AgentLookupResponse> {
@@ -350,9 +722,7 @@ export class AgentsService {
       const [existingAgent] = await tx
         .select({
           id: agentProfiles.id,
-          userId: agentProfiles.userId,
           agentCode: agentProfiles.agentCode,
-          branchCode: agentProfiles.branchCode,
           status: agentProfiles.status,
         })
         .from(agentProfiles)
@@ -392,30 +762,16 @@ export class AgentsService {
             toAgentId: null,
             actorUserId,
             branchCode: row.branchCode,
-            reason: 'Agent delisted; reassigned to orphan handling.',
+            reason: 'Agent delisted; moved into orphan handling.',
             createdAtUtc: updatedAt,
           })),
         );
       }
 
-      const migratedNapRows = await tx
-        .update(nap)
-        .set({
-          agentCode: ORPHAN_POOL_AGENT_CODE,
-          agentName: 'Orphan Pool',
-          updatedAtUtc: updatedAt,
-        })
-        .where(eq(nap.agentCode, normalizedAgentCode))
-        .returning({ id: nap.id });
-
-      const migratedApeRows = await tx
-        .update(ape)
-        .set({
-          agentCode: ORPHAN_POOL_AGENT_CODE,
-          updatedAtUtc: updatedAt,
-        })
-        .where(eq(ape.agentCode, normalizedAgentCode))
-        .returning({ id: ape.id });
+      const [preservedNapRows, preservedApeRows] = await Promise.all([
+        tx.select({ id: nap.id }).from(nap).where(eq(nap.agentCode, normalizedAgentCode)),
+        tx.select({ id: ape.id }).from(ape).where(eq(ape.agentCode, normalizedAgentCode)),
+      ]);
 
       await tx
         .update(agentProfiles)
@@ -438,10 +794,9 @@ export class AgentsService {
           newValue: {
             agentCode: existingAgent.agentCode,
             status: 'Terminated',
-            orphanPoolAgentCode: ORPHAN_POOL_AGENT_CODE,
             orphanedClientProfiles: orphanedClientRows.length,
-            migratedNapRecords: migratedNapRows.length,
-            migratedApeRecords: migratedApeRows.length,
+            preservedImportedNapRecords: preservedNapRows.length,
+            preservedImportedApeRecords: preservedApeRows.length,
           },
         },
         tx,
@@ -451,8 +806,8 @@ export class AgentsService {
         targetAgentCode: existingAgent.agentCode,
         agentStatus: 'Terminated',
         orphanedClientProfiles: orphanedClientRows.length,
-        migratedNapRecords: migratedNapRows.length,
-        migratedApeRecords: migratedApeRows.length,
+        preservedImportedNapRecords: preservedNapRows.length,
+        preservedImportedApeRecords: preservedApeRows.length,
       };
     });
   }

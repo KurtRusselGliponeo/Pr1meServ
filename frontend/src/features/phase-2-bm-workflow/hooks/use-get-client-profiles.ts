@@ -10,6 +10,8 @@ import { queryKeys } from '@/services/query-client';
 export interface ClientProfilesFilters {
   status?: string;
   agentId?: string;
+  branchCode?: string;
+  product?: string;
   search?: string;
 }
 
@@ -22,7 +24,6 @@ export function useGetClientProfiles(
   const validStatuses = [
     'Uncontacted',
     'Contacted',
-    'For Approval',
     'Forms Submitted',
     'BM Signed',
     'Done',
@@ -34,13 +35,17 @@ export function useGetClientProfiles(
     page,
     pageSize,
     status: validStatuses.includes(filters.status as string) ? filters.status : undefined,
-    agentId: filters.agentId || undefined,
-    search: normalizedSearch,
+      agentId: filters.agentId || undefined,
+      branchCode: filters.branchCode || undefined,
+      product: filters.product || undefined,
+      search: normalizedSearch,
   });
 
   const query = useQuery({
     queryKey: queryKeys.clientProfiles(page, {
       agentId: filters.agentId,
+      branchCode: filters.branchCode,
+      product: filters.product,
       search: normalizedSearch,
       status: filters.status,
     }),

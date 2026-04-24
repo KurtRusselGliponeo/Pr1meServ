@@ -2,14 +2,15 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import type { Route } from 'next';
-import { AlertTriangle, ArrowRightLeft, CheckCircle2, Trophy, Users } from 'lucide-react';
+import { ArrowRightLeft, FileClock, Filter, Trophy, UserX } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
-import { useGetPerformanceLeaderboard } from '@/features/phase-5-performance/hooks/use-get-performance-leaderboard';
-import { useGetOrphanClients } from '../hooks/use-get-orphan-clients';
+import { useGetAgents } from '@/features/phase-3-reassignment/hooks/use-get-agents';
+import { useDelistAgent } from '../hooks/use-delist-agent';
+import { useGetBranchManagerDashboard } from '../hooks/use-get-branch-manager-dashboard';
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat(undefined, {
@@ -19,206 +20,339 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
-function formatPercent(value: number) {
-  return `${value.toFixed(1)}%`;
-}
-
 export function BMHome() {
   const now = new Date();
-  const leaderboardQuery = useGetPerformanceLeaderboard(now.getMonth() + 1, now.getFullYear());
-  const orphanClientsQuery = useGetOrphanClients();
+  const [filters, setFilters] = React.useState({
+    month: now.getMonth() + 1,
+    year: now.getFullYear(),
+    agentId: '',
+    status: '',
+    product: '',
+    lapsationState: '',
+  });
+  const dashboardQuery = useGetBranchManagerDashboard({
+    month: filters.month,
+    year: filters.year,
+    agentId: filters.agentId || undefined,
+    status: filters.status || undefined,
+    product: filters.product || undefined,
+    lapsationState: filters.lapsationState || undefined,
+  });
+  const agentsQuery = useGetAgents('');
+  const delistAgentMutation = useDelistAgent();
+  const [agentCodeToDelist, setAgentCodeToDelist] = React.useState('');
 
-  if (leaderboardQuery.isPending || orphanClientsQuery.isPending) {
+  if (dashboardQuery.isPending) {
     return <LoadingSkeleton rows={5} columns={4} />;
   }
 
-  if (leaderboardQuery.errorMessage || !leaderboardQuery.data) {
+  if (!dashboardQuery.data || dashboardQuery.errorMessage) {
     return (
       <EmptyState
         icon={Trophy}
         title="Branch overview unavailable"
-        description={leaderboardQuery.errorMessage ?? 'Leaderboard data could not be loaded.'}
+        description={dashboardQuery.errorMessage ?? 'We could not load branch manager analytics.'}
       />
     );
   }
 
-  if (orphanClientsQuery.errorMessage || !orphanClientsQuery.data) {
-    return (
-      <EmptyState
-        icon={Users}
-        title="Orphan pool unavailable"
-        description={orphanClientsQuery.errorMessage ?? 'Orphan pool data could not be loaded.'}
-      />
-    );
-  }
-
-  const leaderboardRows = leaderboardQuery.data.rows.slice(0, 5);
-  const orphanCount = orphanClientsQuery.data.meta.total;
+  const { branch, summary, topPerformers, bottomPerformers, filteredClients } = dashboardQuery.data;
 
   return (
     <div className="space-y-6">
       <section className="floating-card bg-white/72 p-6 sm:p-8 dark:bg-card/82">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-3xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand/75">
-              Branch Manager
-            </p>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">
-              Branch overview and orphan control
-            </h1>
-            <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              Review the top producers, monitor the orphan queue, and move quickly into reassignment work.
-            </p>
-          </div>
-          <Link
-            href="/dashboard/cosaf/reassign"
-            className="inline-flex min-h-12 items-center justify-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-soft"
-          >
-            Open reassignment board <ArrowRightLeft className="ml-2 h-4 w-4" />
-          </Link>
-        </div>
+        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand/75">
+          Branch Manager Workspace
+        </p>
+        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">
+          Branch {branch.branchCode} overview
+        </h1>
+        <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
+          This view rolls up branch-wide analytics across all agents in your branch, including orphan
+          handling, COSAF approvals, lapsation pressure, and current performer spread.
+        </p>
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-3">
-        {[
-          {
-            step: 'Step 1',
-            title: 'Check orphan count',
-            description: 'Look at the orphan pool first so you know whether reassignment work needs immediate attention.',
-            href: '/dashboard/cosaf/reassign',
-            cta: 'Review orphan queue',
-          },
-          {
-            step: 'Step 2',
-            title: 'Reassign blocked clients',
-            description: 'Move detached clients to active agents before they get stuck in downstream COSAF steps.',
-            href: '/dashboard/cosaf/reassign',
-            cta: 'Open reassignment board',
-          },
-          {
-            step: 'Step 3',
-            title: 'Review approvals and branch pulse',
-            description: 'After reassignment, check approvals and leaderboard progress for the branch.',
-            href: '/dashboard/cosaf',
-            cta: 'Open COSAF approvals',
-          },
-        ].map((item) => (
-          <Card key={item.title}>
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {([
+          ['Orphan client count', String(summary.orphanClientCount)],
+          ['Pending COSAF approvals', String(summary.pendingCosafApprovals)],
+          [
+            'Warning / Urgent / Lapsed',
+            `${summary.warningPolicies} / ${summary.urgentPolicies} / ${summary.lapsedPolicies}`,
+          ],
+          ['Active agents', String(summary.activeAgents)],
+          ['Total API', formatCurrency(summary.totalApi)],
+          ['Total APE', formatCurrency(summary.totalApe)],
+        ] as const).map(([label, value]) => (
+          <Card key={label}>
             <CardHeader>
-              <CardDescription>{item.step}</CardDescription>
-              <CardTitle className="text-xl">{item.title}</CardTitle>
+              <CardDescription>{label}</CardDescription>
+              <CardTitle className="text-xl">{value}</CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">{item.description}</p>
-              <Link
-                href={item.href as Route}
-                className="mt-4 inline-flex min-h-11 items-center rounded-full border border-white/50 px-4 text-sm font-medium shadow-soft dark:border-white/10"
-              >
-                {item.cta}
-              </Link>
-            </CardContent>
           </Card>
         ))}
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="rounded-2xl bg-brand-gradient-soft p-3">
-                <Trophy className="h-5 w-5 text-brand" />
-              </div>
-              <div>
-                <CardTitle className="text-xl">Top 5 agents by APE</CardTitle>
-                <CardDescription>Current branch leaderboard for the active reporting window.</CardDescription>
-              </div>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <Filter className="h-5 w-5 text-brand" />
+            <div>
+              <CardTitle className="text-xl">Report Filters</CardTitle>
+              <CardDescription>
+                Filter branch reports by month, agent, status, product, and lapsation state.
+              </CardDescription>
             </div>
+          </div>
+        </CardHeader>
+        <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+          <input
+            className="min-h-11 rounded-xl border border-input bg-background px-3 text-sm"
+            type="number"
+            min={1}
+            max={12}
+            value={filters.month}
+            onChange={(event) =>
+              setFilters((current) => ({
+                ...current,
+                month: Number(event.target.value) || now.getMonth() + 1,
+              }))
+            }
+            aria-label="Month"
+          />
+          <select
+            className="min-h-11 rounded-xl border border-input bg-background px-3 text-sm"
+            value={filters.agentId}
+            onChange={(event) =>
+              setFilters((current) => ({ ...current, agentId: event.target.value }))
+            }
+            aria-label="Agent"
+          >
+            <option value="">All agents</option>
+            {agentsQuery.data?.data.map(
+              (agent: NonNullable<typeof agentsQuery.data>['data'][number]) => (
+                <option key={agent.id} value={agent.id}>
+                  {agent.displayName}
+                </option>
+              ),
+            )}
+          </select>
+          <select
+            className="min-h-11 rounded-xl border border-input bg-background px-3 text-sm"
+            value={filters.status}
+            onChange={(event) =>
+              setFilters((current) => ({ ...current, status: event.target.value }))
+            }
+            aria-label="Status"
+          >
+            <option value="">All statuses</option>
+            {['Uncontacted', 'Contacted', 'Forms Submitted', 'BM Signed', 'Done', 'Returned', 'Orphan'].map(
+              (status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ),
+            )}
+          </select>
+          <input
+            className="min-h-11 rounded-xl border border-input bg-background px-3 text-sm"
+            placeholder="Product"
+            value={filters.product}
+            onChange={(event) =>
+              setFilters((current) => ({ ...current, product: event.target.value }))
+            }
+            aria-label="Product"
+          />
+          <select
+            className="min-h-11 rounded-xl border border-input bg-background px-3 text-sm"
+            value={filters.lapsationState}
+            onChange={(event) =>
+              setFilters((current) => ({ ...current, lapsationState: event.target.value }))
+            }
+            aria-label="Lapsation state"
+          >
+            <option value="">All lapsation states</option>
+            {['Warning', 'Urgent', 'Lapsed'].map((state) => (
+              <option key={state} value={state}>
+                {state}
+              </option>
+            ))}
+          </select>
+        </CardContent>
+      </Card>
+
+      <section className="grid gap-4 lg:grid-cols-3">
+        <Link href="/dashboard/cosaf/reassign" className="block">
+          <Card className="h-full transition-transform hover:-translate-y-0.5">
+            <CardHeader>
+              <ArrowRightLeft className="h-5 w-5 text-brand" />
+              <CardTitle className="text-xl">Orphan reassignment board</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                Reassign orphaned clients to a new agent and remove them from the delisted portfolio.
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href="/dashboard/cosaf" className="block">
+          <Card className="h-full transition-transform hover:-translate-y-0.5">
+            <CardHeader>
+              <FileClock className="h-5 w-5 text-brand" />
+              <CardTitle className="text-xl">Pending COSAF approvals</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                Review submission queues, return incomplete cases, and release signed copies.
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
+        <Card className="h-full">
+          <CardHeader>
+            <UserX className="h-5 w-5 text-brand" />
+            <CardTitle className="text-xl">Delist agent workflow</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {leaderboardRows.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Delisting immediately moves that portfolio into orphan handling so you can reassign it
+              and notify the next agent.
+            </p>
+            <input
+              className="min-h-11 w-full rounded-xl border border-input bg-background px-3 text-sm"
+              placeholder="Agent code"
+              value={agentCodeToDelist}
+              onChange={(event) => setAgentCodeToDelist(event.target.value)}
+              aria-label="Agent code to delist"
+            />
+            <Button
+              type="button"
+              className="min-h-11 rounded-full"
+              disabled={!agentCodeToDelist.trim() || delistAgentMutation.isPending}
+              onClick={() => delistAgentMutation.mutate(agentCodeToDelist.trim())}
+            >
+              Delist agent
+            </Button>
+            {delistAgentMutation.data ? (
+              <p className="text-sm text-muted-foreground">
+                {delistAgentMutation.data.targetAgentCode} delisted.{' '}
+                {delistAgentMutation.data.orphanedClientProfiles} client(s) moved to orphan handling
+                and imported source data was preserved.
+              </p>
+            ) : null}
+            {delistAgentMutation.errorMessage ? (
+              <p className="text-sm text-destructive">{delistAgentMutation.errorMessage}</p>
+            ) : null}
+          </CardContent>
+        </Card>
+      </section>
+
+      <div className="grid gap-6 xl:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl">Top performers</CardTitle>
+            <CardDescription>
+              Highest ranking agents in your branch for the selected month.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {topPerformers.length === 0 ? (
               <EmptyState
                 icon={Trophy}
-                title="No leaderboard entries yet"
-                description="Once production records land, the branch leaderboard will populate here."
+                title="No branch performance data"
+                description="Leaderboard rows will appear once the selected month has imported performance records."
               />
             ) : (
-              leaderboardRows.map((row, index) => (
+              topPerformers.map((row: (typeof topPerformers)[number], index: number) => (
                 <div
                   key={row.agentId}
-                  className="flex items-center justify-between gap-4 rounded-[24px] border border-white/40 bg-background/70 p-4 dark:border-white/10"
+                  className="rounded-[24px] border border-white/40 bg-background/75 p-4 dark:border-white/10"
                 >
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand/75">
-                      Rank #{index + 1}
-                    </p>
-                    <p className="mt-2 font-semibold text-foreground">{row.agentName}</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Persistency {formatPercent(Math.max(0, (1 - row.lapsationRate) * 100))}
-                    </p>
-                  </div>
-                  <p className="text-lg font-semibold text-foreground">{formatCurrency(row.api)}</p>
+                  <p className="text-xs uppercase tracking-[0.18em] text-brand/75">
+                    Rank #{index + 1}
+                  </p>
+                  <p className="mt-2 font-semibold text-foreground">{row.agentName}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    API {formatCurrency(row.api)} | Recruitment {row.recruitmentCount} | Lapsation{' '}
+                    {row.lapsationCount}
+                  </p>
                 </div>
               ))
             )}
           </CardContent>
         </Card>
 
-        <div className="grid gap-6">
-          <Card className="border-destructive/25 bg-destructive/5 dark:bg-destructive/10">
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl bg-destructive/15 p-3 text-destructive">
-                  <AlertTriangle className="h-5 w-5" />
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl">Bottom performers</CardTitle>
+            <CardDescription>
+              Lowest ranking branch rows, useful for intervention and coaching.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {bottomPerformers.length === 0 ? (
+              <EmptyState
+                icon={Trophy}
+                title="No branch performance data"
+                description="Bottom performer rows will appear once the selected month has imported performance records."
+              />
+            ) : (
+              bottomPerformers.map((row: (typeof bottomPerformers)[number]) => (
+                <div
+                  key={row.agentId}
+                  className="rounded-[24px] border border-white/40 bg-background/75 p-4 dark:border-white/10"
+                >
+                  <p className="font-semibold text-foreground">{row.agentName}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    API {formatCurrency(row.api)} | Recruitment {row.recruitmentCount} | Lapsation{' '}
+                    {row.lapsationCount}
+                  </p>
                 </div>
-                <div>
-                  <CardTitle className="text-xl">Orphan Pool Alert</CardTitle>
-                  <CardDescription>Clients currently detached from an active agent.</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-4xl font-semibold tracking-tight text-foreground">{orphanCount}</p>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Client records are waiting in the orphan pool for Branch Manager review and reassignment.
-              </p>
-              <Link
-                href="/dashboard/cosaf/reassign"
-                className="mt-5 inline-flex items-center text-sm font-semibold text-destructive"
-              >
-                Review orphan clients <ArrowRightLeft className="ml-2 h-4 w-4" />
-              </Link>
-            </CardContent>
-          </Card>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-xl">Branch Actions</CardTitle>
-              <CardDescription>Use this sequence to keep the branch moving every day.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-3">
-              <Link href="/dashboard/cosaf" className="rounded-[24px] border border-white/40 bg-background/75 p-4 dark:border-white/10">
-                <p className="font-semibold text-foreground">COSAF approvals</p>
-                <p className="mt-2 text-sm text-muted-foreground">Review submissions waiting for BM action.</p>
-              </Link>
-              <Link href="/dashboard/documents" className="rounded-[24px] border border-white/40 bg-background/75 p-4 dark:border-white/10">
-                <p className="font-semibold text-foreground">Document repository</p>
-                <p className="mt-2 text-sm text-muted-foreground">Open templates, upload references, and pin branch files.</p>
-              </Link>
-              <div className="rounded-[24px] border border-white/40 bg-brand-gradient-soft p-4 dark:border-white/10">
-                <div className="flex items-start gap-3">
-                  <CheckCircle2 className="mt-0.5 h-5 w-5 text-brand" />
-                  <div>
-                    <p className="font-semibold text-foreground">Suggested daily order</p>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      1. Review orphan pool. 2. Reassign blocked clients. 3. Approve COSAF queue. 4. Check branch leaderboard.
-                    </p>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-xl">Filtered branch clients</CardTitle>
+          <CardDescription>
+            This slice respects the active month, agent, status, product, and lapsation filters.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {filteredClients.length === 0 ? (
+            <EmptyState
+              icon={Filter}
+              title="No clients match these filters"
+              description="Adjust the report filters to inspect a different branch slice."
+            />
+          ) : (
+              filteredClients.map((client: (typeof filteredClients)[number]) => (
+                <div
+                  key={client.id}
+                  className="rounded-[24px] border border-white/40 bg-background/75 p-4 dark:border-white/10"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="font-semibold text-foreground">{client.clientName}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {client.policyNumber} | {client.status} |{' '}
+                        {client.assignedAgentName ?? 'Orphan pool'}
+                      </p>
+                    </div>
+                    <div className="text-right text-xs uppercase tracking-[0.18em] text-brand/75">
+                      <p>{client.productType ?? 'No product'}</p>
+                      <p className="mt-2">{client.lapsationState ?? 'No lapsation flag'}</p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+              ))
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

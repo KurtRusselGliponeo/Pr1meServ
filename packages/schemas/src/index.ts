@@ -22,7 +22,6 @@ export type SystemRole = z.infer<typeof systemRoleSchema>;
 export const caseStatuses = [
   'Uncontacted',
   'Contacted',
-  'For Approval',
   'Forms Submitted',
   'BM Signed',
   'Done',

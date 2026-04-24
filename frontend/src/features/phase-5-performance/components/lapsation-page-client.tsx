@@ -48,13 +48,13 @@ export function LapsationPageClient() {
   const dashboard = dashboardQuery.data;
   const isAdmin = isHydrated && user?.role === 'Admin';
   const activeFilter = searchParams.get('filter');
-  const visibleRecords = dashboard.records.filter((record) => {
+  const visibleRecords = dashboard.records.filter((record: (typeof dashboard.records)[number]) => {
     if (record.reinstatedAtUtc) {
       return false;
     }
 
     if (activeFilter === 'urgent') {
-      return record.riskLevel === 'CRITICAL' || record.riskLevel === 'HIGH';
+      return record.riskLevel === 'Urgent' || record.riskLevel === 'Lapsed';
     }
 
     return true;
@@ -102,7 +102,7 @@ export function LapsationPageClient() {
         </Card>
         <Card>
           <CardHeader className="rounded-[28px] bg-brand-gradient-soft">
-            <CardDescription>Critical</CardDescription>
+            <CardDescription>Live at risk</CardDescription>
             <CardTitle>{dashboard.summary.criticalCount}</CardTitle>
           </CardHeader>
         </Card>
@@ -154,7 +154,7 @@ export function LapsationPageClient() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/20 dark:divide-white/10">
-                  {visibleRecords.map((record) => (
+                  {visibleRecords.map((record: (typeof visibleRecords)[number]) => (
                     <tr key={record.id}>
                       <td className="py-4 pr-4">
                         <p className="font-semibold text-foreground">{record.policyNumber}</p>

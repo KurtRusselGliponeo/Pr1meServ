@@ -79,7 +79,10 @@ export function buildOpenApiDocument(eventCatalog: EventCatalog) {
           required: ['id', 'event', 'occurredAtUtc', 'version', 'source', 'deliveryStatus', 'payload'],
           properties: {
             id: { type: 'string', format: 'uuid' },
-            event: { type: 'string', enum: eventCatalog.events.map((event) => event.name) },
+            event: {
+              type: 'string',
+              enum: eventCatalog.events.map((event: EventCatalog['events'][number]) => event.name),
+            },
             occurredAtUtc: { type: 'string', format: 'date-time' },
             version: { type: 'string' },
             source: { type: 'string' },

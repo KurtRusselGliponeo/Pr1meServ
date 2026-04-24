@@ -3,7 +3,6 @@ import { z } from 'zod';
 const caseStatusSchema = z.enum([
   'Uncontacted',
   'Contacted',
-  'For Approval',
   'Forms Submitted',
   'BM Signed',
   'Done',
@@ -18,6 +17,8 @@ export const ListClientProfilesQuerySchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(25),
   status: caseStatusSchema.optional(),
   agentId: z.string().uuid().optional(),
+  branchCode: z.string().trim().min(1).max(50).optional(),
+  product: z.string().trim().min(1).max(120).optional(),
   search: z.string().trim().min(1).max(100).optional(),
 });
 export type ListClientProfilesQuery = z.infer<typeof ListClientProfilesQuerySchema>;

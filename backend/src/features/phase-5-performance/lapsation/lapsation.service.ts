@@ -27,19 +27,19 @@ type LapsationRow = {
 };
 
 function getRiskLevel(daysSinceLapse: number): LapsationRiskLevel {
+  if (daysSinceLapse >= 90) {
+    return 'Lapsed';
+  }
+
+  if (daysSinceLapse >= 60) {
+    return 'Urgent';
+  }
+
   if (daysSinceLapse >= 30) {
-    return 'CRITICAL';
+    return 'Warning';
   }
 
-  if (daysSinceLapse >= 14) {
-    return 'HIGH';
-  }
-
-  if (daysSinceLapse >= 7) {
-    return 'MEDIUM';
-  }
-
-  return 'LOW';
+  return 'Warning';
 }
 
 function toSummary(row: LapsationRow): LapsationRecordSummary {
@@ -102,9 +102,7 @@ export class LapsationService {
         reinstatedYtd: summaries.filter(
           (row) => row.reinstatedAtUtc && row.reinstatedAtUtc >= currentYearStart,
         ).length,
-        criticalCount: summaries.filter(
-          (row) => row.isAtRisk && !row.reinstatedAtUtc && row.riskLevel === 'CRITICAL',
-        ).length,
+        criticalCount: summaries.filter((row) => row.isAtRisk && !row.reinstatedAtUtc).length,
       },
       records: summaries,
     };

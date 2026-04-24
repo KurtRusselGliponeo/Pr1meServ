@@ -7,6 +7,9 @@ export const queryKeys = {
   reassignPreflight: ['reassign-preflight'] as const,
   agentLookup: (search: string) => ['agent-lookup', search] as const,
   agentProfile: (agentId: string) => ['agent-profile', agentId] as const,
+  agentDashboard: ['agent-dashboard'] as const,
+  branchManagerDashboard: (filters: Record<string, string | number | undefined>) =>
+    ['branch-manager-dashboard', filters] as const,
   updateAgent: ['update-agent'] as const,
   metrics: (filterRole: string, month: number, year: number) =>
     ['metrics', filterRole, month, year] as const,

@@ -47,7 +47,19 @@ export const CreateUserSchema = z
     agentCode: z.string().trim().regex(/^\d{8}$/, 'Agent code must be exactly 8 digits.').optional(),
     branchCode: z.string().trim().min(2, 'Branch code is required.').max(50).optional(),
   })
-  .superRefine((value, ctx) => {
+  .superRefine(
+    (
+      value: {
+        firstName: string;
+        lastName: string;
+        email: string;
+        password?: string;
+        role: z.infer<typeof userRoleSchema>;
+        agentCode?: string;
+        branchCode?: string;
+      },
+      ctx: z.RefinementCtx,
+    ) => {
     if (value.role === 'Agent') {
       if (!value.agentCode) {
         ctx.addIssue({
@@ -71,7 +83,8 @@ export const CreateUserSchema = z
         message: 'Password is required for non-agent accounts.',
       });
     }
-  });
+    },
+  );
 export type CreateUser = z.infer<typeof CreateUserSchema>;
 
 export const UpdateUserSchema = z.object({

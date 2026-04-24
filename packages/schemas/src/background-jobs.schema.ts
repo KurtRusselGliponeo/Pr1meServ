@@ -12,7 +12,7 @@ export const EmailQueuePayloadSchema = z
     replyTo: z.string().trim().email().optional(),
     metadata: z.record(z.unknown()).optional(),
   })
-  .refine((payload) => Boolean(payload.text || payload.html), {
+  .refine((payload: { text?: string; html?: string }) => Boolean(payload.text || payload.html), {
     message: 'Email jobs require either text or html content.',
     path: ['text'],
   });

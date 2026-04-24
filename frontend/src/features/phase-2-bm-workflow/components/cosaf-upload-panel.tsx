@@ -6,7 +6,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { FileUp, LoaderCircle, Search, UploadCloud } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import type { AuthenticatedUser, ClientProfile } from '@a1prime/schemas';
+import type { AuthenticatedUser, ClientProfile, ListClientProfilesResponse } from '@a1prime/schemas';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -80,7 +80,6 @@ export function CosafUploadPanel() {
     1,
     {
       search,
-      status: 'For Approval',
     },
     8,
   );
@@ -132,7 +131,7 @@ export function CosafUploadPanel() {
 
       setStage('finalizing');
       setUploadProgress(100);
-      setStatusMessage('Finalizing the upload and updating the queue to PENDING_REVIEW.');
+      setStatusMessage('Finalizing the upload and updating the client to Forms Submitted.');
 
       await completeUploadMutation.mutateAsync({
         documentId: uploadResult.documentId,
@@ -146,7 +145,7 @@ export function CosafUploadPanel() {
       ]);
 
       setStage('done');
-      setStatusMessage('COSAF upload completed. The client is now marked as PENDING_REVIEW.');
+      setStatusMessage('COSAF upload completed. The client is now marked as Forms Submitted.');
       setSelectedClient(null);
       setSearch('');
       form.reset();
@@ -186,7 +185,12 @@ export function CosafUploadPanel() {
             />
           </div>
           <div className="grid gap-2">
-            {clientsQuery.data?.data.map((client) => (
+            {clientsQuery.data?.data
+              .filter(
+                (client: ListClientProfilesResponse['data'][number]) =>
+                  client.caseStatus === 'Contacted' || client.caseStatus === 'Returned',
+              )
+              .map((client: ListClientProfilesResponse['data'][number]) => (
               <button
                 key={client.id}
                 type="button"
@@ -275,10 +279,10 @@ export function CosafUploadPanel() {
               {isWorking ? (
                 <>
                   <LoaderCircle className="h-4 w-4 animate-spin" />
-                  {stage === 'finalizing' ? 'Finalizing queue state' : 'Streaming upload'}
+                  {stage === 'finalizing' ? 'Finalizing client status' : 'Streaming upload'}
                 </>
               ) : (
-                'Upload and mark PENDING_REVIEW'
+                'Upload and mark Forms Submitted'
               )}
             </Button>
           </form>

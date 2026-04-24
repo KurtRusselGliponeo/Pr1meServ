@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import {
+  BranchManagerDashboardQuerySchema,
   DelistAgentRequestSchema,
   ListAgentsQuerySchema,
   UpdateAgentProfileSchema,
@@ -16,6 +17,29 @@ import { agentsService } from '@/features/phase-4-agent-workbench/agents/agents.
  * @returns Route registration completion.
  */
 const agentsRoutes: FastifyPluginAsync = async (app) => {
+  app.get(
+    '/agents/me/dashboard',
+    {
+      preHandler: [app.authenticate, requireRole(['Agent'])],
+    },
+    async (request, reply) => {
+      const result = await agentsService.getAgentDashboard(request.authUser);
+      return reply.code(200).send(result);
+    },
+  );
+
+  app.get(
+    '/agents/branch/dashboard',
+    {
+      preHandler: [app.authenticate, requireRole(['BranchManager'])],
+    },
+    async (request, reply) => {
+      const query = BranchManagerDashboardQuerySchema.parse(request.query);
+      const result = await agentsService.getBranchManagerDashboard(request.authUser, query);
+      return reply.code(200).send(result);
+    },
+  );
+
   app.get(
     '/agents',
     {

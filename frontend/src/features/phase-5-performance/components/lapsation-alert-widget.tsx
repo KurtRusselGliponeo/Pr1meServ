@@ -20,7 +20,8 @@ export function LapsationAlertWidget() {
   }
 
   const atRiskRecords = dashboardQuery.data.records.filter(
-    (record) => record.isAtRisk && !record.reinstatedAtUtc,
+    (record: (typeof dashboardQuery.data.records)[number]) =>
+      record.isAtRisk && !record.reinstatedAtUtc,
   );
 
   if (atRiskRecords.length === 0) {
@@ -57,7 +58,7 @@ export function LapsationAlertWidget() {
             risk. Reach out before these accounts move deeper into lapsation.
           </p>
           <div className="grid gap-3">
-            {atRiskRecords.map((record) => (
+            {atRiskRecords.map((record: (typeof atRiskRecords)[number]) => (
               <div
                 key={record.id}
                 className="rounded-[24px] border border-destructive/20 bg-background/80 px-4 py-3 transition-colors group-hover:border-destructive/35 dark:border-white/10 dark:bg-black/20"

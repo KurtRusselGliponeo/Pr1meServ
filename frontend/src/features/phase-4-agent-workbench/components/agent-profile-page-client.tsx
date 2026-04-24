@@ -89,7 +89,7 @@ export function AgentProfilePageClient({ agentId }: AgentProfilePageClientProps)
           }}
         />
         <AuditTrailTimeline
-          items={profile.auditTrail.map((entry) => ({
+          items={profile.auditTrail.map((entry: (typeof profile.auditTrail)[number]) => ({
             id: entry.id,
             title: entry.action,
             description: `${entry.summary} Actor: ${entry.actorName}.`,

@@ -2,10 +2,10 @@ import { index, pgEnum, pgTable, timestamp, uuid, varchar } from 'drizzle-orm/pg
 
 export const prospectTemperatureEnum = pgEnum('ProspectTemperature', ['Warm', 'Cold']);
 export const prospectPipelineStageEnum = pgEnum('ProspectPipelineStage', [
-  'Cold Prospect',
   'Contacted',
+  'Client Agreed',
   'Presentation',
-  'Agreed',
+  'Approved',
   'Closed',
 ]);
 
@@ -17,7 +17,7 @@ export const prospects = pgTable(
     clientName: varchar('ClientName', { length: 200 }).notNull(),
     contactNumber: varchar('ContactNumber', { length: 50 }).notNull(),
     temperature: prospectTemperatureEnum('Temperature').notNull(),
-    pipelineStage: prospectPipelineStageEnum('PipelineStage').notNull().default('Cold Prospect'),
+    pipelineStage: prospectPipelineStageEnum('PipelineStage').notNull().default('Contacted'),
     createdAt: timestamp('CreatedAtUtc', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('UpdatedAtUtc', { withTimezone: true }).defaultNow().notNull(),
   },

@@ -209,7 +209,9 @@ describe('lapsation upload integration', () => {
     expect(response.statusCode).toBe(400);
     expect(importQueueAddMock).not.toHaveBeenCalled();
 
-    const healthResponse = await request(app.server).get('/health');
+    const healthResponse = (await request(app.server).get('/health')) as unknown as {
+      statusCode: number;
+    };
 
     expect(healthResponse.statusCode).toBe(200);
 

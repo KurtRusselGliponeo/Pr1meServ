@@ -56,12 +56,68 @@ vi.mock('@/features/phase-5-performance/hooks/use-get-lapsation-dashboard', () =
   }),
 }));
 
+vi.mock('../hooks/use-get-agent-dashboard', () => ({
+  useGetAgentDashboard: () => ({
+    isPending: false,
+    errorMessage: null,
+    data: {
+      agent: { displayName: 'Test User', branchCode: 'BR-01' },
+      summary: {
+        persistency: 95,
+        activePolicies: 10,
+        totalApi: 1000,
+        totalApe: 900,
+        policyCount: 12,
+        recruitmentCount: 3,
+        warningPolicies: 1,
+        urgentPolicies: 0,
+        lapsedPolicies: 0,
+      },
+      assignedClients: [],
+      recentHistory: [],
+      atRiskPolicies: [],
+      prospects: {
+        total: 0,
+        contacted: 0,
+        clientAgreed: 0,
+        presentation: 0,
+        approved: 0,
+        closed: 0,
+      },
+      quickActions: [{ label: 'Update contact status', description: 'desc', href: '/dashboard/cosaf' }],
+    },
+  }),
+}));
+
 vi.mock('@/features/phase-5-performance/hooks/use-get-performance-leaderboard', () => ({
   useGetPerformanceLeaderboard: () => ({
     isPending: false,
     errorMessage: null,
     data: {
       rows: [],
+    },
+  }),
+}));
+
+vi.mock('../hooks/use-get-branch-manager-dashboard', () => ({
+  useGetBranchManagerDashboard: () => ({
+    isPending: false,
+    errorMessage: null,
+    data: {
+      branch: { branchCode: 'BR-01', month: 4, year: 2026 },
+      summary: {
+        orphanClientCount: 2,
+        pendingCosafApprovals: 1,
+        warningPolicies: 1,
+        urgentPolicies: 1,
+        lapsedPolicies: 0,
+        activeAgents: 3,
+        totalApi: 1000,
+        totalApe: 900,
+      },
+      topPerformers: [],
+      bottomPerformers: [],
+      filteredClients: [],
     },
   }),
 }));
@@ -91,17 +147,17 @@ describe('role home guided workflows', () => {
   it('renders step-by-step guidance for Agent', () => {
     render(<AgentHome />);
 
-    expect(screen.getByText(/step 1/i)).toBeInTheDocument();
-    expect(screen.getByText(/review urgent policies/i)).toBeInTheDocument();
-    expect(screen.getByText(/daily workflow/i)).toBeInTheDocument();
+    expect(screen.getByText(/agent workspace/i)).toBeInTheDocument();
+    expect(screen.getByText(/persistency/i)).toBeInTheDocument();
+    expect(screen.getByText(/update contact status/i)).toBeInTheDocument();
   });
 
   it('renders step-by-step guidance for Branch Manager', () => {
     render(<BMHome />);
 
-    expect(screen.getByText(/step 1/i)).toBeInTheDocument();
-    expect(screen.getByText(/check orphan count/i)).toBeInTheDocument();
-    expect(screen.getByText(/suggested daily order/i)).toBeInTheDocument();
+    expect(screen.getByText(/branch manager workspace/i)).toBeInTheDocument();
+    expect(screen.getByText(/report filters/i)).toBeInTheDocument();
+    expect(screen.getByText(/delist agent workflow/i)).toBeInTheDocument();
   });
 
   it('renders step-by-step guidance for Admin', () => {

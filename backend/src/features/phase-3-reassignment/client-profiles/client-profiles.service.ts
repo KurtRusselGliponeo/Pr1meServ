@@ -178,8 +178,16 @@ export class ClientProfilesService {
       conditions.push(eq(clientProfiles.assignedAgentId, query.agentId));
     }
 
+    if (query.branchCode) {
+      conditions.push(eq(clientProfiles.branchCode, query.branchCode));
+    }
+
     if (query.status) {
       conditions.push(eq(clientProfiles.caseStatus, query.status));
+    }
+
+    if (query.product) {
+      conditions.push(eq(clientProfiles.productType, query.product));
     }
 
     if (trimmedSearch) {

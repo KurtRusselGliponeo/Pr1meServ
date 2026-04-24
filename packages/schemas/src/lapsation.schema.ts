@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const LapsationRiskLevelSchema = z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']);
+export const LapsationRiskLevelSchema = z.enum(['Warning', 'Urgent', 'Lapsed']);
 export type LapsationRiskLevel = z.infer<typeof LapsationRiskLevelSchema>;
 
 export const LapsationRecordSummarySchema = z.object({

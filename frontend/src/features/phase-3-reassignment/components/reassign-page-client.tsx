@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { ArrowRightLeft } from 'lucide-react';
+import type { ClientAssignmentHistoryResponse, ListClientProfilesResponse } from '@a1prime/schemas';
 
 import { EmptyState } from '@/components/ui/empty-state';
 import { ReassignmentBoardSkeleton } from '@/components/ui/panel-skeletons';
@@ -31,7 +32,9 @@ export function ReassignPageClient() {
   const [historyClientId, setHistoryClientId] = React.useState<string | undefined>(undefined);
   const historyQuery = useGetClientHistory(historyClientId);
 
-  const auditItems = (orphanClientsQuery.data?.data ?? []).slice(0, 5).map((profile, index) => ({
+  const auditItems = (orphanClientsQuery.data?.data ?? [])
+    .slice(0, 5)
+    .map((profile: ListClientProfilesResponse['data'][number], index: number) => ({
     id: profile.id,
     title: `Orphan policy ${profile.policyNumber} is ready for remapping`,
     description: `${profile.firstName} ${profile.lastName} is waiting in the orphan queue. Assign the record to an active agent to restart the digital COSAF path.`,
@@ -99,12 +102,14 @@ export function ReassignPageClient() {
                 <p className="mt-4 text-sm text-destructive">{historyQuery.errorMessage}</p>
               ) : (
                 <AuditTrailTimeline
-                  items={(historyQuery.data?.data ?? []).map((entry) => ({
+                  items={(historyQuery.data?.data ?? []).map(
+                    (entry: ClientAssignmentHistoryResponse['data'][number]) => ({
                     id: entry.id,
                     title: `${entry.fromAgentName ?? 'Unassigned'} -> ${entry.toAgentName ?? 'Unassigned'}`,
                     description: `${entry.reason ?? 'Assignment updated'} Branch: ${entry.branchCode}.`,
                     timestampUtc: entry.createdAtUtc,
-                  }))}
+                    }),
+                  )}
                 />
               )}
             </section>
