@@ -6,6 +6,7 @@ import { emailQueueService } from '@/features/notifications/email-queue.service'
 import { ForbiddenError, NotFoundError } from '@/lib/errors';
 import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import type { CaseStatus, CosafApprovalListResponse, UserRole } from '@a1prime/schemas';
+import type { AuthTokenPayload } from '@/shared/lib/auth';
 import { decryptEmail } from '@/shared/lib/encryption';
 
 /**
@@ -163,6 +164,14 @@ export class CosafApprovalsService {
       clientProfileId: approval.clientProfileId,
       uploaderId: actorId,
       buffer,
+      actorUser: {
+        id: actorId,
+        sub: actorId,
+        role: actorRole,
+        agentId: null,
+        agentCode: null,
+        tokenType: 'access',
+      } satisfies AuthTokenPayload,
     });
 
     await db

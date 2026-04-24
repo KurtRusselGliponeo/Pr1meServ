@@ -27,7 +27,7 @@ function formatCreatedAt(value: string) {
 
 export function DocumentsPageClient() {
   const [category, setCategory] = React.useState<string | undefined>(undefined);
-  const documentsQuery = useGetDocuments(category);
+  const documentsQuery = useGetDocuments({ category });
   const pinMutation = useUpdateDocumentPin(category);
 
   if (documentsQuery.isPending) {
@@ -99,7 +99,7 @@ export function DocumentsPageClient() {
         </div>
       </section>
 
-      {documentsQuery.data.length === 0 ? (
+      {documentsQuery.data.data.length === 0 ? (
         <EmptyState
           icon={FileText}
           title="No documents found"
@@ -107,7 +107,7 @@ export function DocumentsPageClient() {
         />
       ) : (
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {documentsQuery.data.map((document) => (
+          {documentsQuery.data.data.map((document) => (
             <Card key={document.id}>
               <CardHeader className="rounded-[28px] bg-brand-gradient-soft">
                 <div className="flex items-start justify-between gap-4">

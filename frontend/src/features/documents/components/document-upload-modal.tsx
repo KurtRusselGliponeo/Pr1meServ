@@ -12,11 +12,18 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { useUploadDocument } from '../hooks/use-upload-document';
 
-const DOCUMENT_CATEGORIES = ['COSAF', 'Lapsation', 'Recruitment', 'Compliance', 'Performance'];
+const DOCUMENT_CATEGORIES = [
+  'COSAF',
+  'Lapsation & Reinstatement',
+  'Recruitment',
+  'Compliance & Policy',
+  'Performance & Reports',
+];
 
 const ALLOWED_MIME_TYPES = [
   'application/pdf',
@@ -36,6 +43,9 @@ export function DocumentUploadModal({ isOpen, onClose }: DocumentUploadModalProp
   const [category, setCategory] = React.useState<string>('');
   const [isDragging, setIsDragging] = React.useState(false);
   const [fileError, setFileError] = React.useState<string | null>(null);
+  const [description, setDescription] = React.useState('');
+  const [keywords, setKeywords] = React.useState('');
+  const [branchCode, setBranchCode] = React.useState('');
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const uploadMutation = useUploadDocument();
@@ -44,6 +54,9 @@ export function DocumentUploadModal({ isOpen, onClose }: DocumentUploadModalProp
     setFile(null);
     setCategory('');
     setFileError(null);
+    setDescription('');
+    setKeywords('');
+    setBranchCode('');
     uploadMutation.reset();
     onClose();
   }
@@ -83,7 +96,16 @@ export function DocumentUploadModal({ isOpen, onClose }: DocumentUploadModalProp
   function handleSubmit() {
     if (!file || !category) return;
     uploadMutation.mutate(
-      { file, category },
+      {
+        file,
+        category,
+        description,
+        branchCode,
+        keywords: keywords
+          .split(',')
+          .map((value) => value.trim())
+          .filter(Boolean),
+      },
       { onSuccess: () => setTimeout(handleClose, 1500) },
     );
   }
@@ -99,7 +121,7 @@ export function DocumentUploadModal({ isOpen, onClose }: DocumentUploadModalProp
           <DialogTitle>Upload Branch Document</DialogTitle>
           <DialogDescription>
             Select a category and upload the official form. It will be stored in the
-            branch document repository and versioned automatically.
+            branch document repository, versioned automatically, and older versions will be archived.
           </DialogDescription>
         </DialogHeader>
 
@@ -123,6 +145,37 @@ export function DocumentUploadModal({ isOpen, onClose }: DocumentUploadModalProp
                 </button>
               ))}
             </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="doc-branch">Target Branch</Label>
+              <Input
+                id="doc-branch"
+                value={branchCode}
+                onChange={(event) => setBranchCode(event.target.value)}
+                placeholder="Optional for Admin"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="doc-keywords">Keywords</Label>
+              <Input
+                id="doc-keywords"
+                value={keywords}
+                onChange={(event) => setKeywords(event.target.value)}
+                placeholder="keyword, policy, template"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="doc-description">Description</Label>
+            <Input
+              id="doc-description"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder="Short description for repository search"
+            />
           </div>
 
           <div

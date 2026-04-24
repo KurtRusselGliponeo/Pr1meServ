@@ -9,6 +9,9 @@ import { queryKeys } from '@/services/query-client';
 interface UploadDocumentPayload {
   file: File;
   category: string;
+  description?: string;
+  keywords?: string[];
+  branchCode?: string;
 }
 
 interface UploadDocumentResponse {
@@ -20,10 +23,19 @@ export function useUploadDocument() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ file, category }: UploadDocumentPayload) => {
+    mutationFn: async ({ file, category, description, keywords, branchCode }: UploadDocumentPayload) => {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('category', category);
+      if (description) {
+        formData.append('description', description);
+      }
+      if (keywords?.length) {
+        formData.append('keywords', keywords.join(','));
+      }
+      if (branchCode) {
+        formData.append('branchCode', branchCode);
+      }
 
       const response = await api.post('/documents/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -33,7 +45,9 @@ export function useUploadDocument() {
     },
     onSuccess: () => {
       toast.success('Document uploaded successfully.');
-      queryClient.invalidateQueries({ queryKey: queryKeys.documents() });
+      queryClient.invalidateQueries({
+        predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === queryKeys.documents()[0],
+      });
     },
     onError: () => {
       toast.error('Upload failed. Please try again.');

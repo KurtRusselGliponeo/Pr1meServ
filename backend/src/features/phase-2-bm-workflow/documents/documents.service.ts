@@ -1,75 +1,284 @@
-import { nanoid } from 'nanoid';
-import { gdriveService } from '@/lib/gdrive';
-import { db } from '@/db/client';
-import { agentProfiles, clientProfiles, cosafApprovals, documentLibrary, notifications, systemAuditLogs, userAccounts } from '@/db/schema';
-import { and, desc, eq } from 'drizzle-orm';
-import type { CaseStatus, SystemRole } from '@a1prime/schemas';
-import type { AuthTokenPayload } from '@/shared/lib/auth';
+import path from 'node:path';
+import { and, desc, eq, ilike, inArray, isNull, or } from 'drizzle-orm';
 
-type PresignedUploadRequest = {
-  fileName: string;
-  mimeType: string;
-  category: string;
+import type {
+  ArchiveDocumentRequest,
+  DocumentCategory,
+  DocumentDownloadResponse,
+  DocumentLibraryItem,
+  ListDocumentsQuery,
+  ListDocumentsResponse,
+  UpdateDocumentMetadata,
+} from '@a1prime/schemas';
+import { db } from '@/db/client';
+import {
+  agentProfiles,
+  clientProfiles,
+  cosafApprovals,
+  documentLibrary,
+  notifications,
+  systemAuditLogs,
+  userAccounts,
+} from '@/db/schema';
+import { documentStorageService } from '@/lib/document-storage';
+import { BusinessRuleError, ForbiddenError, NotFoundError } from '@/lib/errors';
+import { optimizeUploadFile } from '@/lib/file-optimization';
+import type { AuthTokenPayload } from '@/shared/lib/auth';
+import { logSystemAudit } from '@/shared/lib/audit';
+
+const DOCUMENT_CATEGORY_ALIASES: Record<string, DocumentCategory> = {
+  COSAF: 'COSAF',
+  Lapsation: 'Lapsation & Reinstatement',
+  'Lapsation & Reinstatement': 'Lapsation & Reinstatement',
+  Recruitment: 'Recruitment',
+  Compliance: 'Compliance & Policy',
+  'Compliance & Policy': 'Compliance & Policy',
+  Performance: 'Performance & Reports',
+  'Performance & Reports': 'Performance & Reports',
 };
 
+const ALLOWED_UPLOAD_MIME_TYPES = new Set([
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'image/jpeg',
+  'image/png',
+]);
 
+const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 
-function parseVersion(value: string) {
-  const parsed = Number.parseInt(value.replace('.0', ''), 10);
-  return Number.isFinite(parsed) ? parsed : 1;
+function normalizeCategory(category: string): DocumentCategory {
+  const normalized = DOCUMENT_CATEGORY_ALIASES[category];
+
+  if (!normalized) {
+    throw new BusinessRuleError('Unsupported document category.');
+  }
+
+  return normalized;
 }
 
-function getBaseFileName(fileName: string) {
-  return fileName.replace(/_v\d+(?=\.[^.]+$)/i, '');
+function parseKeywords(rawKeywords: string) {
+  return rawKeywords
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
 }
 
-/**
- * Handles Google Drive Library Mappings
- */
+function slugifyVersionGroup(fileName: string) {
+  const extension = path.extname(fileName);
+  const baseName = path.basename(fileName, extension);
+
+  return (
+    baseName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') ||
+    'document'
+  );
+}
+
+type DocumentRecord = typeof documentLibrary.$inferSelect;
+
 export class DocumentsService {
-  async generatePresignedUrl(input: PresignedUploadRequest) {
+  private async resolveActorBranchCode(actorUser: AuthTokenPayload) {
+    if (actorUser.role === 'Admin') {
+      return null;
+    }
+
+    if (!actorUser.agentId) {
+      throw new ForbiddenError('A linked branch profile is required for document access.');
+    }
+
+    const [agent] = await db
+      .select({
+        branchCode: agentProfiles.branchCode,
+      })
+      .from(agentProfiles)
+      .where(eq(agentProfiles.id, actorUser.agentId))
+      .limit(1);
+
+    if (!agent) {
+      throw new ForbiddenError('A linked branch profile is required for document access.');
+    }
+
+    return agent.branchCode;
+  }
+
+  private mapDocument(record: DocumentRecord): DocumentLibraryItem {
     return {
-      signedUrl: '',
-      documentId: nanoid(),
-      fileName: input.fileName,
-      mimeType: input.mimeType,
-      category: input.category,
+      id: record.id,
+      uploadedByUserId: record.uploadedByUserId,
+      branchCode: record.branchCode ?? null,
+      fileUrl: record.fileUrl,
+      fileName: record.fileName,
+      originalFileName: record.originalFileName,
+      category: normalizeCategory(record.category),
+      mimeType: record.mimeType,
+      fileExtension: record.fileExtension,
+      fileSizeBytes: record.fileSizeBytes,
+      description: record.description ?? null,
+      keywords: parseKeywords(record.keywords),
+      version: record.version,
+      versionGroup: record.versionGroup,
+      isPinned: record.isPinned,
+      isArchived: record.isArchived,
+      archivedAtUtc: record.archivedAtUtc?.toISOString() ?? null,
+      storageProvider: record.storageProvider as DocumentLibraryItem['storageProvider'],
+      createdAtUtc: record.createdAtUtc.toISOString(),
     };
   }
 
-  /**
-   * Uploads the document directly to Google Drive and tracks it in the database.
-   */
-  async uploadDocument(fileName: string, mimeType: string, category: string, uploaderId: string, buffer: Buffer) {
-    const baseFileName = getBaseFileName(fileName);
-    const existing = await db
+  private async findDocumentOrThrow(documentId: string) {
+    const [record] = await db
+      .select()
+      .from(documentLibrary)
+      .where(eq(documentLibrary.id, documentId))
+      .limit(1);
+
+    if (!record) {
+      throw new NotFoundError('Document was not found.');
+    }
+
+    return record;
+  }
+
+  private async assertCanManageDocument(record: DocumentRecord, actorUser: AuthTokenPayload) {
+    if (actorUser.role === 'Admin') {
+      return;
+    }
+
+    if (actorUser.role !== 'BranchManager') {
+      throw new ForbiddenError('Only Admin and BranchManager can manage documents.');
+    }
+
+    const actorBranch = await this.resolveActorBranchCode(actorUser);
+    if (record.branchCode && actorBranch !== record.branchCode) {
+      throw new ForbiddenError('Branch managers can only manage documents for their own branch.');
+    }
+  }
+
+  async uploadDocument(input: {
+    fileName: string;
+    mimeType: string;
+    category: string;
+    uploaderId: string;
+    buffer: Buffer;
+    actorUser: AuthTokenPayload;
+    branchCode?: string;
+    description?: string;
+    keywords?: string[];
+  }) {
+    if (!ALLOWED_UPLOAD_MIME_TYPES.has(input.mimeType)) {
+      throw new BusinessRuleError('Only PDF, Office, and image uploads are allowed.');
+    }
+
+    if (input.buffer.byteLength > MAX_UPLOAD_BYTES) {
+      throw new BusinessRuleError('Files must be 25MB or smaller.');
+    }
+
+    const category = normalizeCategory(input.category);
+    const actorBranchCode = await this.resolveActorBranchCode(input.actorUser);
+    const targetBranchCode =
+      input.actorUser.role === 'Admin' ? input.branchCode?.trim() || null : actorBranchCode;
+
+    const optimized = await optimizeUploadFile({
+      fileName: input.fileName,
+      mimeType: input.mimeType,
+      buffer: input.buffer,
+    });
+
+    const originalFileName = input.fileName;
+    const versionGroup = slugifyVersionGroup(originalFileName);
+    const siblingVersions = await db
       .select({
         id: documentLibrary.id,
-        fileName: documentLibrary.fileName,
         version: documentLibrary.version,
       })
       .from(documentLibrary)
-      .where(eq(documentLibrary.category, category))
+      .where(
+        and(
+          eq(documentLibrary.versionGroup, versionGroup),
+          eq(documentLibrary.category, category),
+          targetBranchCode === null
+            ? isNull(documentLibrary.branchCode)
+            : eq(documentLibrary.branchCode, targetBranchCode),
+        ),
+      )
       .orderBy(desc(documentLibrary.createdAtUtc));
 
-    const siblingVersions = existing.filter((row) => getBaseFileName(row.fileName) === baseFileName);
-    const nextVersion = siblingVersions.length
-      ? Math.max(...siblingVersions.map((row) => parseVersion(row.version))) + 1
-      : 1;
-    
-    // Upload directly to Google Drive
-    const driveResult = await gdriveService.uploadFile(`${nanoid()}-${fileName}`, mimeType, buffer);
-    
-    const [insertedDoc] = await db.insert(documentLibrary).values({
-      uploadedByUserId: uploaderId,
-      fileUrl: driveResult.webViewLink || driveResult.fileId || '',
-      fileName,
+    const nextVersion =
+      siblingVersions.length > 0
+        ? `${Math.max(...siblingVersions.map((row) => Number.parseInt(row.version, 10) || 1)) + 1}.0`
+        : '1.0';
+
+    const storedFileName = `${versionGroup}-v${nextVersion}.${optimized.extension}`;
+    const storageResult = await documentStorageService.upload({
+      fileName: storedFileName,
+      mimeType: optimized.mimeType,
+      buffer: optimized.buffer,
+      branchCode: targetBranchCode,
       category,
-      mimeType,
-      version: `${nextVersion}.0`,
-    }).returning();
-    
-    return { documentId: insertedDoc.id, webViewLink: driveResult.webViewLink };
+      versionGroup,
+    });
+
+    const archivedAtUtc = new Date();
+
+    if (siblingVersions.length > 0) {
+      await db
+        .update(documentLibrary)
+        .set({
+          isArchived: true,
+          archivedAtUtc,
+          archivedByUserId: input.uploaderId,
+          isPinned: false,
+        })
+        .where(inArray(documentLibrary.id, siblingVersions.map((row) => row.id)));
+    }
+
+    const [inserted] = await db
+      .insert(documentLibrary)
+      .values({
+        uploadedByUserId: input.uploaderId,
+        fileUrl: storageResult.fileUrl,
+        fileName: storedFileName,
+        originalFileName,
+        branchCode: targetBranchCode,
+        category,
+        mimeType: optimized.mimeType,
+        fileExtension: optimized.extension,
+        fileSizeBytes: optimized.buffer.byteLength,
+        description: input.description?.trim() || null,
+        keywords: (input.keywords ?? []).join(','),
+        version: nextVersion,
+        versionGroup,
+        isPinned: false,
+        isArchived: false,
+        storageProvider: storageResult.provider,
+        storageKey: storageResult.storageKey,
+      })
+      .returning();
+
+    await logSystemAudit({
+      action: 'document.uploaded',
+      userId: input.uploaderId,
+      entityName: 'DocumentLibrary',
+      resourceId: inserted.id,
+      newValue: {
+        category,
+        branchCode: targetBranchCode,
+        version: inserted.version,
+        versionGroup,
+        storageProvider: storageResult.provider,
+        optimization: optimized.optimization,
+        summary: `${category} uploaded to the centralized document library.`,
+      },
+    });
+
+    return {
+      documentId: inserted.id,
+      webViewLink: storageResult.webViewLink,
+      storageProvider: storageResult.provider,
+      version: inserted.version,
+    };
   }
 
   async uploadClientDocument(input: {
@@ -80,28 +289,42 @@ export class DocumentsService {
     clientProfileId: string;
     uploaderId: string;
     buffer: Buffer;
+    actorUser: AuthTokenPayload;
   }) {
-    const namespacedFileName = `${input.clientProfileId}/${input.bucket}/${input.fileName}`;
-    const uploadResult = await this.uploadDocument(
-      namespacedFileName,
-      input.mimeType,
-      input.category,
-      input.uploaderId,
-      input.buffer,
-    );
+    const [client] = await db
+      .select({
+        id: clientProfiles.id,
+        branchCode: clientProfiles.branchCode,
+      })
+      .from(clientProfiles)
+      .where(eq(clientProfiles.id, input.clientProfileId))
+      .limit(1);
 
-    await db.insert(systemAuditLogs).values({
-      actorUserId: input.uploaderId,
+    if (!client) {
+      throw new NotFoundError('Client profile was not found.');
+    }
+
+    const uploadResult = await this.uploadDocument({
+      fileName: `${input.clientProfileId}-${input.bucket}-${input.fileName}`,
+      mimeType: input.mimeType,
+      category: input.category,
+      uploaderId: input.uploaderId,
+      buffer: input.buffer,
+      actorUser: input.actorUser,
+      branchCode: client.branchCode,
+      keywords: [input.clientProfileId, input.bucket],
+      description: `Client-scoped upload stored in ${input.bucket}.`,
+    });
+
+    await logSystemAudit({
       action: 'client-document.uploaded',
+      userId: input.uploaderId,
       entityName: 'ClientProfile',
-      entityId: input.clientProfileId,
+      resourceId: input.clientProfileId,
       newValue: {
         documentId: uploadResult.documentId,
-        category: input.category,
         bucket: input.bucket,
-        fileName: input.fileName,
-        folderPath: `${input.clientProfileId}/${input.bucket}`,
-        summary: `${input.category} uploaded to ${input.bucket}.`,
+        summary: `Client document uploaded to ${input.bucket}.`,
       },
     });
 
@@ -111,67 +334,176 @@ export class DocumentsService {
     };
   }
 
-  /**
-   * Safe fetch queries enforcing Enum Category mapping logic (e.g. filter by 'COSAF')
-   */
-  async fetchDocuments(category?: string, actorUser?: AuthTokenPayload) {
+  async fetchDocuments(query: ListDocumentsQuery, actorUser: AuthTokenPayload): Promise<ListDocumentsResponse> {
+    const actorBranchCode = await this.resolveActorBranchCode(actorUser);
     const conditions = [];
 
-    if (category) {
-      conditions.push(eq(documentLibrary.category, category));
+    if (actorUser.role !== 'Admin') {
+      conditions.push(
+        or(isNull(documentLibrary.branchCode), eq(documentLibrary.branchCode, actorBranchCode!))!,
+      );
     }
 
-    if (actorUser?.role === 'Agent') {
-      conditions.push(eq(documentLibrary.uploadedByUserId, actorUser.sub));
+    if (!query.includeArchived) {
+      conditions.push(eq(documentLibrary.isArchived, false));
     }
 
-    if (conditions.length > 0) {
-      return db
-        .select()
-        .from(documentLibrary)
-        .where(and(...conditions))
-        .orderBy(desc(documentLibrary.isPinned), desc(documentLibrary.createdAtUtc));
+    if (query.category) {
+      conditions.push(eq(documentLibrary.category, query.category));
     }
 
-    return db
+    if (query.fileType) {
+      conditions.push(eq(documentLibrary.fileExtension, query.fileType.toLowerCase()));
+    }
+
+    if (query.search) {
+      const searchPattern = `%${query.search.trim()}%`;
+      conditions.push(
+        or(
+          ilike(documentLibrary.fileName, searchPattern),
+          ilike(documentLibrary.originalFileName, searchPattern),
+          ilike(documentLibrary.category, searchPattern),
+          ilike(documentLibrary.keywords, searchPattern),
+          ilike(documentLibrary.description, searchPattern),
+        )!,
+      );
+    }
+
+    const rows = await db
       .select()
       .from(documentLibrary)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(desc(documentLibrary.isPinned), desc(documentLibrary.createdAtUtc));
+
+    return {
+      data: rows.map((row) => this.mapDocument(row)),
+    };
   }
 
-  async updatePinnedState(documentId: string, isPinned: boolean) {
+  async updatePinnedState(documentId: string, isPinned: boolean, actorUser: AuthTokenPayload) {
+    const existing = await this.findDocumentOrThrow(documentId);
+    await this.assertCanManageDocument(existing, actorUser);
+
     const [updatedDoc] = await db
       .update(documentLibrary)
       .set({ isPinned })
       .where(eq(documentLibrary.id, documentId))
       .returning();
 
-    return updatedDoc ?? null;
+    await logSystemAudit({
+      action: isPinned ? 'document.pinned' : 'document.unpinned',
+      userId: actorUser.sub,
+      entityName: 'DocumentLibrary',
+      resourceId: documentId,
+      newValue: {
+        isPinned,
+      },
+    });
+
+    return updatedDoc ? this.mapDocument(updatedDoc) : null;
   }
 
-  async getDocumentHistory(documentId: string) {
-    const [selected] = await db
-      .select({
-        id: documentLibrary.id,
-        category: documentLibrary.category,
-        fileName: documentLibrary.fileName,
+  async updateMetadata(documentId: string, input: UpdateDocumentMetadata, actorUser: AuthTokenPayload) {
+    const existing = await this.findDocumentOrThrow(documentId);
+    await this.assertCanManageDocument(existing, actorUser);
+
+    const [updated] = await db
+      .update(documentLibrary)
+      .set({
+        category: input.category ?? existing.category,
+        description:
+          input.description === undefined ? existing.description : input.description?.trim() || null,
+        keywords: input.keywords ? input.keywords.join(',') : existing.keywords,
+        originalFileName: input.fileName?.trim() || existing.originalFileName,
       })
-      .from(documentLibrary)
       .where(eq(documentLibrary.id, documentId))
-      .limit(1);
+      .returning();
 
-    if (!selected) {
-      return [];
-    }
+    await logSystemAudit({
+      action: 'document.metadata-updated',
+      userId: actorUser.sub,
+      entityName: 'DocumentLibrary',
+      resourceId: documentId,
+      oldValue: {
+        category: existing.category,
+        description: existing.description,
+        keywords: existing.keywords,
+        originalFileName: existing.originalFileName,
+      },
+      newValue: {
+        category: updated.category,
+        description: updated.description,
+        keywords: updated.keywords,
+        originalFileName: updated.originalFileName,
+      },
+    });
 
-    const baseFileName = getBaseFileName(selected.fileName);
+    return this.mapDocument(updated);
+  }
+
+  async archiveDocument(documentId: string, input: ArchiveDocumentRequest, actorUser: AuthTokenPayload) {
+    const existing = await this.findDocumentOrThrow(documentId);
+    await this.assertCanManageDocument(existing, actorUser);
+
+    const archivedAtUtc = new Date();
+    const [updated] = await db
+      .update(documentLibrary)
+      .set({
+        isArchived: true,
+        isPinned: false,
+        archivedAtUtc,
+        archivedByUserId: actorUser.sub,
+      })
+      .where(eq(documentLibrary.id, documentId))
+      .returning();
+
+    await logSystemAudit({
+      action: 'document.archived',
+      userId: actorUser.sub,
+      entityName: 'DocumentLibrary',
+      resourceId: documentId,
+      newValue: {
+        reason: input.reason,
+        archivedAtUtc: archivedAtUtc.toISOString(),
+      },
+    });
+
+    return this.mapDocument(updated);
+  }
+
+  async getDocumentHistory(documentId: string, actorUser: AuthTokenPayload) {
+    const selected = await this.findDocumentOrThrow(documentId);
+    const actorBranchCode = await this.resolveActorBranchCode(actorUser);
     const rows = await db
       .select()
       .from(documentLibrary)
-      .where(eq(documentLibrary.category, selected.category))
+      .where(
+        and(
+          eq(documentLibrary.versionGroup, selected.versionGroup),
+          eq(documentLibrary.category, selected.category),
+          actorUser.role === 'Admin'
+            ? undefined
+            : or(isNull(documentLibrary.branchCode), eq(documentLibrary.branchCode, actorBranchCode!)),
+        ),
+      )
       .orderBy(desc(documentLibrary.createdAtUtc));
 
-    return rows.filter((row) => getBaseFileName(row.fileName) === baseFileName);
+    return rows.map((row) => this.mapDocument(row));
+  }
+
+  async getDownloadUrl(documentId: string, actorUser: AuthTokenPayload): Promise<DocumentDownloadResponse> {
+    const document = await this.findDocumentOrThrow(documentId);
+    const actorBranchCode = await this.resolveActorBranchCode(actorUser);
+
+    if (actorUser.role !== 'Admin' && document.branchCode && document.branchCode !== actorBranchCode) {
+      throw new ForbiddenError('You do not have access to download this document.');
+    }
+
+    return documentStorageService.getDownloadUrl(
+      document.storageProvider as DocumentLibraryItem['storageProvider'],
+      document.storageKey ?? document.fileUrl,
+      document.fileUrl,
+    );
   }
 
   async markCosafUploadComplete(
@@ -180,23 +512,16 @@ export class DocumentsService {
     reviewingBmId: string,
     reason?: string,
   ) {
-    const [document] = await db
-      .select({
-        id: documentLibrary.id,
-        category: documentLibrary.category,
-      })
-      .from(documentLibrary)
-      .where(eq(documentLibrary.id, documentId))
-      .limit(1);
+    const document = await this.findDocumentOrThrow(documentId);
 
-    if (!document || document.category !== 'COSAF') {
+    if (normalizeCategory(document.category) !== 'COSAF') {
       return null;
     }
 
     await db
       .update(clientProfiles)
       .set({
-        caseStatus: 'Forms Submitted' as CaseStatus,
+        caseStatus: 'Forms Submitted',
         updatedAt: new Date(),
       })
       .where(eq(clientProfiles.id, clientProfileId));
@@ -206,9 +531,7 @@ export class DocumentsService {
     const [existingApproval] = await db
       .select({ id: cosafApprovals.id })
       .from(cosafApprovals)
-      .where(
-        and(eq(cosafApprovals.clientProfileId, clientProfileId), eq(cosafApprovals.status, 'PENDING')),
-      )
+      .where(and(eq(cosafApprovals.clientProfileId, clientProfileId), eq(cosafApprovals.status, 'PENDING')))
       .limit(1);
 
     if (!existingApproval) {
@@ -275,7 +598,7 @@ export class DocumentsService {
       .where(eq(userAccounts.id, actorUserId))
       .limit(1);
 
-    if (actor && ['Admin', 'BranchManager'].includes(actor.role as SystemRole)) {
+    if (actor && ['Admin', 'BranchManager'].includes(actor.role)) {
       return actor.id;
     }
 
@@ -292,12 +615,7 @@ export class DocumentsService {
         })
         .from(userAccounts)
         .innerJoin(agentProfiles, eq(agentProfiles.userId, userAccounts.id))
-        .where(
-          and(
-            eq(userAccounts.role, 'BranchManager'),
-            eq(agentProfiles.branchCode, client.branchCode),
-          ),
-        )
+        .where(and(eq(userAccounts.role, 'BranchManager'), eq(agentProfiles.branchCode, client.branchCode)))
         .limit(1);
 
       if (branchManager) {
@@ -330,4 +648,3 @@ export class DocumentsService {
 }
 
 export const documentsService = new DocumentsService();
-

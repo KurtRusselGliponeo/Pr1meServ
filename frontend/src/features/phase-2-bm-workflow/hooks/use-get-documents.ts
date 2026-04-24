@@ -1,21 +1,35 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { listDocumentsResponseSchema } from '@a1prime/schemas';
 
 import api from '@/services/api-client';
 import { getErrorMessage } from '@/lib/error-utils';
 import { queryKeys } from '@/services/query-client';
-import type { DocumentLibraryItem } from '../types/document-library.types';
 
-export function useGetDocuments(category?: string) {
+interface UseGetDocumentsFilters {
+  category?: string;
+  search?: string;
+  fileType?: string;
+  includeArchived?: boolean;
+}
+
+export function useGetDocuments(filters: UseGetDocumentsFilters = {}) {
   const query = useQuery({
-    queryKey: queryKeys.documents(category),
+    queryKey: queryKeys.documents(
+      `${filters.category ?? 'all'}:${filters.search ?? ''}:${filters.fileType ?? 'all'}:${filters.includeArchived ? 'archived' : 'active'}`,
+    ),
     queryFn: async () => {
       const response = await api.get('/documents', {
-        params: category ? { category } : undefined,
+        params: {
+          category: filters.category,
+          search: filters.search?.trim() || undefined,
+          fileType: filters.fileType?.trim() || undefined,
+          includeArchived: filters.includeArchived ?? false,
+        },
       });
 
-      return response.data as DocumentLibraryItem[];
+      return listDocumentsResponseSchema.parse(response.data);
     },
   });
 

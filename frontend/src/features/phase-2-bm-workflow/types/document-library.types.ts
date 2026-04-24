@@ -1,11 +1,7 @@
-export interface DocumentLibraryItem {
-  id: string;
-  uploadedByUserId: string;
-  fileUrl: string;
-  fileName: string;
-  category: string;
-  mimeType: string;
-  version: string;
-  isPinned: boolean;
-  createdAtUtc: string;
-}
+import type {
+  DocumentLibraryItem,
+  DocumentCategory,
+  ListDocumentsResponse,
+} from '@a1prime/schemas';
+
+export type { DocumentLibraryItem, DocumentCategory, ListDocumentsResponse };

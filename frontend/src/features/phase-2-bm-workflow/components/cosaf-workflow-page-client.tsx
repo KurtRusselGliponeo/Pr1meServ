@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { ArrowRightLeft, FileCheck2, Users } from 'lucide-react';
 
 import { EmptyState } from '@/components/ui/empty-state';
@@ -86,6 +87,11 @@ export function CosafWorkflowPageClient({ searchParams }: CosafWorkflowPageClien
                 Open reassignment screen
               </a>
             </div>
+            <div className="mt-4">
+              <Link href="/dashboard/documents?category=COSAF" className="text-sm font-medium text-brand underline underline-offset-4">
+                Open COSAF repository quick link
+              </Link>
+            </div>
           </section>
 
           <section>
@@ -109,6 +115,11 @@ export function CosafWorkflowPageClient({ searchParams }: CosafWorkflowPageClien
             </p>
           </section>
           <CosafUploadPanel />
+          <div className="floating-card p-4">
+            <Link href="/dashboard/documents?category=COSAF" className="text-sm font-medium text-brand underline underline-offset-4">
+              Open COSAF repository quick link
+            </Link>
+          </div>
           <section>
             <CosafPageClient searchParams={searchParams} />
           </section>
@@ -130,6 +141,11 @@ export function CosafWorkflowPageClient({ searchParams }: CosafWorkflowPageClien
             </p>
           </section>
           <CosafApprovalsPanel />
+          <div className="floating-card p-4">
+            <Link href="/dashboard/documents?category=COSAF" className="text-sm font-medium text-brand underline underline-offset-4">
+              Open COSAF repository quick link
+            </Link>
+          </div>
           <section>
             <CosafPageClient searchParams={searchParams} />
           </section>

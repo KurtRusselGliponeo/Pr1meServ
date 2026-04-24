@@ -1,32 +1,39 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 process.env.JWT_SECRET = process.env.JWT_SECRET ?? 'test-secret';
-process.env.REDIS_HOST = process.env.REDIS_HOST ?? '127.0.0.1';
-process.env.REDIS_PORT = process.env.REDIS_PORT ?? '6379';
+process.env.REDIS_ENABLED = 'false';
 process.env.DATABASE_URL =
   process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/postgres';
 
 const {
-  generatePresignedUrlMock,
   fetchDocumentsMock,
   getDocumentHistoryMock,
   updatePinnedStateMock,
   markCosafUploadCompleteMock,
+  getDownloadUrlMock,
+  updateMetadataMock,
+  archiveDocumentMock,
 } = vi.hoisted(() => ({
-  generatePresignedUrlMock: vi.fn(),
   fetchDocumentsMock: vi.fn(),
   getDocumentHistoryMock: vi.fn(),
   updatePinnedStateMock: vi.fn(),
   markCosafUploadCompleteMock: vi.fn(),
+  getDownloadUrlMock: vi.fn(),
+  updateMetadataMock: vi.fn(),
+  archiveDocumentMock: vi.fn(),
 }));
 
 vi.mock('@/features/phase-2-bm-workflow/documents/documents.service', () => ({
   documentsService: {
-    generatePresignedUrl: generatePresignedUrlMock,
     fetchDocuments: fetchDocumentsMock,
     getDocumentHistory: getDocumentHistoryMock,
     updatePinnedState: updatePinnedStateMock,
     markCosafUploadComplete: markCosafUploadCompleteMock,
+    getDownloadUrl: getDownloadUrlMock,
+    updateMetadata: updateMetadataMock,
+    archiveDocument: archiveDocumentMock,
+    uploadDocument: vi.fn(),
+    uploadClientDocument: vi.fn(),
   },
 }));
 
@@ -74,6 +81,9 @@ vi.mock('@/features/phase-5-performance/metrics/metrics.service', () => ({
 vi.mock('@/features/notifications/notifications.service', () => ({
   notificationsService: {
     getNotificationLogs: vi.fn(),
+    getAdminSystemLogs: vi.fn(),
+    searchAgentsAndClients: vi.fn(),
+    getAdminOverview: vi.fn(),
   },
 }));
 
@@ -113,79 +123,17 @@ import buildApp from '@/app';
 
 describe('documents.routes', () => {
   beforeEach(() => {
-    generatePresignedUrlMock.mockReset();
     fetchDocumentsMock.mockReset();
     getDocumentHistoryMock.mockReset();
     updatePinnedStateMock.mockReset();
     markCosafUploadCompleteMock.mockReset();
-  });
-
-  it(
-    'allows Admin to request a presigned upload URL',
-    async () => {
-      generatePresignedUrlMock.mockResolvedValue({
-        signedUrl: 'https://storage.local/upload',
-        documentId: '7f5e658f-9b80-4c98-a7ca-53d08b2b4ad2',
-      });
-
-    const app = await buildApp();
-    const token = await app.jwt.sign({
-      id: 'admin-id',
-      sub: 'admin-id',
-      role: 'Admin',
-      agentId: null,
-      agentCode: null,
-      tokenType: 'access',
-    });
-
-    const response = await app.inject({
-      method: 'POST',
-      url: '/api/v1/documents/presigned-url',
-      headers: { authorization: `Bearer ${token}` },
-      payload: {
-        fileName: 'cosaf.pdf',
-        mimeType: 'application/pdf',
-        category: 'COSAF',
-      },
-    });
-
-    expect(response.statusCode).toBe(200);
-    expect(response.json().documentId).toBe('7f5e658f-9b80-4c98-a7ca-53d08b2b4ad2');
-
-      await app.close();
-    },
-    15000,
-  );
-
-  it('denies Agents from requesting a presigned upload URL', async () => {
-    const app = await buildApp();
-    const token = await app.jwt.sign({
-      id: 'agent-id',
-      sub: 'agent-id',
-      role: 'Agent',
-      agentId: 'agent-profile-id',
-      agentCode: 'AG-001',
-      tokenType: 'access',
-    });
-
-    const response = await app.inject({
-      method: 'POST',
-      url: '/api/v1/documents/presigned-url',
-      headers: { authorization: `Bearer ${token}` },
-      payload: {
-        fileName: 'cosaf.pdf',
-        mimeType: 'application/pdf',
-        category: 'COSAF',
-      },
-    });
-
-    expect(response.statusCode).toBe(403);
-
-    await app.close();
+    getDownloadUrlMock.mockReset();
+    updateMetadataMock.mockReset();
+    archiveDocumentMock.mockReset();
   });
 
   it('allows authenticated Agents to read the document library', async () => {
-    fetchDocumentsMock.mockResolvedValue([]);
+    fetchDocumentsMock.mockResolvedValue({ data: [] });
 
     const app = await buildApp();
     const token = await app.jwt.sign({
@@ -232,6 +180,32 @@ describe('documents.routes', () => {
 
     await app.close();
   });
+
+  it('allows Admin to request a document download URL', async () => {
+    getDownloadUrlMock.mockResolvedValue({
+      downloadUrl: 'https://storage.local/download',
+      expiresAtUtc: null,
+    });
+
+    const app = await buildApp();
+    const token = await app.jwt.sign({
+      id: 'admin-id',
+      sub: 'admin-id',
+      role: 'Admin',
+      agentId: null,
+      agentCode: null,
+      tokenType: 'access',
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/documents/7f5e658f-9b80-4c98-a7ca-53d08b2b4ad2/download',
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().downloadUrl).toContain('storage.local');
+
+    await app.close();
+  });
 });
-
-

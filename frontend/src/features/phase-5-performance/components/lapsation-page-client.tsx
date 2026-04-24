@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { AlertTriangle, CheckCircle2, History, ShieldAlert } from 'lucide-react';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 
@@ -82,6 +83,11 @@ export function LapsationPageClient() {
         <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
           Monitor policies nearing lapse, review assigned ownership, and mark successful
           reinstatements from a live branch dashboard.
+        </p>
+        <p className="mt-4">
+          <Link href="/dashboard/documents?category=Lapsation%20%26%20Reinstatement" className="text-sm font-medium text-brand underline underline-offset-4">
+            Open Lapsation repository quick link
+          </Link>
         </p>
       </section>
 
