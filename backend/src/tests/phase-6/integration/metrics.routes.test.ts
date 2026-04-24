@@ -6,13 +6,17 @@ process.env.REDIS_PORT = process.env.REDIS_PORT ?? '6379';
 process.env.DATABASE_URL =
   process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/postgres';
 
-const { getPerformanceMetricsMock } = vi.hoisted(() => ({
+const { getPerformanceMetricsMock, getLeaderboardMock, buildCsvReportMock } = vi.hoisted(() => ({
   getPerformanceMetricsMock: vi.fn(),
+  getLeaderboardMock: vi.fn(),
+  buildCsvReportMock: vi.fn(),
 }));
 
 vi.mock('@/features/phase-5-performance/metrics/metrics.service', () => ({
   metricsService: {
     getPerformanceMetrics: getPerformanceMetricsMock,
+    getLeaderboard: getLeaderboardMock,
+    buildCsvReport: buildCsvReportMock,
   },
 }));
 
@@ -77,16 +81,31 @@ import buildApp from '@/app';
 describe('metrics.routes', () => {
   beforeEach(() => {
     getPerformanceMetricsMock.mockReset();
+    getLeaderboardMock.mockReset();
+    buildCsvReportMock.mockReset();
   });
 
   it('returns aggregated metrics for authenticated users', async () => {
     getPerformanceMetricsMock.mockResolvedValue({
       generatedAtUtc: new Date().toISOString(),
+      scope: {
+        role: 'Agent',
+        branchCode: null,
+        agentId: 'agent-profile-id',
+      },
       summary: {
         activeAgents: 2,
         totalApi: 1000,
         totalModalPremium: 2000,
         totalCommission: 300,
+        totalSales: 300,
+        totalNap: 1000,
+        totalApe: 2000,
+        totalRecruitment: 1,
+        atRiskCount: 2,
+        lapsedCount: 1,
+        reinstatementCount: 0,
+        persistencyRate: 95,
       },
       points: [],
     });
@@ -143,6 +162,32 @@ describe('metrics.routes', () => {
     });
 
     expect(response.statusCode).toBe(401);
+
+    await app.close();
+  });
+
+  it('allows BranchManager to download a CSV report', async () => {
+    buildCsvReportMock.mockResolvedValue('header1,header2\nvalue1,value2');
+
+    const app = await buildApp();
+    const token = await app.jwt.sign({
+      id: 'bm-user-id',
+      sub: 'bm-user-id',
+      role: 'BranchManager',
+      agentId: 'branch-agent-id',
+      agentCode: 'BM-001',
+      tokenType: 'access',
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/metrics/report?month=4&year=2026',
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers['content-type']).toContain('text/csv');
+    expect(buildCsvReportMock).toHaveBeenCalledOnce();
 
     await app.close();
   });

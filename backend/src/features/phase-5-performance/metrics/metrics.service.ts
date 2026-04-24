@@ -1,4 +1,4 @@
-import { and, eq, isNull, gte, lt, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNull, lt, sql } from 'drizzle-orm';
 import Decimal from 'decimal.js';
 
 import type {
@@ -8,11 +8,30 @@ import type {
   PerformanceMetricsResponse,
 } from '@a1prime/schemas';
 import { db } from '@/db/client';
-import { agentProfiles, clientProfiles, lapsationRecords, performanceMetrics } from '@/schema';
+import { ForbiddenError } from '@/lib/errors';
+import {
+  agentProfiles,
+  clientProfiles,
+  lapsationRecords,
+  performanceMetrics,
+  per,
+  policies,
+  policyTransactions,
+} from '@/schema';
 import type { AuthTokenPayload } from '@/shared/lib/auth';
 
 function toNumber(value: string | number | null | undefined) {
   return new Decimal(value ?? 0).toNumber();
+}
+
+function recordMonth(month: number, year: number) {
+  return `${year}-${String(month).padStart(2, '0')}`;
+}
+
+function monthLabel(value: string) {
+  return new Intl.DateTimeFormat('en', { month: 'short' }).format(
+    new Date(`${value}-01T00:00:00.000Z`),
+  );
 }
 
 export class MetricsService {
@@ -30,26 +49,53 @@ export class MetricsService {
     return actorProfile?.branchCode ?? null;
   }
 
+  private async getScopedAgentIds(actorUser: AuthTokenPayload) {
+    if (actorUser.role === 'Agent') {
+      return actorUser.agentId ? [actorUser.agentId] : [];
+    }
+
+    if (actorUser.role === 'BranchManager') {
+      const branchCode = await this.getActorBranchCode(actorUser);
+      if (!branchCode) {
+        throw new ForbiddenError('Branch Manager analytics require a linked branch profile.');
+      }
+
+      const rows = await db
+        .select({ id: agentProfiles.id })
+        .from(agentProfiles)
+        .where(
+          and(
+            eq(agentProfiles.branchCode, branchCode),
+            isNull(agentProfiles.deletedAtUtc),
+            eq(agentProfiles.status, 'Active'),
+          ),
+        );
+
+      return rows.map((row) => row.id);
+    }
+
+    return null;
+  }
+
   async getLeaderboardRows(
     query: PerformanceLeaderboardQuery,
     actorUser: AuthTokenPayload,
   ): Promise<PerformanceLeaderboardResponse['rows']> {
-    const recordMonth = `${query.year}-${String(query.month).padStart(2, '0')}`;
-    const leaderboardConditions = [eq(performanceMetrics.recordMonth, recordMonth)];
-    const branchCode = await this.getActorBranchCode(actorUser);
+    const selectedMonth = recordMonth(query.month, query.year);
+    const scopedAgentIds = await this.getScopedAgentIds(actorUser);
+    const branchCode = actorUser.role === 'Admin' ? null : await this.getActorBranchCode(actorUser);
 
-    if (actorUser.role === 'Agent' && actorUser.agentId) {
-      leaderboardConditions.push(eq(performanceMetrics.agentId, actorUser.agentId));
-    }
-
-    if (actorUser.role === 'BranchManager' && branchCode) {
-      leaderboardConditions.push(eq(agentProfiles.branchCode, branchCode));
+    const metricConditions = [eq(performanceMetrics.recordMonth, selectedMonth)];
+    if (scopedAgentIds) {
+      metricConditions.push(inArray(performanceMetrics.agentId, scopedAgentIds));
     }
 
     const rows = await db
       .select({
         agentId: performanceMetrics.agentId,
         agentName: agentProfiles.displayName,
+        agentCode: agentProfiles.agentCode,
+        branchCode: agentProfiles.branchCode,
         recordMonth: performanceMetrics.recordMonth,
         api: performanceMetrics.api,
         modalPremium: performanceMetrics.modalPremium,
@@ -61,32 +107,92 @@ export class MetricsService {
         agentProfiles,
         and(eq(agentProfiles.id, performanceMetrics.agentId), isNull(agentProfiles.deletedAtUtc)),
       )
-      .where(and(...leaderboardConditions));
+      .where(and(...metricConditions));
 
-    const lapsationConditions = [
-      and(isNull(lapsationRecords.reinstatedAtUtc), eq(lapsationRecords.isAtRisk, true))!,
+    const lapseConditions = [
+      eq(lapsationRecords.isAtRisk, true),
+      isNull(lapsationRecords.reinstatedAtUtc),
     ];
-
     if (actorUser.role === 'Agent' && actorUser.agentId) {
-      lapsationConditions.push(eq(clientProfiles.assignedAgentId, actorUser.agentId));
+      lapseConditions.push(eq(clientProfiles.assignedAgentId, actorUser.agentId));
+    } else if (actorUser.role === 'BranchManager' && branchCode) {
+      lapseConditions.push(eq(clientProfiles.branchCode, branchCode));
     }
 
-    if (actorUser.role === 'BranchManager' && branchCode) {
-      lapsationConditions.push(eq(clientProfiles.branchCode, branchCode));
-    }
-
-    const lapsationRows = await db
-      .select({
-        agentId: clientProfiles.assignedAgentId,
-        count: sql<number>`count(*)::int`,
-      })
-      .from(lapsationRecords)
-      .innerJoin(clientProfiles, eq(clientProfiles.id, lapsationRecords.policyNumberId))
-      .where(and(...lapsationConditions))
-      .groupBy(clientProfiles.assignedAgentId);
+    const [lapsationRows, reinstatementRows, perRows] = await Promise.all([
+      db
+        .select({
+          agentId: clientProfiles.assignedAgentId,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(lapsationRecords)
+        .innerJoin(clientProfiles, eq(clientProfiles.id, lapsationRecords.policyNumberId))
+        .where(and(...lapseConditions))
+        .groupBy(clientProfiles.assignedAgentId),
+      db
+        .select({
+          agentId: clientProfiles.assignedAgentId,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(policyTransactions)
+        .innerJoin(policies, eq(policies.id, policyTransactions.policyId))
+        .innerJoin(clientProfiles, eq(clientProfiles.id, policies.clientProfileId))
+        .where(
+          and(
+            eq(policyTransactions.transactionType, 'REINSTATED'),
+            gte(policyTransactions.createdAtUtc, new Date(`${selectedMonth}-01T00:00:00.000Z`)),
+            lt(
+              policyTransactions.createdAtUtc,
+              new Date(
+                query.month === 12
+                  ? `${query.year + 1}-01-01T00:00:00.000Z`
+                  : `${query.year}-${String(query.month + 1).padStart(2, '0')}-01T00:00:00.000Z`,
+              ),
+            ),
+            actorUser.role === 'Admin'
+              ? undefined
+              : actorUser.role === 'Agent' && actorUser.agentId
+                ? eq(clientProfiles.assignedAgentId, actorUser.agentId)
+                : eq(clientProfiles.branchCode, branchCode!),
+          ),
+        )
+        .groupBy(clientProfiles.assignedAgentId),
+      db
+        .select({
+          agentCode: per.agentCode,
+          personalPersistency: per.personalPersistency,
+        })
+        .from(per)
+        .where(
+          and(
+            gte(per.month, new Date(`${selectedMonth}-01T00:00:00.000Z`)),
+            lt(
+              per.month,
+              new Date(
+                query.month === 12
+                  ? `${query.year + 1}-01-01T00:00:00.000Z`
+                  : `${query.year}-${String(query.month + 1).padStart(2, '0')}-01T00:00:00.000Z`,
+              ),
+            ),
+            actorUser.role === 'Admin'
+              ? undefined
+              : actorUser.role === 'Agent' && actorUser.agentId
+                ? eq(per.agentCode, actorUser.agentCode!)
+                : eq(per.branch, branchCode!),
+          ),
+        ),
+    ]);
 
     const lapsationCountByAgent = new Map(
       lapsationRows.filter((row) => row.agentId).map((row) => [row.agentId as string, row.count]),
+    );
+    const reinstatementCountByAgent = new Map(
+      reinstatementRows.filter((row) => row.agentId).map((row) => [row.agentId as string, row.count]),
+    );
+    const persistencyByAgentCode = new Map(
+      perRows
+        .filter((row) => row.agentCode)
+        .map((row) => [row.agentCode as string, toNumber(row.personalPersistency)]),
     );
 
     return rows
@@ -95,19 +201,31 @@ export class MetricsService {
         const commissionAmount = toNumber(row.commissionAmount);
         const modalPremium = toNumber(row.modalPremium);
         const lapsationCount = lapsationCountByAgent.get(row.agentId) ?? 0;
+        const reinstatementCount = reinstatementCountByAgent.get(row.agentId) ?? 0;
         const recruitmentCount = row.recruitmentCount ?? 0;
-        const lapsationRate = api > 0 ? lapsationCount / Math.max(api, 1) : 0;
-        const score = api + commissionAmount + modalPremium + recruitmentCount * 1000 - lapsationCount * 500;
+        const lapsationRate = modalPremium > 0 ? lapsationCount / modalPremium : 0;
+        const persistencyRate = persistencyByAgentCode.get(row.agentCode);
+
+        const score =
+          api +
+          commissionAmount +
+          modalPremium +
+          recruitmentCount * 1000 +
+          reinstatementCount * 250 -
+          lapsationCount * 500;
 
         return {
           agentId: row.agentId,
           agentName: row.agentName,
+          branchCode: row.branchCode,
           recordMonth: row.recordMonth,
           api,
           modalPremium,
           commissionAmount,
           recruitmentCount,
           lapsationCount,
+          reinstatementCount,
+          persistencyRate: persistencyRate ?? Math.max(0, (1 - lapsationRate) * 100),
           lapsationRate,
           score,
         };
@@ -119,31 +237,29 @@ export class MetricsService {
     query: GetPerformanceMetricsQuery,
     actorUser: AuthTokenPayload,
   ): Promise<PerformanceMetricsResponse> {
+    const selectedMonth = recordMonth(query.month, query.year);
     const startMonth = `${query.year}-01`;
     const nextMonthDate = new Date(Date.UTC(query.year, query.month, 1));
     const endMonth = `${nextMonthDate.getUTCFullYear()}-${String(nextMonthDate.getUTCMonth() + 1).padStart(2, '0')}`;
-    const selectedMonth = `${query.year}-${String(query.month).padStart(2, '0')}`;
-    const monthFormatter = new Intl.DateTimeFormat('en', { month: 'short' });
+    const branchCode = actorUser.role === 'Admin' ? null : await this.getActorBranchCode(actorUser);
+    const scopedAgentIds = await this.getScopedAgentIds(actorUser);
 
     const metricConditions = [
       gte(performanceMetrics.recordMonth, startMonth),
       lt(performanceMetrics.recordMonth, endMonth),
     ];
-    const branchCode = await this.getActorBranchCode(actorUser);
-
-    if (actorUser.role === 'Agent' && actorUser.agentId) {
-      metricConditions.push(eq(performanceMetrics.agentId, actorUser.agentId));
-    } else if (actorUser.role === 'BranchManager' && branchCode) {
-      metricConditions.push(eq(agentProfiles.branchCode, branchCode));
+    if (scopedAgentIds) {
+      metricConditions.push(inArray(performanceMetrics.agentId, scopedAgentIds));
     }
 
-    const [summaryRows, pointRows] = await Promise.all([
+    const [summaryRows, pointRows, selectedLeaderboardRows] = await Promise.all([
       db
         .select({
           activeAgents: sql<number>`count(distinct ${performanceMetrics.agentId})::int`,
           totalApi: sql<string>`coalesce(sum(${performanceMetrics.api}), 0)::text`,
           totalModalPremium: sql<string>`coalesce(sum(${performanceMetrics.modalPremium}), 0)::text`,
           totalCommission: sql<string>`coalesce(sum(${performanceMetrics.commissionAmount}), 0)::text`,
+          totalRecruitment: sql<number>`coalesce(sum(${performanceMetrics.recruitmentCount}), 0)::int`,
         })
         .from(performanceMetrics)
         .innerJoin(
@@ -158,6 +274,7 @@ export class MetricsService {
           api: sql<string>`coalesce(sum(${performanceMetrics.api}), 0)::text`,
           sumAssured: sql<string>`coalesce(sum(${performanceMetrics.sumAssured}), 0)::text`,
           commissionAmount: sql<string>`coalesce(sum(${performanceMetrics.commissionAmount}), 0)::text`,
+          recruitmentCount: sql<number>`coalesce(sum(${performanceMetrics.recruitmentCount}), 0)::int`,
         })
         .from(performanceMetrics)
         .innerJoin(
@@ -167,27 +284,75 @@ export class MetricsService {
         .where(and(...metricConditions))
         .groupBy(performanceMetrics.recordMonth)
         .orderBy(performanceMetrics.recordMonth),
+      this.getLeaderboardRows({ month: query.month, year: query.year }, actorUser),
     ]);
 
-    const summaryRow = summaryRows[0];
-    const points = pointRows
-      .filter((point) => point.month <= selectedMonth)
-      .map((point) => ({
-        month: point.month,
-        label: monthFormatter.format(new Date(`${point.month}-01T00:00:00.000Z`)),
-        modalPremium: toNumber(point.modalPremium),
-        api: toNumber(point.api),
-        sumAssured: toNumber(point.sumAssured),
-        commissionAmount: toNumber(point.commissionAmount),
-      }));
+    const selectedMonthRows = pointRows.filter((point) => point.month === selectedMonth);
+    const currentPoint = selectedMonthRows[0];
+    const selectedPersistencyRate =
+      selectedLeaderboardRows.length === 0
+        ? 100
+        : selectedLeaderboardRows.reduce((total, row) => total + row.persistencyRate, 0) /
+          selectedLeaderboardRows.length;
+
+    const points = await Promise.all(
+      pointRows
+        .filter((point) => point.month <= selectedMonth)
+        .map(async (point) => {
+          const leaderboardRows = await this.getLeaderboardRows(
+            {
+              month: Number.parseInt(point.month.slice(5, 7), 10),
+              year: Number.parseInt(point.month.slice(0, 4), 10),
+            },
+            actorUser,
+          );
+          const persistencyRate =
+            leaderboardRows.length === 0
+              ? 100
+              : leaderboardRows.reduce((total, row) => total + row.persistencyRate, 0) /
+                leaderboardRows.length;
+
+          return {
+            month: point.month,
+            label: monthLabel(point.month),
+            modalPremium: toNumber(point.modalPremium),
+            api: toNumber(point.api),
+            sumAssured: toNumber(point.sumAssured),
+            commissionAmount: toNumber(point.commissionAmount),
+            recruitmentCount: point.recruitmentCount ?? 0,
+            lapsationCount: leaderboardRows.reduce((total, row) => total + row.lapsationCount, 0),
+            reinstatementCount: leaderboardRows.reduce(
+              (total, row) => total + row.reinstatementCount,
+              0,
+            ),
+            persistencyRate,
+          };
+        }),
+    );
 
     return {
       generatedAtUtc: new Date().toISOString(),
+      scope: {
+        role: actorUser.role,
+        branchCode,
+        agentId: actorUser.role === 'Agent' ? actorUser.agentId : null,
+      },
       summary: {
-        activeAgents: summaryRow?.activeAgents ?? 0,
-        totalApi: toNumber(summaryRow?.totalApi),
-        totalModalPremium: toNumber(summaryRow?.totalModalPremium),
-        totalCommission: toNumber(summaryRow?.totalCommission),
+        activeAgents: summaryRows[0]?.activeAgents ?? 0,
+        totalApi: toNumber(summaryRows[0]?.totalApi),
+        totalModalPremium: toNumber(summaryRows[0]?.totalModalPremium),
+        totalCommission: toNumber(summaryRows[0]?.totalCommission),
+        totalSales: toNumber(summaryRows[0]?.totalCommission),
+        totalNap: toNumber(currentPoint?.api),
+        totalApe: toNumber(currentPoint?.modalPremium),
+        totalRecruitment: summaryRows[0]?.totalRecruitment ?? 0,
+        atRiskCount: selectedLeaderboardRows.reduce((total, row) => total + row.lapsationCount, 0),
+        lapsedCount: selectedLeaderboardRows.filter((row) => row.persistencyRate < 100).length,
+        reinstatementCount: selectedLeaderboardRows.reduce(
+          (total, row) => total + row.reinstatementCount,
+          0,
+        ),
+        persistencyRate: selectedPersistencyRate,
       },
       points,
     };
@@ -197,11 +362,89 @@ export class MetricsService {
     query: PerformanceLeaderboardQuery,
     actorUser: AuthTokenPayload,
   ): Promise<PerformanceLeaderboardResponse> {
+    const rows = await this.getLeaderboardRows(query, actorUser);
+    const branchCode = actorUser.role === 'Admin' ? null : await this.getActorBranchCode(actorUser);
+    const branchSummaries = new Map<string, PerformanceLeaderboardResponse['branches'][number]>();
+
+    for (const row of rows) {
+      const existing = branchSummaries.get(row.branchCode);
+      if (existing) {
+        const nextActiveAgents = existing.activeAgents + 1;
+        existing.totalSales += row.commissionAmount;
+        existing.totalNap += row.api;
+        existing.totalApe += row.modalPremium;
+        existing.totalRecruitment += row.recruitmentCount;
+        existing.lapsationCount += row.lapsationCount;
+        existing.reinstatementCount += row.reinstatementCount;
+        existing.persistencyRate =
+          (existing.persistencyRate * existing.activeAgents + row.persistencyRate) /
+          nextActiveAgents;
+        existing.activeAgents = nextActiveAgents;
+      } else {
+        branchSummaries.set(row.branchCode, {
+          branchCode: row.branchCode,
+          totalSales: row.commissionAmount,
+          totalNap: row.api,
+          totalApe: row.modalPremium,
+          totalRecruitment: row.recruitmentCount,
+          persistencyRate: row.persistencyRate,
+          lapsationCount: row.lapsationCount,
+          reinstatementCount: row.reinstatementCount,
+          activeAgents: 1,
+        });
+      }
+    }
+
     return {
       generatedAtUtc: new Date().toISOString(),
-      recordMonth: `${query.year}-${String(query.month).padStart(2, '0')}`,
-      rows: await this.getLeaderboardRows(query, actorUser),
+      recordMonth: recordMonth(query.month, query.year),
+      scope: {
+        role: actorUser.role,
+        branchCode,
+        agentId: actorUser.role === 'Agent' ? actorUser.agentId : null,
+      },
+      rows,
+      branches: [...branchSummaries.values()].sort((left, right) => right.totalSales - left.totalSales),
     };
+  }
+
+  async buildCsvReport(
+    query: PerformanceLeaderboardQuery,
+    actorUser: AuthTokenPayload,
+  ): Promise<string> {
+    const leaderboard = await this.getLeaderboard(query, actorUser);
+    const metrics = await this.getPerformanceMetrics({ ...query, role: 'all' }, actorUser);
+    const branchSection = leaderboard.branches
+      .map(
+        (row) =>
+          `${row.branchCode},${row.totalSales},${row.persistencyRate.toFixed(2)},${row.lapsationCount},${row.reinstatementCount},${row.totalRecruitment}`,
+      )
+      .join('\n');
+    const agentSection = leaderboard.rows
+      .map(
+        (row) =>
+          `${row.agentName},${row.branchCode},${row.api},${row.modalPremium},${row.commissionAmount},${row.persistencyRate.toFixed(2)},${row.lapsationCount},${row.reinstatementCount},${row.recruitmentCount}`,
+      )
+      .join('\n');
+
+    return [
+      'Phase 8 Performance Report',
+      `Generated At,${new Date().toISOString()}`,
+      `Scope Role,${leaderboard.scope.role}`,
+      `Scope Branch,${leaderboard.scope.branchCode ?? 'ALL'}`,
+      '',
+      'Summary',
+      'Total Sales,Total NAP,Total APE,Persistency,Lapsation,Reinstatement,Recruitment',
+      `${metrics.summary.totalSales},${metrics.summary.totalNap},${metrics.summary.totalApe},${metrics.summary.persistencyRate.toFixed(2)},${metrics.summary.atRiskCount},${metrics.summary.reinstatementCount},${metrics.summary.totalRecruitment}`,
+      '',
+      'Branch Leaderboard',
+      'Branch,Total Sales,Persistency,Lapsation,Reinstatement,Recruitment',
+      branchSection,
+      '',
+      'Agent Drill Down',
+      'Agent,Branch,NAP,APE,Sales,Persistency,Lapsation,Reinstatement,Recruitment',
+      agentSection,
+    ].join('\n');
   }
 }
 

@@ -4,6 +4,7 @@ import { LapsationUploadJobPayloadSchema, type LapsationUploadJobPayload } from 
 
 import { BusinessRuleError } from '@/lib/errors';
 import { importValidationService } from '@/features/imports/import-validation.service';
+import { performanceImportService } from '@/features/phase-5-performance/performance/performance-import.service';
 
 const REQUIRED_HEADERS = [
   'Agent ID',
@@ -113,6 +114,25 @@ export class LapsationImportService {
 
     const worksheet = getFirstWorksheet(workbook);
     const rows = parseWorksheetRows(worksheet);
+
+    await performanceImportService.processNapImport({
+      importBatchId: parsedPayload.importBatchId,
+      fileName: parsedPayload.fileName,
+      initiatedByUserId: parsedPayload.initiatedByUserId,
+      rows: rows.map((row) => ({
+        agentId: row['Agent ID'],
+        recordMonth: row['Record Month'],
+        modalPremium: row['Modal Premium'],
+        api: row.API,
+        sumAssured: row['Sum Assured'],
+        commissionAmount: row['Commission Amount'],
+        policyNumberId: row['Policy Number'],
+        transactionType: row['Transaction Type'],
+        creditStatus: row['Credit Status'],
+        lapseDateUtc: row['Lapse Date UTC'],
+        reinstatedAtUtc: row['Reinstated At UTC'],
+      })),
+    });
 
     return { importedRows: rows.length };
   }

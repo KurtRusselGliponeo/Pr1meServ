@@ -1,4 +1,4 @@
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, isNull } from 'drizzle-orm';
 import type {
   ApeImportJobPayload,
   ApeImportRow,
@@ -19,10 +19,23 @@ import {
 
 import { withDbTransaction, type DbTransaction } from '@/db/client';
 import { BusinessRuleError } from '@/lib/errors';
-import { clientProfiles, lapsationRecords, performanceMetrics } from '@/schema';
+import {
+  agentProfiles,
+  clientProfiles,
+  lapsationRecords,
+  nap,
+  notifications,
+  performanceMetrics,
+  policies,
+  policyTransactions,
+  userAccounts,
+} from '@/schema';
 import { importValidationService } from '@/features/imports/import-validation.service';
+import { emailQueueService } from '@/features/notifications/email-queue.service';
+import { decryptEmail } from '@/shared/lib/encryption';
 
 const IMPORT_BATCH_SIZE = 200;
+const DEFAULT_AT_RISK_THRESHOLD_DAYS = 30;
 
 type MetricLikeRow = {
   agentId: string;
@@ -138,6 +151,15 @@ async function findExistingMetrics(
   return new Map(existingRows.map((row) => [metricKey(row), row]));
 }
 
+function getAtRiskThresholdDays() {
+  const parsed = Number.parseInt(process.env.LAPSATION_AT_RISK_DAYS ?? '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_AT_RISK_THRESHOLD_DAYS;
+}
+
+function diffInDays(from: Date, to: Date) {
+  return Math.max(0, Math.floor((to.getTime() - from.getTime()) / 86400000));
+}
+
 /**
  * Processes queue-driven performance import workloads for NAP, PER, and APE files.
  */
@@ -165,6 +187,7 @@ export class PerformanceImportService {
 
     for (const chunk of chunkRows(parsedPayload.rows as NapImportRow[], IMPORT_BATCH_SIZE)) {
       await withDbTransaction('imports.nap.batch-insert', async (tx) => {
+        await this.insertNapTransactions(tx, chunk);
         await tx.insert(performanceMetrics).values(toMetricInsertValues(chunk));
         await this.applyNapLapsationTransitions(tx, chunk);
       });
@@ -357,26 +380,53 @@ export class PerformanceImportService {
   private async applyNapLapsationTransitions(tx: DbTransaction, rows: NapImportRow[]) {
     const lapseRows = rows.filter(isNapLapseRow);
     const reinstatementRows = rows.filter(isNapReinstatementRow);
+    const thresholdDays = getAtRiskThresholdDays();
+    const now = new Date();
 
     for (const row of lapseRows) {
       const policyNumberId = row.policyNumberId!;
       const lapseDateUtc = row.lapseDateUtc ? new Date(row.lapseDateUtc) : new Date();
+      const [policyRow] = await tx
+        .select({
+          id: policies.id,
+          clientProfileId: policies.clientProfileId,
+          policyNumber: policies.policyNumber,
+          branchCode: policies.branchCode,
+          assignedAgentId: clientProfiles.assignedAgentId,
+          userId: agentProfiles.userId,
+          encryptedEmail: userAccounts.encryptedEmail,
+        })
+        .from(policies)
+        .innerJoin(clientProfiles, eq(clientProfiles.id, policies.clientProfileId))
+        .leftJoin(
+          agentProfiles,
+          and(eq(agentProfiles.id, clientProfiles.assignedAgentId), isNull(agentProfiles.deletedAtUtc)),
+        )
+        .leftJoin(userAccounts, eq(userAccounts.id, agentProfiles.userId))
+        .where(eq(policies.clientProfileId, policyNumberId))
+        .limit(1);
 
       const [existing] = await tx
-        .select({ id: lapsationRecords.id })
+        .select({
+          id: lapsationRecords.id,
+          isAtRisk: lapsationRecords.isAtRisk,
+          reinstatedAtUtc: lapsationRecords.reinstatedAtUtc,
+        })
         .from(lapsationRecords)
         .where(eq(lapsationRecords.policyNumberId, policyNumberId))
         .limit(1);
 
+      const becameAtRisk = diffInDays(lapseDateUtc, now) >= thresholdDays;
+
       if (existing) {
         await tx
           .update(lapsationRecords)
-          .set({ isAtRisk: true, reinstatedAtUtc: null, lapseDateUtc })
+          .set({ isAtRisk: becameAtRisk, reinstatedAtUtc: null, lapseDateUtc })
           .where(eq(lapsationRecords.id, existing.id));
       } else {
         await tx.insert(lapsationRecords).values({
           policyNumberId,
-          isAtRisk: true,
+          isAtRisk: becameAtRisk,
           lapseDateUtc,
           reinstatedAtUtc: null,
         });
@@ -386,11 +436,81 @@ export class PerformanceImportService {
         .update(clientProfiles)
         .set({ policyStatus: 'Lapsed', caseStatus: 'Returned' as CaseStatus, updatedAt: new Date() })
         .where(eq(clientProfiles.id, policyNumberId));
+
+      if (policyRow) {
+        await tx.insert(policyTransactions).values({
+          policyId: policyRow.id,
+          sourceType: 'NAP',
+          transactionType: 'LAPSED',
+          transactionStatus: row.creditStatus?.trim() || 'DEBIT',
+          effectiveAtUtc: lapseDateUtc,
+          payload: JSON.stringify(row),
+        });
+
+        if (!existing || existing.reinstatedAtUtc) {
+          await this.notifyAssignedAgent(
+            tx,
+            policyRow.userId,
+            policyRow.encryptedEmail,
+            'Policy lapsed',
+            `Policy ${policyRow.policyNumber} has been marked as lapsed from the latest NAP import.`,
+            {
+              policyNumberId,
+              policyNumber: policyRow.policyNumber,
+              branchCode: policyRow.branchCode,
+              eventType: 'LAPSED',
+            },
+          );
+        }
+
+        if (becameAtRisk && (!existing || !existing.isAtRisk)) {
+          await tx.insert(policyTransactions).values({
+            policyId: policyRow.id,
+            sourceType: 'NAP',
+            transactionType: 'AT_RISK',
+            transactionStatus: `${thresholdDays}_DAYS`,
+            effectiveAtUtc: lapseDateUtc,
+            payload: JSON.stringify({ thresholdDays, source: 'NAP', row }),
+          });
+
+          await this.notifyAssignedAgent(
+            tx,
+            policyRow.userId,
+            policyRow.encryptedEmail,
+            'Policy at risk',
+            `Policy ${policyRow.policyNumber} reached the at-risk threshold of ${thresholdDays} days.`,
+            {
+              policyNumberId,
+              policyNumber: policyRow.policyNumber,
+              branchCode: policyRow.branchCode,
+              eventType: 'AT_RISK',
+              thresholdDays,
+            },
+          );
+        }
+      }
     }
 
     for (const row of reinstatementRows) {
       const policyNumberId = row.policyNumberId!;
       const reinstatedAtUtc = row.reinstatedAtUtc ? new Date(row.reinstatedAtUtc) : new Date();
+      const [policyRow] = await tx
+        .select({
+          id: policies.id,
+          policyNumber: policies.policyNumber,
+          branchCode: policies.branchCode,
+          userId: agentProfiles.userId,
+          encryptedEmail: userAccounts.encryptedEmail,
+        })
+        .from(policies)
+        .innerJoin(clientProfiles, eq(clientProfiles.id, policies.clientProfileId))
+        .leftJoin(
+          agentProfiles,
+          and(eq(agentProfiles.id, clientProfiles.assignedAgentId), isNull(agentProfiles.deletedAtUtc)),
+        )
+        .leftJoin(userAccounts, eq(userAccounts.id, agentProfiles.userId))
+        .where(eq(policies.clientProfileId, policyNumberId))
+        .limit(1);
 
       await tx
         .update(lapsationRecords)
@@ -404,6 +524,110 @@ export class PerformanceImportService {
         .update(clientProfiles)
         .set({ policyStatus: 'Active', updatedAt: new Date() })
         .where(eq(clientProfiles.id, policyNumberId));
+
+      if (policyRow) {
+        await tx.insert(policyTransactions).values({
+          policyId: policyRow.id,
+          sourceType: 'NAP',
+          transactionType: 'REINSTATED',
+          transactionStatus: row.creditStatus?.trim() || 'DEBIT',
+          effectiveAtUtc: reinstatedAtUtc,
+          payload: JSON.stringify(row),
+        });
+
+        await this.notifyAssignedAgent(
+          tx,
+          policyRow.userId,
+          policyRow.encryptedEmail,
+          'Policy reinstated',
+          `Policy ${policyRow.policyNumber} has been reinstated and removed from the active lapsation queue.`,
+          {
+            policyNumberId,
+            policyNumber: policyRow.policyNumber,
+            branchCode: policyRow.branchCode,
+            eventType: 'REINSTATED',
+          },
+        );
+      }
+    }
+  }
+
+  private async insertNapTransactions(tx: DbTransaction, rows: NapImportRow[]) {
+    const agentIds = [...new Set(rows.map((row) => row.agentId))];
+    const policyIds = [...new Set(rows.map((row) => row.policyNumberId).filter(Boolean) as string[])];
+
+    const [agentRows, clientRows] = await Promise.all([
+      tx
+        .select({
+          id: agentProfiles.id,
+          agentCode: agentProfiles.agentCode,
+          displayName: agentProfiles.displayName,
+          branchCode: agentProfiles.branchCode,
+        })
+        .from(agentProfiles)
+        .where(inArray(agentProfiles.id, agentIds)),
+      policyIds.length === 0
+        ? Promise.resolve([])
+        : tx
+            .select({
+              id: clientProfiles.id,
+              policyNumber: clientProfiles.policyNumber,
+            })
+            .from(clientProfiles)
+            .where(inArray(clientProfiles.id, policyIds)),
+    ]);
+
+    const agentMap = new Map(agentRows.map((row) => [row.id, row]));
+    const clientMap = new Map(clientRows.map((row) => [row.id, row.policyNumber]));
+
+    await tx.insert(nap).values(
+      rows.map((row) => {
+        const agent = agentMap.get(row.agentId);
+        const eventDate = row.lapseDateUtc ?? row.reinstatedAtUtc ?? `${row.recordMonth}-01T00:00:00.000Z`;
+
+        return {
+          agentCode: agent?.agentCode ?? null,
+          agentName: agent?.displayName ?? null,
+          policyNumber: row.policyNumberId ? clientMap.get(row.policyNumberId) ?? null : null,
+          transactionDate: new Date(eventDate),
+          transactionType: row.transactionType ?? 'UNKNOWN',
+          api: row.api.toFixed(4),
+          creditStatus: row.creditStatus ?? null,
+          branchName: agent?.branchCode ?? null,
+          updatedAtUtc: new Date(),
+        };
+      }),
+    );
+  }
+
+  private async notifyAssignedAgent(
+    tx: DbTransaction,
+    userId: string | null | undefined,
+    encryptedEmail: string | null | undefined,
+    subject: string,
+    message: string,
+    metadata: Record<string, unknown>,
+  ) {
+    if (!userId) {
+      return;
+    }
+
+    await tx.insert(notifications).values({
+      userId,
+      channel: 'in_app',
+      subject,
+      message,
+      status: 'sent',
+      metadata: JSON.stringify(metadata),
+    });
+
+    if (encryptedEmail) {
+      await emailQueueService.enqueueEmail({
+        to: decryptEmail(encryptedEmail),
+        subject,
+        text: message,
+        metadata,
+      });
     }
   }
 }

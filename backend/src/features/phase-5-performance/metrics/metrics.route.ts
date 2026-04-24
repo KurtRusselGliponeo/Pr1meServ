@@ -34,6 +34,22 @@ const metricsRoutes: FastifyPluginAsync = async (app) => {
       return reply.code(200).send(result);
     },
   );
+
+  app.get(
+    '/metrics/report',
+    {
+      preHandler: [app.authenticate, requireRole(['Admin', 'BranchManager'])],
+    },
+    async (request, reply) => {
+      const query = PerformanceLeaderboardQuerySchema.parse(request.query);
+      const csv = await metricsService.buildCsvReport(query, request.authUser);
+      const fileName = `performance-report-${query.year}-${String(query.month).padStart(2, '0')}.csv`;
+
+      reply.header('content-type', 'text/csv; charset=utf-8');
+      reply.header('content-disposition', `attachment; filename="${fileName}"`);
+      return reply.code(200).send(csv);
+    },
+  );
 };
 
 export default metricsRoutes;

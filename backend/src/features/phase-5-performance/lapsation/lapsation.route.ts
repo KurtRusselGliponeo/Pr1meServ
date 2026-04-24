@@ -14,8 +14,8 @@ const lapsationRoutes: FastifyPluginAsync = async (app) => {
     {
       preHandler: [app.authenticate, requireRole(['Admin', 'BranchManager', 'Agent'])],
     },
-    async (_request, reply) => {
-      const result = await lapsationService.getDashboard();
+    async (request, reply) => {
+      const result = await lapsationService.getDashboard(request.authUser);
       return reply.code(200).send(result);
     },
   );
@@ -27,7 +27,7 @@ const lapsationRoutes: FastifyPluginAsync = async (app) => {
     },
     async (request, reply) => {
       const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
-      const result = await lapsationService.reinstateRecord(id, request.authUser.sub);
+      const result = await lapsationService.reinstateRecord(id, request.authUser);
       return reply.code(200).send(result);
     },
   );

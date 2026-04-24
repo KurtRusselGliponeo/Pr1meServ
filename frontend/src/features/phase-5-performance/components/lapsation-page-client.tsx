@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { AlertTriangle, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, History, ShieldAlert } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 
@@ -46,7 +46,7 @@ export function LapsationPageClient() {
   }
 
   const dashboard = dashboardQuery.data;
-  const isAdmin = isHydrated && user?.role === 'Admin';
+  const canImport = isHydrated && (user?.role === 'Admin' || user?.role === 'BranchManager');
   const activeFilter = searchParams.get('filter');
   const visibleRecords = dashboard.records.filter((record: (typeof dashboard.records)[number]) => {
     if (record.reinstatedAtUtc) {
@@ -85,7 +85,7 @@ export function LapsationPageClient() {
         </p>
       </section>
 
-      {isAdmin ? <NapUploadPortal /> : null}
+      {canImport ? <NapUploadPortal /> : null}
 
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
         <Card>
@@ -98,12 +98,15 @@ export function LapsationPageClient() {
           <CardHeader className="rounded-[28px] bg-brand-gradient-soft">
             <CardDescription>At risk</CardDescription>
             <CardTitle>{dashboard.summary.atRiskCount}</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Threshold: {dashboard.thresholdDays} days before at-risk escalation.
+            </p>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader className="rounded-[28px] bg-brand-gradient-soft">
-            <CardDescription>Live at risk</CardDescription>
-            <CardTitle>{dashboard.summary.criticalCount}</CardTitle>
+            <CardDescription>Lapsed</CardDescription>
+            <CardTitle>{dashboard.summary.lapsedCount}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
@@ -202,6 +205,48 @@ export function LapsationPageClient() {
         }}
         onSubmit={(recordId) => handleResolutionSubmit(recordId)}
       />
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="rounded-2xl bg-brand-gradient-soft p-2">
+              <History className="h-5 w-5 text-brand" />
+            </div>
+            <div>
+              <CardTitle className="text-xl">Reinstatement and lapsation history</CardTitle>
+              <CardDescription>
+                Timeline of at-risk, lapsed, and reinstated policy events in your current scope.
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {dashboard.timeline.length === 0 ? (
+            <EmptyState
+              icon={History}
+              title="No lapsation history yet"
+              description="Imported NAP transitions will appear here once policies move through risk and reinstatement events."
+            />
+          ) : (
+            <div className="space-y-3">
+              {dashboard.timeline.slice(0, 10).map((event) => (
+                <div
+                  key={event.id}
+                  className="flex items-center justify-between rounded-[24px] border border-white/30 bg-background/70 px-4 py-3 dark:border-white/10"
+                >
+                  <div>
+                    <p className="font-semibold text-foreground">{event.policyNumber}</p>
+                    <p className="text-xs text-muted-foreground">{event.eventType}</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {new Date(event.effectiveAtUtc).toLocaleString()}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
