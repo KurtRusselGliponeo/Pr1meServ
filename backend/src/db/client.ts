@@ -13,7 +13,11 @@ const databaseConnectTimeoutSeconds = Number.parseInt(
   process.env.DB_CONNECT_TIMEOUT_SECONDS ?? '10',
   10,
 );
-const usePgBouncer = process.env.DB_USE_PGBOUNCER?.trim() === 'true';
+const connectionUsesPooler =
+  connectionString.includes('.pooler.supabase.com') || /:6543(?:\/|$)/.test(connectionString);
+const usePgBouncer =
+  process.env.DB_USE_PGBOUNCER?.trim() === 'true' ||
+  (process.env.DB_USE_PGBOUNCER == null && connectionUsesPooler);
 
 if (!connectionString) {
   throw new Error('DATABASE_URL environment variable is not set.');

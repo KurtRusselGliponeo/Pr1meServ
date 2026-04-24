@@ -1,11 +1,10 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { AgentLookupResponseSchema, ListAgentsQuerySchema } from '@a1prime/schemas';
 
-import api from '@/services/api-client';
 import { getErrorMessage } from '@/lib/error-utils';
 import { queryKeys } from '@/services/query-client';
+import { fetchAgents } from '@/features/navigation/lib/dashboard-prefetch';
 
 export function useGetAgents(search: string, enabled = true) {
   const normalizedSearch = search.trim();
@@ -13,14 +12,9 @@ export function useGetAgents(search: string, enabled = true) {
   const query = useQuery({
     queryKey: queryKeys.agentLookup(normalizedSearch || 'all'),
     enabled,
-    queryFn: async () => {
-      const params = ListAgentsQuerySchema.parse({
-        search: normalizedSearch || undefined,
-        limit: 12,
-      });
-      const response = await api.get('/agents', { params });
-      return AgentLookupResponseSchema.parse(response.data);
-    },
+    queryFn: () => fetchAgents(normalizedSearch),
+    staleTime: 10 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
   });
 
   return {

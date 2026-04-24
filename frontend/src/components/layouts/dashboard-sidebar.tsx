@@ -8,6 +8,7 @@ import { PanelLeftClose } from 'lucide-react';
 
 import { useDashboardNavigation } from '@/components/layouts/dashboard-navigation-context';
 import { Button } from '@/components/ui/button';
+import { useWarmDashboardData } from '@/features/navigation/hooks/use-warm-dashboard-data';
 import { useNavigation } from '@/features/navigation/hooks/use-navigation';
 import { cn } from '@/lib/utils';
 
@@ -27,12 +28,14 @@ function NavigationList({
   const router = useRouter();
   const { items } = useNavigation();
   const { navigate, pendingHref } = useDashboardNavigation();
+  const { warmRoute } = useWarmDashboardData();
 
   React.useEffect(() => {
     items.forEach((item) => {
       router.prefetch(item.href as Route);
+      warmRoute(item.href);
     });
-  }, [items, router]);
+  }, [items, router, warmRoute]);
 
   return (
     <nav aria-label="Dashboard" className="flex flex-col gap-1 px-2">
@@ -61,8 +64,11 @@ function NavigationList({
               }
 
               event.preventDefault();
+              warmRoute(item.href);
               navigate(item.href, onNavigate);
             }}
+            onMouseEnter={() => warmRoute(item.href)}
+            onFocus={() => warmRoute(item.href)}
             aria-current={isActive ? 'page' : undefined}
             className={cn(
               'group relative flex items-center gap-3 overflow-hidden rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',

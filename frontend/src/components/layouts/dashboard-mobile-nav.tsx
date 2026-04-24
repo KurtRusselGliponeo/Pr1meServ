@@ -14,18 +14,21 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { useWarmDashboardData } from '@/features/navigation/hooks/use-warm-dashboard-data';
 import { useNavigation } from '@/features/navigation/hooks/use-navigation';
 
 export function DashboardMobileNav() {
   const [isOpen, setIsOpen] = React.useState(false);
   const router = useRouter();
   const { items } = useNavigation();
+  const { warmRoute } = useWarmDashboardData();
 
   React.useEffect(() => {
     items.forEach((item) => {
       router.prefetch(item.href as Route);
+      warmRoute(item.href);
     });
-  }, [items, router]);
+  }, [items, router, warmRoute]);
 
   return (
     <div className="lg:hidden">

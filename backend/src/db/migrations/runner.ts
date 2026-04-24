@@ -5,6 +5,7 @@ import { applicationMigrations } from '.';
 
 async function run() {
   const direction = process.argv[2];
+  const startAtMigrationId = process.argv[3];
   const connectionString = process.env.DATABASE_URL;
 
   if (!connectionString) {
@@ -24,8 +25,19 @@ async function run() {
   try {
     const migrations =
       direction === 'up' ? applicationMigrations : [...applicationMigrations].reverse();
+    const selectedMigrations = startAtMigrationId
+      ? (() => {
+          const startIndex = migrations.findIndex((migration) => migration.id === startAtMigrationId);
 
-    for (const migration of migrations) {
+          if (startIndex === -1) {
+            throw new Error(`Migration "${startAtMigrationId}" was not found.`);
+          }
+
+          return migrations.slice(startIndex);
+        })()
+      : migrations;
+
+    for (const migration of selectedMigrations) {
       console.log(`${direction.toUpperCase()}: ${migration.id}`);
       if (direction === 'up') {
         await migration.up(sql);

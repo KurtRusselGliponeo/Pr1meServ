@@ -1,20 +1,17 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { CosafApprovalListResponseSchema } from '@a1prime/schemas';
 
-import api from '@/services/api-client';
 import { getErrorMessage } from '@/lib/error-utils';
 import { queryKeys } from '@/services/query-client';
-import type { CosafApprovalListResponse } from '../types/cosaf-approval.types';
+import { fetchCosafApprovals } from '@/features/navigation/lib/dashboard-prefetch';
 
 export function useGetCosafApprovals() {
   const query = useQuery({
     queryKey: queryKeys.cosafApprovals,
-    queryFn: async () => {
-      const response = await api.get('/cosaf-approvals');
-      return CosafApprovalListResponseSchema.parse(response.data) as CosafApprovalListResponse;
-    },
+    queryFn: fetchCosafApprovals,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
   });
 
   return {

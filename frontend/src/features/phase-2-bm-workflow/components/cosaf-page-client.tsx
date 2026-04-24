@@ -1,15 +1,18 @@
 'use client';
 
 import * as React from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { AlertCircle, Users } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
+import { fetchClientProfiles } from '@/features/navigation/lib/dashboard-prefetch';
 import { useGetClientProfiles } from '@/features/phase-2-bm-workflow/hooks/use-get-client-profiles';
 import { useUpdateClientCaseStatus } from '@/features/phase-2-bm-workflow/hooks/use-update-client-case-status';
 import { AuditTrailTimeline } from '@/features/phase-3-reassignment/components/audit-trail-timeline';
 import { useGetClientTimeline } from '@/features/phase-3-reassignment/hooks/use-get-client-timeline';
+import { queryKeys } from '@/services/query-client';
 import { ClientProfilesTable } from './client-profiles-table';
 
 interface CosafPageClientProps {
@@ -33,6 +36,7 @@ export function CosafPageClient({ searchParams }: CosafPageClientProps) {
   const deferredSearchValue = React.useDeferredValue(searchValue);
   const [status] = React.useState(initialStatus);
   const [selectedClientId, setSelectedClientId] = React.useState<string | undefined>(undefined);
+  const queryClient = useQueryClient();
   const timelineQuery = useGetClientTimeline(selectedClientId);
   const updateStatusMutation = useUpdateClientCaseStatus();
 
@@ -44,6 +48,25 @@ export function CosafPageClient({ searchParams }: CosafPageClientProps) {
     status,
     search: deferredSearchValue,
   });
+
+  React.useEffect(() => {
+    if (!data?.meta.hasNextPage) {
+      return;
+    }
+
+    const nextPage = page + 1;
+    void queryClient.prefetchQuery({
+      queryKey: queryKeys.clientProfiles(nextPage, {
+        agentId: undefined,
+        branchCode: undefined,
+        product: undefined,
+        search: deferredSearchValue,
+        status,
+      }),
+      queryFn: () => fetchClientProfiles(nextPage, { status, search: deferredSearchValue }),
+      staleTime: 10 * 60 * 1000,
+    });
+  }, [data?.meta.hasNextPage, deferredSearchValue, page, queryClient, status]);
 
   return (
     <div className="space-y-6">

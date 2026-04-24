@@ -1,11 +1,10 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { listDocumentsResponseSchema } from '@a1prime/schemas';
 
-import api from '@/services/api-client';
 import { getErrorMessage } from '@/lib/error-utils';
 import { queryKeys } from '@/services/query-client';
+import { fetchDocuments } from '@/features/navigation/lib/dashboard-prefetch';
 
 interface UseGetDocumentsFilters {
   category?: string;
@@ -19,18 +18,9 @@ export function useGetDocuments(filters: UseGetDocumentsFilters = {}) {
     queryKey: queryKeys.documents(
       `${filters.category ?? 'all'}:${filters.search ?? ''}:${filters.fileType ?? 'all'}:${filters.includeArchived ? 'archived' : 'active'}`,
     ),
-    queryFn: async () => {
-      const response = await api.get('/documents', {
-        params: {
-          category: filters.category,
-          search: filters.search?.trim() || undefined,
-          fileType: filters.fileType?.trim() || undefined,
-          includeArchived: filters.includeArchived ?? false,
-        },
-      });
-
-      return listDocumentsResponseSchema.parse(response.data);
-    },
+    queryFn: () => fetchDocuments(filters),
+    staleTime: 10 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
   });
 
   return {

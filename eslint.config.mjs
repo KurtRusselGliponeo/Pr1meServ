@@ -10,6 +10,7 @@ export default [
       '**/.next/**',
       '**/dist/**',
       '**/coverage/**',
+      'frontend/coverage/**',
       'legacy-client/**',
       'legacy-server/**',
       'backend/src/shared/db/migrations/generated/**',
@@ -22,6 +23,30 @@ export default [
       globals: {
         ...globals.node,
       },
+    },
+  },
+  {
+    files: ['frontend/**/*.cjs', 'backend/**/*.cjs'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+    },
+    rules: {
+      'no-console': 'off',
+      'no-undef': 'off',
+    },
+  },
+  {
+    files: ['frontend/public/sw.js'],
+    languageOptions: {
+      globals: {
+        ...globals.serviceworker,
+        ...globals.browser,
+      },
+    },
+    rules: {
+      'no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     },
   },
   {

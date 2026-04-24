@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { ArrowRightLeft, FileCheck2, Users } from 'lucide-react';
 
 import { EmptyState } from '@/components/ui/empty-state';
+import { DashboardModuleLoading } from '@/components/ui/dashboard-module-loading';
 import { useAuth } from '@/features/identity/context/auth-context';
 import { CosafApprovalsPanel } from './cosaf-approvals-panel';
 import { CosafPageClient } from './cosaf-page-client';
@@ -17,7 +18,11 @@ export function CosafWorkflowPageClient({ searchParams }: CosafWorkflowPageClien
   const { user, isHydrated } = useAuth();
 
   if (!isHydrated || !user) {
-    return null;
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <DashboardModuleLoading eyebrow="COSAF" titleWidthClassName="w-72" columns={5} rows={5} />
+      </div>
+    );
   }
 
   const isAdmin = user.role === 'Admin';
@@ -80,12 +85,13 @@ export function CosafWorkflowPageClient({ searchParams }: CosafWorkflowPageClien
                   document handoff.
                 </p>
               </div>
-              <a
+              <Link
                 href="/dashboard/cosaf/reassign"
+                prefetch
                 className="inline-flex min-h-12 items-center justify-center rounded-full bg-brand px-5 text-sm font-semibold text-brand-foreground shadow-soft transition hover:-translate-y-0.5 hover:shadow-float"
               >
                 Open reassignment screen
-              </a>
+              </Link>
             </div>
             <div className="mt-4">
               <Link href="/dashboard/documents?category=COSAF" className="text-sm font-medium text-brand underline underline-offset-4">

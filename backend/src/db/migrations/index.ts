@@ -17,6 +17,7 @@ import { orphanPoolAgentMigration } from './016_OrphanPoolAgent';
 import { phaseTwoThreeFoundationMigration } from './017_PhaseTwoThreeFoundation';
 import { phaseOneStatusLockMigration } from './018_PhaseOneStatusLock';
 import { documentRepositoryPhaseNineMigration } from './018_DocumentRepositoryPhaseNine';
+import { phaseNineFivePerformanceIndexesMigration } from './019_PhaseNineFivePerformanceIndexes';
 
 export const phaseOneMigrations = [
   userAccountsMigration,
@@ -54,4 +55,5 @@ export const applicationMigrations = [
   phaseTwoThreeFoundationMigration,
   phaseOneStatusLockMigration,
   documentRepositoryPhaseNineMigration,
+  phaseNineFivePerformanceIndexesMigration,
 ];

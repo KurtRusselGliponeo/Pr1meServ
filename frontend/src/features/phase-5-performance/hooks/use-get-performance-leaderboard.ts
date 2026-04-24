@@ -1,26 +1,17 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import {
-  PerformanceLeaderboardQuerySchema,
-  PerformanceLeaderboardResponseSchema,
-} from '@a1prime/schemas';
 
-import api from '@/services/api-client';
 import { getErrorMessage } from '@/lib/error-utils';
 import { queryKeys } from '@/services/query-client';
-import type { PerformanceLeaderboardResponse } from '../types/performance-metrics.types';
+import { fetchPerformanceLeaderboard } from '@/features/navigation/lib/dashboard-prefetch';
 
 export function useGetPerformanceLeaderboard(month: number, year: number) {
   const query = useQuery({
     queryKey: queryKeys.performanceLeaderboard(month, year),
-    queryFn: async () => {
-      const params = PerformanceLeaderboardQuerySchema.parse({ month, year });
-      const response = await api.get('/metrics/leaderboard', { params });
-      return PerformanceLeaderboardResponseSchema.parse(
-        response.data,
-      ) as PerformanceLeaderboardResponse;
-    },
+    queryFn: () => fetchPerformanceLeaderboard(month, year),
+    staleTime: 10 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
   });
 
   return {

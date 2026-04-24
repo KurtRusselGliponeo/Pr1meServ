@@ -28,4 +28,5 @@ export const queryKeys = {
   updateUser: ['update-user'] as const,
   restoreUser: ['restore-user'] as const,
   resetUserPassword: ['reset-user-password'] as const,
+  clientTimeline: (clientProfileId: string) => ['client-timeline', clientProfileId] as const,
 };

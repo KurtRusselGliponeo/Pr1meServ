@@ -1,20 +1,17 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { LapsationDashboardResponseSchema } from '@a1prime/schemas';
 
-import api from '@/services/api-client';
 import { getErrorMessage } from '@/lib/error-utils';
 import { queryKeys } from '@/services/query-client';
-import type { LapsationDashboardResponse } from '../types/lapsation.types';
+import { fetchLapsationDashboard } from '@/features/navigation/lib/dashboard-prefetch';
 
 export function useGetLapsationDashboard() {
   const query = useQuery({
     queryKey: queryKeys.lapsation,
-    queryFn: async () => {
-      const response = await api.get('/lapsation');
-      return LapsationDashboardResponseSchema.parse(response.data) as LapsationDashboardResponse;
-    },
+    queryFn: fetchLapsationDashboard,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
   });
 
   return {

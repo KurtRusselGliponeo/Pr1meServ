@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { FileText, Filter, Pin, PinOff, UploadCloud } from 'lucide-react';
+import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -93,7 +94,7 @@ export function DocumentsPageClient() {
         <div className="mt-4 flex flex-wrap gap-3">
           {moduleQuickLinks.map((link) => (
             <Button key={link.href} type="button" variant="outline" size="sm" asChild>
-              <a href={link.href}>{link.label}</a>
+              <Link href={link.href}>{link.label}</Link>
             </Button>
           ))}
         </div>
