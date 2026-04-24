@@ -31,13 +31,14 @@ import { useGetClientProfiles } from '../hooks/use-get-client-profiles';
 const MAX_COSAF_FILE_SIZE_BYTES = 15 * 1024 * 1024;
 
 const cosafUploadFormSchema = z.object({
+  bucket: z.enum(['forms', 'ids']),
   file: z
     .instanceof(File, { message: 'Attach a signed COSAF PDF before uploading.' })
-    .refine((file) => file.type === 'application/pdf', {
-      message: 'Only PDF files are allowed for COSAF submissions.',
+    .refine((file) => ['application/pdf', 'image/jpeg', 'image/png'].includes(file.type), {
+      message: 'Only PDF, JPG, and PNG files are allowed.',
     })
     .refine((file) => file.size <= MAX_COSAF_FILE_SIZE_BYTES, {
-      message: 'COSAF files must be 15MB or smaller.',
+      message: 'Client uploads must be 15MB or smaller.',
     }),
 });
 
@@ -72,6 +73,7 @@ export function CosafUploadPanel() {
   const form = useForm<CosafUploadFormValues>({
     resolver: zodResolver(cosafUploadFormSchema),
     defaultValues: {
+      bucket: 'forms',
       file: undefined,
     },
   });
@@ -86,12 +88,14 @@ export function CosafUploadPanel() {
 
   const uploadMutation = useMutation({
     mutationKey: ['documents', 'cosaf-upload-stream'],
-    mutationFn: async (file: File) => {
+    mutationFn: async (values: CosafUploadFormValues) => {
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', values.file);
       formData.append('category', 'COSAF');
+      formData.append('bucket', values.bucket);
+      formData.append('clientProfileId', selectedClient!.id);
 
-      const response = await api.post('/documents/upload', formData, {
+      const response = await api.post('/documents/client-upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -127,16 +131,18 @@ export function CosafUploadPanel() {
       setUploadProgress(0);
       setStatusMessage('Streaming the signed COSAF PDF to the backend upload proxy.');
 
-      const uploadResult = await uploadMutation.mutateAsync(values.file);
+      const uploadResult = await uploadMutation.mutateAsync(values);
 
-      setStage('finalizing');
-      setUploadProgress(100);
-      setStatusMessage('Finalizing the upload and updating the client to Forms Submitted.');
+      if (values.bucket === 'forms') {
+        setStage('finalizing');
+        setUploadProgress(100);
+        setStatusMessage('Finalizing the upload and updating the client to Forms Submitted.');
 
-      await completeUploadMutation.mutateAsync({
-        documentId: uploadResult.documentId,
-        clientProfileId: selectedClient.id,
-      });
+        await completeUploadMutation.mutateAsync({
+          documentId: uploadResult.documentId,
+          clientProfileId: selectedClient.id,
+        });
+      }
 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['client-profiles'] }),
@@ -145,7 +151,11 @@ export function CosafUploadPanel() {
       ]);
 
       setStage('done');
-      setStatusMessage('COSAF upload completed. The client is now marked as Forms Submitted.');
+      setStatusMessage(
+        values.bucket === 'forms'
+          ? 'Client forms uploaded. The case is now marked as Forms Submitted.'
+          : 'Client ID document uploaded into the dedicated client folder.',
+      );
       setSelectedClient(null);
       setSearch('');
       form.reset();
@@ -215,12 +225,36 @@ export function CosafUploadPanel() {
 
         <Form {...form}>
           <form className="space-y-5" onSubmit={form.handleSubmit(handleSubmit)}>
+              <FormField
+              control={form.control}
+              name="bucket"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>2. Choose the client folder</FormLabel>
+                  <FormControl>
+                    <select
+                      value={field.value}
+                      onChange={(event) => field.onChange(event.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    >
+                      <option value="forms">Forms</option>
+                      <option value="ids">IDs</option>
+                    </select>
+                  </FormControl>
+                  <FormDescription>
+                    Forms move the case to Forms Submitted. ID uploads stay in the client folder for review.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <FormField
               control={form.control}
               name="file"
               render={({ field: { onChange, value, ...field } }) => (
                 <FormItem>
-                  <FormLabel>2. Attach the signed COSAF PDF</FormLabel>
+                  <FormLabel>3. Attach the scanned file</FormLabel>
                   <FormControl>
                     <label className="flex cursor-pointer items-center justify-between rounded-3xl border border-dashed border-brand/35 bg-background/70 px-4 py-4 text-sm text-muted-foreground">
                       <span className="flex items-center gap-2">
@@ -230,7 +264,7 @@ export function CosafUploadPanel() {
                       <input
                         {...field}
                         type="file"
-                        accept="application/pdf,.pdf"
+                        accept="application/pdf,.pdf,image/jpeg,image/png"
                         className="hidden"
                         onChange={(event) => {
                           const file = event.target.files?.[0];
@@ -243,8 +277,7 @@ export function CosafUploadPanel() {
                     </label>
                   </FormControl>
                   <FormDescription>
-                    PDFs only. Maximum file size: 15MB. The upload is streamed through the backend
-                    proxy to Google Drive.
+                    PDF, JPG, or PNG. Maximum file size: 15MB. Files are stored in a client-scoped folder path for forms and IDs.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -282,7 +315,7 @@ export function CosafUploadPanel() {
                   {stage === 'finalizing' ? 'Finalizing client status' : 'Streaming upload'}
                 </>
               ) : (
-                'Upload and mark Forms Submitted'
+                'Upload client document'
               )}
             </Button>
           </form>

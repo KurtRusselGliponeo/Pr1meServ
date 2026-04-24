@@ -28,6 +28,24 @@ export const cosafApprovalsRoutes: FastifyPluginAsync = async (app) => {
     );
     return reply.code(200).send(result);
   });
+
+  app.post('/cosaf-approvals/:id/signed-copy', {
+    preHandler: [app.authenticate, requireRole(['Admin', 'BranchManager'])]
+  }, async (request, reply) => {
+    const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
+    const upload = await request.file();
+    if (!upload) {
+      return reply.code(400).send({ message: 'Signed copy file is required' });
+    }
+
+    const result = await cosafApprovalsService.uploadSignedCopy(
+      id,
+      upload,
+      request.authUser.sub,
+      request.authUser.role,
+    );
+    return reply.code(200).send(result);
+  });
   
   app.post('/cosaf-approvals/:id/reject', {
     preHandler: [app.authenticate, requireRole(['Admin', 'BranchManager'])]

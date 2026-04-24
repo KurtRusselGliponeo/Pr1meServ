@@ -1,8 +1,10 @@
+import type { MultipartFile } from '@fastify/multipart';
 import { db, withDbTransaction } from '@/db/client';
-import { agentProfiles, clientProfiles, cosafApprovals, systemAuditLogs, userAccounts } from '@/db/schema';
+import { agentProfiles, clientProfiles, cosafApprovals, notifications, systemAuditLogs, userAccounts } from '@/db/schema';
+import { documentsService } from '@/features/phase-2-bm-workflow/documents/documents.service';
 import { emailQueueService } from '@/features/notifications/email-queue.service';
 import { ForbiddenError, NotFoundError } from '@/lib/errors';
-import { and, desc, eq, isNull } from 'drizzle-orm';
+import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import type { CaseStatus, CosafApprovalListResponse, UserRole } from '@a1prime/schemas';
 import { decryptEmail } from '@/shared/lib/encryption';
 
@@ -21,8 +23,11 @@ export class CosafApprovalsService {
         id: cosafApprovals.id,
         clientProfileId: cosafApprovals.clientProfileId,
         policyNumber: clientProfiles.policyNumber,
+        clientName: sql<string>`${clientProfiles.firstName} || ' ' || ${clientProfiles.lastName}`,
         assignedAgentName: agentProfiles.displayName,
+        caseStatus: clientProfiles.caseStatus,
         status: cosafApprovals.status,
+        reason: cosafApprovals.reason,
         createdAtUtc: cosafApprovals.createdAtUtc,
       })
       .from(cosafApprovals)
@@ -36,8 +41,11 @@ export class CosafApprovalsService {
         id: row.id,
         clientProfileId: row.clientProfileId,
         policyNumber: row.policyNumber,
+        clientName: row.clientName,
         assignedAgentName: row.assignedAgentName ?? 'Unassigned',
+        caseStatus: row.caseStatus,
         status: row.status,
+        reason: row.reason ?? null,
         createdAtUtc: row.createdAtUtc.toISOString(),
       })),
     };
@@ -66,7 +74,7 @@ export class CosafApprovalsService {
          action: 'cosaf.approved',
          entityName: 'CosafApprovals',
          entityId: approvalId,
-         newValue: { status: 'APPROVED' }
+         newValue: { status: 'APPROVED', summary: 'COSAF approved.' }
        });
        
        if (recipientEmail) {
@@ -109,7 +117,7 @@ export class CosafApprovalsService {
          action: 'cosaf.rejected',
          entityName: 'CosafApprovals',
          entityId: approvalId,
-         newValue: { status: 'REJECTED', reason }
+         newValue: { status: 'REJECTED', reason, summary: 'COSAF returned with a reason.' }
        });
        
        if (recipientEmail) {
@@ -122,6 +130,87 @@ export class CosafApprovalsService {
        
        return { success: true };
     });
+  }
+
+  async uploadSignedCopy(
+    approvalId: string,
+    upload: MultipartFile,
+    actorId: string,
+    actorRole: UserRole,
+  ) {
+    const [approval] = await db.select().from(cosafApprovals).where(eq(cosafApprovals.id, approvalId));
+    if (!approval) throw new NotFoundError('Approval record not found');
+    if (actorRole !== 'Admin' && approval.reviewingBmId !== actorId) {
+      throw new ForbiddenError('You can only upload a signed copy for records assigned to your queue.');
+    }
+
+    const [client] = await db
+      .select({
+        id: clientProfiles.id,
+        firstName: clientProfiles.firstName,
+        lastName: clientProfiles.lastName,
+      })
+      .from(clientProfiles)
+      .where(eq(clientProfiles.id, approval.clientProfileId))
+      .limit(1);
+
+    const buffer = await upload.toBuffer();
+    const document = await documentsService.uploadClientDocument({
+      fileName: upload.filename,
+      mimeType: upload.mimetype,
+      category: 'COSAF',
+      bucket: 'signed-copy',
+      clientProfileId: approval.clientProfileId,
+      uploaderId: actorId,
+      buffer,
+    });
+
+    await db
+      .update(cosafApprovals)
+      .set({ status: 'APPROVED' })
+      .where(eq(cosafApprovals.id, approvalId));
+
+    await db
+      .update(clientProfiles)
+      .set({ caseStatus: 'BM Signed' as CaseStatus, updatedAt: new Date() })
+      .where(eq(clientProfiles.id, approval.clientProfileId));
+
+    await db.insert(systemAuditLogs).values({
+      actorUserId: actorId,
+      action: 'cosaf.signed-copy-uploaded',
+      entityName: 'ClientProfile',
+      entityId: approval.clientProfileId,
+      newValue: {
+        caseStatus: 'BM Signed',
+        documentId: document.documentId,
+        summary: 'Branch manager uploaded the signed copy.',
+      },
+    });
+
+    const recipientEmail = await this.findAssignedAgentEmail(approval.clientProfileId);
+    if (recipientEmail) {
+      await emailQueueService.enqueueEmail({
+        to: recipientEmail,
+        subject: 'Signed COSAF copy uploaded',
+        text: `${client?.firstName ?? 'A client'} ${client?.lastName ?? ''} now has a BM signed copy on file.`,
+      });
+    }
+
+    await db.insert(notifications).values({
+      userId: approval.reviewingBmId,
+      channel: 'in-app',
+      subject: 'BM signed copy uploaded',
+      message: `${client?.firstName ?? 'Client'} ${client?.lastName ?? ''} moved to BM Signed.`,
+      status: 'sent',
+      metadata: JSON.stringify({
+        clientProfileId: approval.clientProfileId,
+        approvalId,
+        documentId: document.documentId,
+        event: 'bm-signed',
+      }),
+    });
+
+    return { success: true, documentId: document.documentId };
   }
 
   private async findAssignedAgentEmail(clientProfileId: string): Promise<string | null> {

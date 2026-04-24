@@ -2,10 +2,14 @@
 
 import * as React from 'react';
 import { AlertCircle, Users } from 'lucide-react';
+import { toast } from 'sonner';
 
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
 import { useGetClientProfiles } from '@/features/phase-2-bm-workflow/hooks/use-get-client-profiles';
+import { useUpdateClientCaseStatus } from '@/features/phase-2-bm-workflow/hooks/use-update-client-case-status';
+import { AuditTrailTimeline } from '@/features/phase-3-reassignment/components/audit-trail-timeline';
+import { useGetClientTimeline } from '@/features/phase-3-reassignment/hooks/use-get-client-timeline';
 import { ClientProfilesTable } from './client-profiles-table';
 
 interface CosafPageClientProps {
@@ -28,6 +32,9 @@ export function CosafPageClient({ searchParams }: CosafPageClientProps) {
   const [searchValue, setSearchValue] = React.useState('');
   const deferredSearchValue = React.useDeferredValue(searchValue);
   const [status] = React.useState(initialStatus);
+  const [selectedClientId, setSelectedClientId] = React.useState<string | undefined>(undefined);
+  const timelineQuery = useGetClientTimeline(selectedClientId);
+  const updateStatusMutation = useUpdateClientCaseStatus();
 
   React.useEffect(() => {
     setPage(1);
@@ -78,16 +85,68 @@ export function CosafPageClient({ searchParams }: CosafPageClientProps) {
       ) : null}
 
       {!isPending && !errorMessage && data?.data.length ? (
-        <ClientProfilesTable
-          data={data.data}
-          page={data.meta.page}
-          pageSize={data.meta.pageSize}
-          total={data.meta.total}
-          hasNextPage={data.meta.hasNextPage}
-          searchValue={searchValue}
-          onSearchChange={setSearchValue}
-          onPageChange={setPage}
-        />
+        <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+          <ClientProfilesTable
+            data={data.data}
+            page={data.meta.page}
+            pageSize={data.meta.pageSize}
+            total={data.meta.total}
+            hasNextPage={data.meta.hasNextPage}
+            searchValue={searchValue}
+            onSearchChange={setSearchValue}
+            onPageChange={setPage}
+            onViewTimeline={(client) => setSelectedClientId(client.id)}
+            onAdvanceStatus={async (client) => {
+              const nextStatus =
+                client.caseStatus === 'BM Signed'
+                  ? 'Done'
+                  : client.caseStatus === 'Returned'
+                    ? 'Contacted'
+                    : 'Contacted';
+
+              try {
+                await updateStatusMutation.mutateAsync({
+                  clientProfileId: client.id,
+                  body: {
+                    caseStatus: nextStatus,
+                  },
+                });
+                toast.success(`Client moved to ${nextStatus}.`);
+              } catch (error) {
+                toast.error(error instanceof Error ? error.message : 'Status update failed.');
+              }
+            }}
+          />
+
+          <div className="space-y-4">
+            {selectedClientId ? (
+              timelineQuery.isPending ? (
+                <LoadingSkeleton rows={4} columns={1} />
+              ) : timelineQuery.data ? (
+                <AuditTrailTimeline
+                  items={timelineQuery.data.data.map((item) => ({
+                    id: item.id,
+                    title: item.title,
+                    description: item.description,
+                    timestampUtc: item.createdAtUtc,
+                  }))}
+                />
+              ) : (
+                <EmptyState
+                  icon={Users}
+                  title="Timeline unavailable"
+                  description={timelineQuery.errorMessage ?? 'No client timeline was returned.'}
+                />
+              )
+            ) : (
+              <EmptyState
+                icon={Users}
+                title="Select a client"
+                description="Choose a client row to inspect the workflow timeline, reassignment trail, uploads, and approvals."
+              />
+            )}
+          </div>
+        </div>
       ) : null}
 
       {!isPending && !errorMessage && !data?.data.length ? (

@@ -11,9 +11,9 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
-import { useGetNotificationLogs } from '@/features/admin/hooks/use-get-notification-logs';
-import { useGetClientProfiles } from '@/features/phase-2-bm-workflow/hooks/use-get-client-profiles';
-import { useGetAgents } from '@/features/phase-3-reassignment/hooks/use-get-agents';
+import { useAdminSearch } from '@/features/admin/hooks/use-admin-search';
+import { useGetAdminOverview } from '@/features/admin/hooks/use-get-admin-overview';
+import { useGetAdminSystemLogs } from '@/features/admin/hooks/use-get-admin-system-logs';
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat(undefined, {
@@ -42,14 +42,9 @@ export function AdminHome() {
   const router = useRouter();
   useCommandPalette(isCommandOpen, setIsCommandOpen);
 
-  const logsQuery = useGetNotificationLogs();
-  const agentsQuery = useGetAgents(search, isCommandOpen);
-  const clientsQuery = useGetClientProfiles(
-    1,
-    { search },
-    8,
-    isCommandOpen,
-  );
+  const overviewQuery = useGetAdminOverview();
+  const logsQuery = useGetAdminSystemLogs();
+  const searchQuery = useAdminSearch(search, isCommandOpen);
 
   const recentLogs = logsQuery.data?.data.slice(0, 6) ?? [];
 
@@ -85,25 +80,39 @@ export function AdminHome() {
       <section className="grid gap-4 lg:grid-cols-3">
         {[
           {
-            step: 'Step 1',
-            title: 'Check system health',
-            description: 'Start by reviewing the latest notification activity so you can spot broken deliveries fast.',
-            href: '/dashboard/admin/notifications',
-            cta: 'Open notification logs',
-          },
-          {
-            step: 'Step 2',
-            title: 'Manage user access',
-            description: 'Create, reset, archive, or restore accounts before people get blocked from their workflows.',
+            step: 'Quick action',
+            title: 'Create account',
+            description: 'Provision Admin, Branch Manager, and Agent accounts with the locked onboarding rules.',
             href: '/dashboard/admin/users',
-            cta: 'Open user management',
+            cta: 'Create and manage users',
           },
           {
-            step: 'Step 3',
-            title: 'Search branch operations',
-            description: 'Use global search to jump straight into agents and client records that need investigation.',
+            step: 'Quick action',
+            title: 'Reset password',
+            description: 'Force a secure temporary credential and preserve the reset event in the audit trail.',
+            href: '/dashboard/admin/users',
+            cta: 'Open password controls',
+          },
+          {
+            step: 'Quick action',
+            title: 'Delist agent',
+            description: 'Move active portfolios into the orphan queue, then reassign cleanly without losing history.',
             href: '/dashboard/cosaf/reassign',
-            cta: 'Open operations view',
+            cta: 'Open orphan reassignment',
+          },
+          {
+            step: 'Quick action',
+            title: 'Review logs',
+            description: 'Inspect uploads, returns, approvals, notifications, and reassignment events from one feed.',
+            href: '/dashboard/admin/notifications',
+            cta: 'Open recent logs',
+          },
+          {
+            step: 'Quick action',
+            title: 'Search agents and clients',
+            description: 'Jump directly into operational records with live suggestions across agents and client cases.',
+            href: '/dashboard/admin',
+            cta: 'Use global search',
           },
         ].map((item) => (
           <Card key={item.title}>
@@ -122,6 +131,26 @@ export function AdminHome() {
             </CardContent>
           </Card>
         ))}
+      </section>
+
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {overviewQuery.isPending ? (
+          <LoadingSkeleton rows={1} columns={4} />
+        ) : overviewQuery.data ? (
+          [
+            ['Active users', overviewQuery.data.totals.activeUsers],
+            ['Active agents', overviewQuery.data.totals.activeAgents],
+            ['Orphan clients', overviewQuery.data.totals.orphanClients],
+            ['Pending approvals', overviewQuery.data.totals.pendingApprovals],
+          ].map(([label, value]) => (
+            <Card key={String(label)}>
+              <CardContent className="p-5">
+                <p className="text-sm text-muted-foreground">{label}</p>
+                <p className="mt-3 text-3xl font-semibold text-foreground">{value}</p>
+              </CardContent>
+            </Card>
+          ))
+        ) : null}
       </section>
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
@@ -152,9 +181,13 @@ export function AdminHome() {
               <p className="font-semibold text-foreground">User lifecycle controls</p>
               <p className="mt-2 text-sm text-muted-foreground">Manage users, reset credentials, and restore archived access.</p>
             </Link>
+            <Link href="/dashboard/cosaf/reassign" className="rounded-[24px] border border-white/40 bg-background/75 p-4 text-left shadow-soft dark:border-white/10">
+              <p className="font-semibold text-foreground">Branch oversight</p>
+              <p className="mt-2 text-sm text-muted-foreground">Review orphan queues, reassignment activity, and live client workflow across branches.</p>
+            </Link>
             <Link href="/dashboard/admin/notifications" className="rounded-[24px] border border-white/40 bg-background/75 p-4 text-left shadow-soft dark:border-white/10">
-              <p className="font-semibold text-foreground">Notification logs</p>
-              <p className="mt-2 text-sm text-muted-foreground">Review queue outcomes, failures, and recent outbound activity.</p>
+              <p className="font-semibold text-foreground">System logs</p>
+              <p className="mt-2 text-sm text-muted-foreground">Review policy, upload, return, approval, reassignment, and notification activity.</p>
             </Link>
             <div className="rounded-[24px] border border-white/40 bg-brand-gradient-soft p-4 shadow-soft dark:border-white/10">
               <div className="flex items-start gap-3">
@@ -205,11 +238,11 @@ export function AdminHome() {
                 >
                   <div className="flex items-center justify-between gap-4">
                     <div>
-                      <p className="font-semibold text-foreground">{log.subject}</p>
-                      <p className="mt-1 text-sm text-muted-foreground">{log.recipient}</p>
+                      <p className="font-semibold text-foreground">{log.title}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">{log.description}</p>
                     </div>
                     <span className="rounded-full bg-brand-gradient-soft px-3 py-1 text-xs font-semibold text-brand">
-                      {log.status}
+                      {log.category}
                     </span>
                   </div>
                   <p className="mt-3 text-sm text-muted-foreground">{formatDate(log.createdAtUtc)}</p>
@@ -239,20 +272,22 @@ export function AdminHome() {
               </Command.Empty>
 
               <Command.Group heading="Agents">
-                {agentsQuery.data?.data.map((agent: NonNullable<typeof agentsQuery.data>['data'][number]) => (
+                {searchQuery.data?.data
+                  .filter((item) => item.type === 'agent')
+                  .map((agent) => (
                   <Command.Item
                     key={agent.id}
-                    value={`${agent.displayName} ${agent.agentCode}`}
+                    value={`${agent.title} ${agent.subtitle}`}
                     onSelect={() => {
                       setIsCommandOpen(false);
-                      router.push(`/dashboard/agents/${agent.id}`);
+                      router.push(agent.href as Route);
                     }}
                     className="flex cursor-pointer items-center justify-between rounded-2xl px-3 py-3 text-sm data-[selected=true]:bg-brand-gradient-soft"
                   >
                     <div>
-                      <p className="font-semibold text-foreground">{agent.displayName}</p>
+                      <p className="font-semibold text-foreground">{agent.title}</p>
                       <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                        {agent.agentCode}
+                        {agent.subtitle}
                       </p>
                     </div>
                     <Users className="h-4 w-4 text-brand" />
@@ -261,22 +296,22 @@ export function AdminHome() {
               </Command.Group>
 
               <Command.Group heading="Clients">
-                {clientsQuery.data?.data.slice(0, 8).map((client: NonNullable<typeof clientsQuery.data>['data'][number]) => (
+                {searchQuery.data?.data
+                  .filter((item) => item.type === 'client')
+                  .map((client) => (
                   <Command.Item
                     key={client.id}
-                    value={`${client.firstName} ${client.lastName} ${client.policyNumber}`}
+                    value={`${client.title} ${client.subtitle}`}
                     onSelect={() => {
                       setIsCommandOpen(false);
-                      router.push('/dashboard/cosaf/reassign');
+                      router.push(client.href as Route);
                     }}
                     className="flex cursor-pointer items-center justify-between rounded-2xl px-3 py-3 text-sm data-[selected=true]:bg-brand-gradient-soft"
                   >
                     <div>
-                      <p className="font-semibold text-foreground">
-                        {client.firstName} {client.lastName}
-                      </p>
+                      <p className="font-semibold text-foreground">{client.title}</p>
                       <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                        Policy {client.policyNumber}
+                        {client.subtitle}
                       </p>
                     </div>
                     <Search className="h-4 w-4 text-brand" />

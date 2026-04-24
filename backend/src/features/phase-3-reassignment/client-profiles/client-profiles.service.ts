@@ -11,12 +11,23 @@ import type {
   ClientProfileReassignIssue,
   ClientProfileReassignPreflightResponse,
   ClientProfileReassignResponse,
+  ClientTimelineResponse,
   ListOrphanClientsResponse,
   ListClientProfilesQuery,
   ListClientProfilesResponse,
+  UpdateClientCaseStatus,
 } from '@a1prime/schemas';
 import { db, type DbTransaction, withDbTransaction } from '@/db/client';
-import { agentProfiles, clientAssignmentHistory, clientProfiles, systemAuditLogs, userAccounts } from '@/schema';
+import {
+  agentProfiles,
+  clientAssignmentHistory,
+  clientProfiles,
+  cosafApprovals,
+  documentLibrary,
+  notifications,
+  systemAuditLogs,
+  userAccounts,
+} from '@/schema';
 import { BusinessRuleError, ForbiddenError, NotFoundError } from '@/lib/errors';
 import type { AuthTokenPayload } from '@/shared/lib/auth';
 import { emailQueueService } from '@/features/notifications/email-queue.service';
@@ -54,16 +65,23 @@ const IMPORT_URL_EXPIRY_SECONDS = 15 * 60;
 const ALLOWED_IMPORT_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png'] as const;
 type AllowedImportMimeType = (typeof ALLOWED_IMPORT_MIME_TYPES)[number];
 const NON_REASSIGNABLE_CASE_STATUSES = new Set<ClientProfile['caseStatus']>(['BM Signed', 'Done']);
+const AGENT_EDITABLE_STATUSES = new Set<ClientProfile['caseStatus']>(['Uncontacted', 'Contacted', 'Returned']);
+const MANAGER_EDITABLE_STATUSES = new Set<ClientProfile['caseStatus']>(['Contacted', 'Forms Submitted', 'BM Signed', 'Done', 'Returned']);
 
 export class ClientProfilesService {
-  async getClientAssignmentHistory(
+  private async getAuthorizedClient(
     clientProfileId: string,
     actorUser: AuthTokenPayload,
-  ): Promise<ClientAssignmentHistoryResponse> {
+  ) {
     const [client] = await db
       .select({
         id: clientProfiles.id,
         assignedAgentId: clientProfiles.assignedAgentId,
+        branchCode: clientProfiles.branchCode,
+        caseStatus: clientProfiles.caseStatus,
+        firstName: clientProfiles.firstName,
+        lastName: clientProfiles.lastName,
+        policyNumber: clientProfiles.policyNumber,
       })
       .from(clientProfiles)
       .where(and(eq(clientProfiles.id, clientProfileId), isNull(clientProfiles.deletedAtUtc)))
@@ -75,9 +93,18 @@ export class ClientProfilesService {
 
     if (actorUser.role === 'Agent') {
       if (!actorUser.agentId || client.assignedAgentId !== actorUser.agentId) {
-        throw new ForbiddenError('Agents can only view history for their own assigned clients.');
+        throw new ForbiddenError('Agents can only access their own assigned clients.');
       }
     }
+
+    return client;
+  }
+
+  async getClientAssignmentHistory(
+    clientProfileId: string,
+    actorUser: AuthTokenPayload,
+  ): Promise<ClientAssignmentHistoryResponse> {
+    await this.getAuthorizedClient(clientProfileId, actorUser);
 
     const rows = await db
       .select({
@@ -117,6 +144,168 @@ export class ClientProfilesService {
         reason: row.reason,
         createdAtUtc: row.createdAtUtc.toISOString(),
       })),
+    };
+  }
+
+  async getClientTimeline(
+    clientProfileId: string,
+    actorUser: AuthTokenPayload,
+  ): Promise<ClientTimelineResponse> {
+    await this.getAuthorizedClient(clientProfileId, actorUser);
+
+    const [assignmentRows, auditRows, approvalRows, notificationRows, documentRows] = await Promise.all([
+      db
+        .select({
+          id: clientAssignmentHistory.id,
+          fromAgentId: clientAssignmentHistory.fromAgentId,
+          toAgentId: clientAssignmentHistory.toAgentId,
+          reason: clientAssignmentHistory.reason,
+          branchCode: clientAssignmentHistory.branchCode,
+          createdAtUtc: clientAssignmentHistory.createdAtUtc,
+        })
+        .from(clientAssignmentHistory)
+        .where(eq(clientAssignmentHistory.clientProfileId, clientProfileId)),
+      db
+        .select({
+          id: systemAuditLogs.id,
+          action: systemAuditLogs.action,
+          actorUserId: systemAuditLogs.actorUserId,
+          oldValue: systemAuditLogs.oldValue,
+          newValue: systemAuditLogs.newValue,
+          createdAtUtc: systemAuditLogs.createdAt,
+        })
+        .from(systemAuditLogs)
+        .where(and(eq(systemAuditLogs.entityName, 'ClientProfile'), eq(systemAuditLogs.entityId, clientProfileId))),
+      db
+        .select({
+          id: cosafApprovals.id,
+          reviewingBmId: cosafApprovals.reviewingBmId,
+          status: cosafApprovals.status,
+          reason: cosafApprovals.reason,
+          createdAtUtc: cosafApprovals.createdAtUtc,
+        })
+        .from(cosafApprovals)
+        .where(eq(cosafApprovals.clientProfileId, clientProfileId)),
+      db
+        .select({
+          id: notifications.id,
+          userId: notifications.userId,
+          subject: notifications.subject,
+          message: notifications.message,
+          createdAtUtc: notifications.createdAtUtc,
+        })
+        .from(notifications)
+        .where(sql`${notifications.metadata} ilike ${`%${clientProfileId}%`}`),
+      db
+        .select({
+          id: documentLibrary.id,
+          uploadedByUserId: documentLibrary.uploadedByUserId,
+          fileName: documentLibrary.fileName,
+          category: documentLibrary.category,
+          version: documentLibrary.version,
+          createdAtUtc: documentLibrary.createdAtUtc,
+        })
+        .from(documentLibrary)
+        .where(sql`${documentLibrary.fileName} ilike ${`%${clientProfileId}%`}`),
+    ]);
+
+    const actorIds = [
+      ...new Set([
+        ...auditRows.map((row) => row.actorUserId).filter(Boolean),
+        ...approvalRows.map((row) => row.reviewingBmId),
+        ...notificationRows.map((row) => row.userId).filter(Boolean),
+        ...documentRows.map((row) => row.uploadedByUserId),
+      ]),
+    ] as string[];
+
+    const actorRows = actorIds.length
+      ? await db
+          .select({
+            id: userAccounts.id,
+            firstName: userAccounts.firstName,
+            lastName: userAccounts.lastName,
+          })
+          .from(userAccounts)
+          .where(inArray(userAccounts.id, actorIds))
+      : [];
+    const actorNameById = new Map(
+      actorRows.map((row) => [row.id, `${row.firstName} ${row.lastName}`.trim()]),
+    );
+
+    return {
+      data: [
+        ...assignmentRows.map((row) => ({
+          id: row.id,
+          type: 'assignment' as const,
+          action: 'client.assignment',
+          actorUserId: null,
+          actorName: null,
+          title: 'Client ownership changed',
+          description: `${row.reason ?? 'Assignment updated.'} Branch ${row.branchCode}.`,
+          metadata: {
+            branchCode: row.branchCode,
+            fromAgentId: row.fromAgentId,
+            toAgentId: row.toAgentId,
+          },
+          createdAtUtc: row.createdAtUtc.toISOString(),
+        })),
+        ...auditRows.map((row) => ({
+          id: row.id,
+          type: row.action.includes('status') ? ('status' as const) : ('audit' as const),
+          action: row.action,
+          actorUserId: row.actorUserId,
+          actorName: row.actorUserId ? actorNameById.get(row.actorUserId) ?? null : null,
+          title: row.action.replace(/[.-]/g, ' '),
+          description: String(
+            row.newValue?.summary ??
+              row.newValue?.reason ??
+              row.newValue?.caseStatus ??
+              row.oldValue?.caseStatus ??
+              'Client workflow updated.',
+          ),
+          metadata: (row.newValue ?? row.oldValue ?? null) as Record<string, unknown> | null,
+          createdAtUtc: row.createdAtUtc.toISOString(),
+        })),
+        ...approvalRows.map((row) => ({
+          id: row.id,
+          type: 'approval' as const,
+          action: `cosaf.${String(row.status).toLowerCase()}`,
+          actorUserId: row.reviewingBmId,
+          actorName: actorNameById.get(row.reviewingBmId) ?? null,
+          title: `COSAF ${String(row.status).toLowerCase()}`,
+          description: row.reason ?? 'COSAF review updated.',
+          metadata: {
+            status: row.status,
+            reason: row.reason,
+          },
+          createdAtUtc: row.createdAtUtc.toISOString(),
+        })),
+        ...notificationRows.map((row) => ({
+          id: row.id,
+          type: 'notification' as const,
+          action: 'notification.sent',
+          actorUserId: row.userId,
+          actorName: row.userId ? actorNameById.get(row.userId) ?? null : null,
+          title: row.subject,
+          description: row.message,
+          metadata: null,
+          createdAtUtc: row.createdAtUtc.toISOString(),
+        })),
+        ...documentRows.map((row) => ({
+          id: row.id,
+          type: 'document' as const,
+          action: 'document.uploaded',
+          actorUserId: row.uploadedByUserId,
+          actorName: actorNameById.get(row.uploadedByUserId) ?? null,
+          title: `${row.category} uploaded`,
+          description: `${row.fileName} (v${row.version})`,
+          metadata: {
+            category: row.category,
+            version: row.version,
+          },
+          createdAtUtc: row.createdAtUtc.toISOString(),
+        })),
+      ].sort((left, right) => right.createdAtUtc.localeCompare(left.createdAtUtc)),
     };
   }
 
@@ -407,6 +596,88 @@ export class ClientProfilesService {
         reassignedCount: rows.length,
       };
     });
+  }
+
+  async updateClientCaseStatus(
+    clientProfileId: string,
+    input: UpdateClientCaseStatus,
+    actorUser: AuthTokenPayload,
+  ): Promise<ClientProfile> {
+    const client = await this.getAuthorizedClient(clientProfileId, actorUser);
+    const nextStatus = input.caseStatus;
+    const previousStatus = client.caseStatus;
+
+    if (actorUser.role === 'Agent' && !AGENT_EDITABLE_STATUSES.has(nextStatus)) {
+      throw new ForbiddenError('Agents cannot move a client into that status directly.');
+    }
+
+    if (actorUser.role !== 'Agent' && !MANAGER_EDITABLE_STATUSES.has(nextStatus)) {
+      throw new ForbiddenError('That status must be driven by workflow automation.');
+    }
+
+    if (nextStatus === 'Returned' && !input.reason?.trim()) {
+      throw new BusinessRuleError('Returned cases require a reason.');
+    }
+
+    if (previousStatus === 'Done') {
+      throw new BusinessRuleError('Completed cases cannot be moved to another status.');
+    }
+
+    const allowedTransition =
+      (previousStatus === 'Uncontacted' && nextStatus === 'Contacted') ||
+      (previousStatus === 'BM Signed' && nextStatus === 'Done') ||
+      (previousStatus === 'Returned' && nextStatus === 'Contacted') ||
+      previousStatus === nextStatus;
+
+    if (!allowedTransition) {
+      throw new BusinessRuleError(
+        `The transition from ${previousStatus} to ${nextStatus} is not allowed from this action.`,
+      );
+    }
+
+    const updatedAt = new Date();
+    const [updated] = await db
+      .update(clientProfiles)
+      .set({
+        caseStatus: nextStatus,
+        updatedAt,
+      })
+      .where(eq(clientProfiles.id, clientProfileId))
+      .returning({
+        id: clientProfiles.id,
+        assignedAgentId: clientProfiles.assignedAgentId,
+        branchCode: clientProfiles.branchCode,
+        firstName: clientProfiles.firstName,
+        lastName: clientProfiles.lastName,
+        policyNumber: clientProfiles.policyNumber,
+        productType: clientProfiles.productType,
+        planCode: clientProfiles.planCode,
+        modalPremium: clientProfiles.modalPremium,
+        api: clientProfiles.api,
+        sumAssured: clientProfiles.sumAssured,
+        commissionAmount: clientProfiles.commissionAmount,
+        caseStatus: clientProfiles.caseStatus,
+        policyStatus: clientProfiles.policyStatus,
+        createdAtUtc: clientProfiles.createdAt,
+        updatedAtUtc: clientProfiles.updatedAt,
+      });
+
+    await db.insert(systemAuditLogs).values({
+      actorUserId: actorUser.sub,
+      action: 'client-profile.status-updated',
+      entityName: 'ClientProfile',
+      entityId: clientProfileId,
+      oldValue: {
+        caseStatus: previousStatus,
+      },
+      newValue: {
+        caseStatus: nextStatus,
+        reason: input.reason?.trim() || null,
+        summary: `Status moved from ${previousStatus} to ${nextStatus}.`,
+      },
+    });
+
+    return this.mapClientProfile(updated);
   }
 
   async preflightReassignment(

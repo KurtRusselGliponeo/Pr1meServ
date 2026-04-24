@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import type { Route } from 'next';
 import { AlertTriangle, BriefcaseBusiness, Clock3, FileUp, PhoneCall } from 'lucide-react';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -87,7 +88,7 @@ export function AgentHome() {
           const Icon = iconByAction[action.label as keyof typeof iconByAction] ?? Clock3;
 
           return (
-            <Link key={action.label} href={action.href} className="block">
+            <Link key={action.label} href={action.href as Route} className="block">
               <Card className="h-full transition-transform hover:-translate-y-0.5">
                 <CardHeader>
                   <Icon className="h-5 w-5 text-brand" />

@@ -4,6 +4,7 @@ import {
   ClientProfileImportRequestSchema,
   ClientProfileReassignSchema,
   ListClientProfilesQuerySchema,
+  UpdateClientCaseStatusSchema,
 } from '@a1prime/schemas';
 import { BusinessRuleError } from '@/lib/errors';
 import { requireRole } from '@/app/middleware/require-role';
@@ -51,6 +52,22 @@ const clientProfilesRoutes: FastifyPluginAsync = async (app) => {
     async (request, reply) => {
       const params = request.params as { clientProfileId: string };
       const result = await clientProfilesService.getClientAssignmentHistory(
+        params.clientProfileId,
+        request.authUser,
+      );
+
+      return reply.code(200).send(result);
+    },
+  );
+
+  app.get(
+    '/client-profiles/:clientProfileId/timeline',
+    {
+      preHandler: [app.authenticate, requireRole(['Admin', 'BranchManager', 'Agent'])],
+    },
+    async (request, reply) => {
+      const params = request.params as { clientProfileId: string };
+      const result = await clientProfilesService.getClientTimeline(
         params.clientProfileId,
         request.authUser,
       );
@@ -120,6 +137,24 @@ const clientProfilesRoutes: FastifyPluginAsync = async (app) => {
     async (request, reply) => {
       const body = ClientProfileReassignSchema.parse(request.body);
       const result = await clientProfilesService.reassignClientProfiles(body, request.authUser);
+
+      return reply.code(200).send(result);
+    },
+  );
+
+  app.patch(
+    '/client-profiles/:clientProfileId/status',
+    {
+      preHandler: [app.authenticate, requireRole(['Admin', 'BranchManager', 'Agent'])],
+    },
+    async (request, reply) => {
+      const params = request.params as { clientProfileId: string };
+      const body = UpdateClientCaseStatusSchema.parse(request.body);
+      const result = await clientProfilesService.updateClientCaseStatus(
+        params.clientProfileId,
+        body,
+        request.authUser,
+      );
 
       return reply.code(200).send(result);
     },

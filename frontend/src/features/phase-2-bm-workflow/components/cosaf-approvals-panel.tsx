@@ -22,6 +22,7 @@ import { useGetCosafApprovals } from '../hooks/use-get-cosaf-approvals';
 import {
   useApproveCosafApproval,
   useRejectCosafApproval,
+  useUploadSignedCosafCopy,
 } from '../hooks/use-update-cosaf-approval';
 import { CosafRejectionDialog } from './cosaf-rejection-dialog';
 
@@ -38,6 +39,7 @@ export function CosafApprovalsPanel() {
   const approvalsQuery = useGetCosafApprovals();
   const approveMutation = useApproveCosafApproval();
   const rejectMutation = useRejectCosafApproval();
+  const signedCopyMutation = useUploadSignedCosafCopy();
   const [approvalToReject, setApprovalToReject] = React.useState<string | null>(null);
   const [sorting, setSorting] = React.useState<SortingState>([
     {
@@ -101,10 +103,10 @@ export function CosafApprovalsPanel() {
               type="button"
               size="sm"
               onClick={() => approveMutation.mutate({ approvalId: row.original.id })}
-              disabled={approveMutation.isPending || rejectMutation.isPending}
+              disabled={approveMutation.isPending || rejectMutation.isPending || signedCopyMutation.isPending}
             >
               <CheckCircle2 className="h-4 w-4" />
-              Approve
+              Accept
             </Button>
             <Button
               type="button"
@@ -112,11 +114,30 @@ export function CosafApprovalsPanel() {
               variant="destructive"
               className="bg-destructive/90 text-destructive-foreground hover:bg-destructive"
               onClick={() => setApprovalToReject(row.original.id)}
-              disabled={approveMutation.isPending || rejectMutation.isPending}
+              disabled={approveMutation.isPending || rejectMutation.isPending || signedCopyMutation.isPending}
             >
               <XCircle className="h-4 w-4" />
-              Reject
+              Return
             </Button>
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium">
+              Upload signed copy
+              <input
+                type="file"
+                accept="application/pdf,.pdf,image/jpeg,image/png"
+                className="hidden"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (!file) {
+                    return;
+                  }
+
+                  signedCopyMutation.mutate({
+                    approvalId: row.original.id,
+                    file,
+                  });
+                }}
+              />
+            </label>
           </div>
         ),
       },
@@ -150,10 +171,17 @@ export function CosafApprovalsPanel() {
 
   React.useEffect(() => {
     if (approveMutation.isSuccess) {
-      toast.success('COSAF approval completed and the reassignment hook has been triggered.');
+      toast.success('COSAF accepted and the client moved into the next workflow step.');
       approveMutation.reset();
     }
   }, [approveMutation]);
+
+  React.useEffect(() => {
+    if (signedCopyMutation.isSuccess) {
+      toast.success('Signed copy uploaded and the client moved to BM Signed.');
+      signedCopyMutation.reset();
+    }
+  }, [signedCopyMutation]);
 
   if (approvalsQuery.isPending) {
     return <LoadingSkeleton rows={2} columns={2} />;

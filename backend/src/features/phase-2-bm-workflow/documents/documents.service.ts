@@ -1,7 +1,7 @@
 import { nanoid } from 'nanoid';
 import { gdriveService } from '@/lib/gdrive';
 import { db } from '@/db/client';
-import { clientProfiles, cosafApprovals, documentLibrary, userAccounts } from '@/db/schema';
+import { agentProfiles, clientProfiles, cosafApprovals, documentLibrary, notifications, systemAuditLogs, userAccounts } from '@/db/schema';
 import { and, desc, eq } from 'drizzle-orm';
 import type { CaseStatus, SystemRole } from '@a1prime/schemas';
 import type { AuthTokenPayload } from '@/shared/lib/auth';
@@ -54,6 +54,45 @@ export class DocumentsService {
     }).returning();
     
     return { documentId: insertedDoc.id, webViewLink: driveResult.webViewLink };
+  }
+
+  async uploadClientDocument(input: {
+    fileName: string;
+    mimeType: string;
+    category: string;
+    bucket: string;
+    clientProfileId: string;
+    uploaderId: string;
+    buffer: Buffer;
+  }) {
+    const namespacedFileName = `${input.clientProfileId}/${input.bucket}/${input.fileName}`;
+    const uploadResult = await this.uploadDocument(
+      namespacedFileName,
+      input.mimeType,
+      input.category,
+      input.uploaderId,
+      input.buffer,
+    );
+
+    await db.insert(systemAuditLogs).values({
+      actorUserId: input.uploaderId,
+      action: 'client-document.uploaded',
+      entityName: 'ClientProfile',
+      entityId: input.clientProfileId,
+      newValue: {
+        documentId: uploadResult.documentId,
+        category: input.category,
+        bucket: input.bucket,
+        fileName: input.fileName,
+        folderPath: `${input.clientProfileId}/${input.bucket}`,
+        summary: `${input.category} uploaded to ${input.bucket}.`,
+      },
+    });
+
+    return {
+      ...uploadResult,
+      folderPath: `${input.clientProfileId}/${input.bucket}`,
+    };
   }
 
   /**
@@ -119,7 +158,12 @@ export class DocumentsService {
     return rows.filter((row) => getBaseFileName(row.fileName) === baseFileName);
   }
 
-  async markCosafUploadComplete(documentId: string, clientProfileId: string, reviewingBmId: string) {
+  async markCosafUploadComplete(
+    documentId: string,
+    clientProfileId: string,
+    reviewingBmId: string,
+    reason?: string,
+  ) {
     const [document] = await db
       .select({
         id: documentLibrary.id,
@@ -156,6 +200,49 @@ export class DocumentsService {
         clientProfileId,
         reviewingBmId: resolvedReviewerId,
         status: 'PENDING',
+      });
+    }
+
+    await db.insert(systemAuditLogs).values({
+      actorUserId: reviewingBmId,
+      action: 'client-profile.forms-submitted',
+      entityName: 'ClientProfile',
+      entityId: clientProfileId,
+      newValue: {
+        caseStatus: 'Forms Submitted',
+        documentId,
+        reason: reason ?? null,
+        summary: 'COSAF upload completed and moved to Forms Submitted.',
+      },
+    });
+
+    const [client] = await db
+      .select({
+        firstName: clientProfiles.firstName,
+        lastName: clientProfiles.lastName,
+        assignedAgentId: clientProfiles.assignedAgentId,
+      })
+      .from(clientProfiles)
+      .where(eq(clientProfiles.id, clientProfileId))
+      .limit(1);
+
+    if (client?.assignedAgentId) {
+      const [agentUser] = await db
+        .select({
+          userId: userAccounts.id,
+        })
+        .from(agentProfiles)
+        .innerJoin(userAccounts, eq(userAccounts.id, agentProfiles.userId))
+        .where(eq(agentProfiles.id, client.assignedAgentId))
+        .limit(1);
+
+      await db.insert(notifications).values({
+        userId: agentUser?.userId ?? null,
+        channel: 'in-app',
+        subject: 'COSAF submitted for review',
+        message: `${client.firstName} ${client.lastName}`.trim() + ' moved to Forms Submitted.',
+        status: 'sent',
+        metadata: JSON.stringify({ clientProfileId, documentId, event: 'forms-submitted' }),
       });
     }
 

@@ -61,3 +61,29 @@ export const ListOrphanClientsResponseSchema = z.object({
   }),
 });
 export type ListOrphanClientsResponse = z.infer<typeof ListOrphanClientsResponseSchema>;
+
+export const UpdateClientCaseStatusSchema = z.object({
+  caseStatus: caseStatusSchema.refine((status) => status !== 'Orphan', {
+    message: 'Orphan is an operational-only routing state.',
+  }),
+  reason: z.string().trim().max(500).optional(),
+});
+export type UpdateClientCaseStatus = z.infer<typeof UpdateClientCaseStatusSchema>;
+
+export const ClientTimelineItemSchema = z.object({
+  id: z.string().min(1),
+  type: z.enum(['assignment', 'audit', 'approval', 'document', 'notification', 'status']),
+  action: z.string().min(1),
+  actorUserId: z.string().uuid().nullable(),
+  actorName: z.string().nullable(),
+  title: z.string().min(1),
+  description: z.string().min(1),
+  metadata: z.record(z.string(), z.unknown()).nullable(),
+  createdAtUtc: z.string().datetime(),
+});
+export type ClientTimelineItem = z.infer<typeof ClientTimelineItemSchema>;
+
+export const ClientTimelineResponseSchema = z.object({
+  data: z.array(ClientTimelineItemSchema),
+});
+export type ClientTimelineResponse = z.infer<typeof ClientTimelineResponseSchema>;

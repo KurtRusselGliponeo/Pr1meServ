@@ -4,6 +4,7 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { FileSearch } from 'lucide-react';
 import type { ClientProfile } from '@a1prime/schemas';
 
+import { Button } from '@/components/ui/button';
 import { DataTable, ServerPaginationControls } from '@/components/ui/data-table';
 import { EmptyState } from '@/components/ui/empty-state';
 
@@ -16,6 +17,8 @@ interface ClientProfilesTableProps {
   searchValue: string;
   onSearchChange: (value: string) => void;
   onPageChange: (page: number) => void;
+  onViewTimeline?: (client: ClientProfile) => void;
+  onAdvanceStatus?: (client: ClientProfile) => void;
 }
 
 export function ClientProfilesTable({
@@ -27,6 +30,8 @@ export function ClientProfilesTable({
   searchValue,
   onSearchChange,
   onPageChange,
+  onViewTimeline,
+  onAdvanceStatus,
 }: ClientProfilesTableProps) {
   const columns: Array<ColumnDef<ClientProfile>> = [
     {
@@ -56,6 +61,28 @@ export function ClientProfilesTable({
     {
       accessorKey: 'caseStatus',
       header: 'Case status',
+      cell: ({ row }) => (
+        <div className="space-y-2">
+          <p className="font-medium text-foreground">{row.original.caseStatus}</p>
+          <div className="flex gap-2">
+            {onViewTimeline ? (
+              <Button type="button" size="sm" variant="outline" onClick={() => onViewTimeline(row.original)}>
+                Timeline
+              </Button>
+            ) : null}
+            {onAdvanceStatus &&
+            (row.original.caseStatus === 'Uncontacted' || row.original.caseStatus === 'BM Signed' || row.original.caseStatus === 'Returned') ? (
+              <Button type="button" size="sm" onClick={() => onAdvanceStatus(row.original)}>
+                {row.original.caseStatus === 'BM Signed'
+                  ? 'Mark done'
+                  : row.original.caseStatus === 'Returned'
+                    ? 'Resume contact'
+                    : 'Mark contacted'}
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      ),
     },
     {
       accessorKey: 'policyStatus',

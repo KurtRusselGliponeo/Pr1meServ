@@ -5,8 +5,7 @@ import { BellRing } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
-import { useGetNotificationLogs } from '../hooks/use-get-notification-logs';
-import type { NotificationLogsResponse } from '../types/notification-log.types';
+import { useGetAdminSystemLogs } from '../hooks/use-get-admin-system-logs';
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat(undefined, {
@@ -16,7 +15,7 @@ function formatDate(value: string) {
 }
 
 export function NotificationLogsPageClient() {
-  const logsQuery = useGetNotificationLogs();
+  const logsQuery = useGetAdminSystemLogs();
 
   if (logsQuery.isPending) {
     return <LoadingSkeleton rows={6} columns={4} />;
@@ -39,10 +38,10 @@ export function NotificationLogsPageClient() {
           Admin
         </p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">
-          Notification logs
+          System logs
         </h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-          Review email queue activity for reassignment, COSAF, and lapsation alerts.
+          Review uploads, returns, approvals, reassignments, notifications, and other recent admin-visible events.
         </p>
       </section>
 
@@ -56,21 +55,21 @@ export function NotificationLogsPageClient() {
         <Card>
           <CardHeader>
             <CardTitle className="text-xl">Recent email activity</CardTitle>
-            <CardDescription>Queued, sent, and failed messages from the notification system.</CardDescription>
+            <CardDescription>Structured operational activity recorded across workflow and notification surfaces.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {logsQuery.data.data.map((item: NotificationLogsResponse['data'][number]) => (
+            {logsQuery.data.data.map((item) => (
               <div
                 key={item.id}
                 className="rounded-[24px] border border-white/40 bg-background/70 p-4 dark:border-white/10"
               >
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <p className="font-semibold text-foreground">{item.subject}</p>
-                    <p className="mt-1 text-sm text-muted-foreground">{item.recipient}</p>
+                    <p className="font-semibold text-foreground">{item.title}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{item.description}</p>
                   </div>
                   <span className="rounded-full bg-brand-gradient-soft px-3 py-1 text-xs font-semibold text-brand">
-                    {item.status}
+                    {item.category}
                   </span>
                 </div>
                 <p className="mt-3 text-sm text-muted-foreground">{formatDate(item.createdAtUtc)}</p>
