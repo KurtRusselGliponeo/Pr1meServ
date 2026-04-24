@@ -16,7 +16,9 @@ export const queryKeys = {
   performanceLeaderboard: (month: number, year: number) =>
     ['performance-leaderboard', month, year] as const,
   documents: (category?: string) => ['documents', category ?? 'all'] as const,
-  prospects: ['prospects'] as const,
+  prospects: (filters: string) => ['prospects', filters] as const,
+  createProspect: ['create-prospect'] as const,
+  updateProspect: ['update-prospect'] as const,
   updateProspectStage: ['update-prospect-stage'] as const,
   lapsation: ['lapsation'] as const,
   notificationLogs: ['notification-logs'] as const,

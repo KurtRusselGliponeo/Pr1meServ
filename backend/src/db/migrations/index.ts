@@ -18,6 +18,7 @@ import { phaseTwoThreeFoundationMigration } from './017_PhaseTwoThreeFoundation'
 import { phaseOneStatusLockMigration } from './018_PhaseOneStatusLock';
 import { documentRepositoryPhaseNineMigration } from './018_DocumentRepositoryPhaseNine';
 import { phaseNineFivePerformanceIndexesMigration } from './019_PhaseNineFivePerformanceIndexes';
+import { phaseTenProspectingMigration } from './020_PhaseTenProspecting';
 
 export const phaseOneMigrations = [
   userAccountsMigration,
@@ -56,4 +57,5 @@ export const applicationMigrations = [
   phaseOneStatusLockMigration,
   documentRepositoryPhaseNineMigration,
   phaseNineFivePerformanceIndexesMigration,
+  phaseTenProspectingMigration,
 ];

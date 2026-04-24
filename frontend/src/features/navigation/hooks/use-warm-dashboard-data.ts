@@ -13,6 +13,7 @@ import {
   fetchLapsationDashboard,
   fetchPerformanceLeaderboard,
   fetchPerformanceMetrics,
+  fetchProspects,
 } from '../lib/dashboard-prefetch';
 
 function getCurrentReportingWindow() {
@@ -116,6 +117,15 @@ export function useWarmDashboardData() {
           queryFn: () => fetchPerformanceLeaderboard(month, year),
           staleTime: 10 * 60 * 1000,
         });
+        return;
+      }
+
+      if (baseHref === '/dashboard/prospects') {
+        void queryClient.prefetchQuery({
+          queryKey: queryKeys.prospects('{}'),
+          queryFn: () => fetchProspects({}),
+          staleTime: 10 * 60 * 1000,
+        });
       }
     },
     [isHydrated, queryClient, user],
@@ -130,6 +140,7 @@ export function useWarmDashboardData() {
     warmRoute('/dashboard/lapsation');
     warmRoute('/dashboard/documents');
     warmRoute('/dashboard/performance');
+    warmRoute('/dashboard/prospects');
 
     if (user.role !== 'Agent') {
       warmRoute('/dashboard/cosaf/reassign');

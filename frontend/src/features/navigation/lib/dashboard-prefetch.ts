@@ -6,8 +6,10 @@ import {
   GetPerformanceMetricsQuerySchema,
   LapsationDashboardResponseSchema,
   ListAgentsQuerySchema,
+  ListProspectsQuerySchema,
   ListClientProfilesQuerySchema,
   ListClientProfilesResponseSchema,
+  ListProspectsResponseSchema,
   PerformanceLeaderboardQuerySchema,
   PerformanceLeaderboardResponseSchema,
   PerformanceMetricsResponseSchema,
@@ -110,4 +112,10 @@ export async function fetchPerformanceLeaderboard(month: number, year: number) {
   const params = PerformanceLeaderboardQuerySchema.parse({ month, year });
   const response = await api.get('/metrics/leaderboard', { params });
   return PerformanceLeaderboardResponseSchema.parse(response.data);
+}
+
+export async function fetchProspects(filters: Record<string, unknown>) {
+  const params = ListProspectsQuerySchema.parse(filters);
+  const response = await api.get('/prospects', { params });
+  return ListProspectsResponseSchema.parse(response.data);
 }

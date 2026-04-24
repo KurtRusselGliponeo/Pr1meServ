@@ -7,7 +7,7 @@ import type { ProspectPipelineStage } from '@a1prime/schemas';
 import api from '@/services/api-client';
 import { queryKeys } from '@/services/query-client';
 
-export function useUpdateProspectStage() {
+export function useUpdateProspectStage(activeFiltersKey: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -20,7 +20,9 @@ export function useUpdateProspectStage() {
     },
     onSuccess: () => {
       toast.success('Prospect stage updated.');
-      void queryClient.invalidateQueries({ queryKey: queryKeys.prospects });
+      void queryClient.invalidateQueries({
+        predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === queryKeys.prospects(activeFiltersKey)[0],
+      });
     },
     onError: () => {
       toast.error('Unable to update prospect stage.');

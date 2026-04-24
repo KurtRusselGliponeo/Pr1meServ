@@ -24,7 +24,7 @@ import {
   type ProspectPipelineStage,
   type ProspectTemperature,
 } from '@a1prime/schemas';
-import { Filter, Phone, Thermometer } from 'lucide-react';
+import { CalendarClock, Filter, Mail, Phone, Thermometer } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -33,7 +33,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 const temperatureFilters = ['All', 'Warm', 'Cold'] as const;
 type TemperatureFilter = (typeof temperatureFilters)[number];
 
-function ProspectCard({ prospect }: { prospect: Prospect }) {
+function ProspectCard({
+  prospect,
+  onSelectProspect,
+}: {
+  prospect: Prospect;
+  onSelectProspect?: (prospect: Prospect) => void;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: prospect.id,
     data: {
@@ -53,7 +59,10 @@ function ProspectCard({ prospect }: { prospect: Prospect }) {
       {...listeners}
       className={isDragging ? 'opacity-70' : undefined}
     >
-      <Card className="cursor-grab border border-border/70 bg-background/90 shadow-sm active:cursor-grabbing">
+      <Card
+        className="cursor-grab border border-border/70 bg-background/90 shadow-sm active:cursor-grabbing"
+        onClick={() => onSelectProspect?.(prospect)}
+      >
         <CardContent className="space-y-3 p-4">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -76,6 +85,21 @@ function ProspectCard({ prospect }: { prospect: Prospect }) {
             <Phone className="size-4" />
             <span>{prospect.contactNumber}</span>
           </div>
+          {prospect.email ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Mail className="size-4" />
+              <span className="truncate">{prospect.email}</span>
+            </div>
+          ) : null}
+          {prospect.followUpDateUtc ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <CalendarClock className="size-4" />
+              <span>{new Date(prospect.followUpDateUtc).toLocaleString()}</span>
+            </div>
+          ) : null}
+          {prospect.notes ? (
+            <p className="line-clamp-3 text-sm leading-6 text-muted-foreground">{prospect.notes}</p>
+          ) : null}
         </CardContent>
       </Card>
     </div>
@@ -85,9 +109,11 @@ function ProspectCard({ prospect }: { prospect: Prospect }) {
 function StageColumn({
   stage,
   prospects,
+  onSelectProspect,
 }: {
   stage: ProspectPipelineStage;
   prospects: Prospect[];
+  onSelectProspect?: (prospect: Prospect) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: stage,
@@ -117,7 +143,7 @@ function StageColumn({
         >
           <SortableContext items={prospects.map((prospect) => prospect.id)} strategy={verticalListSortingStrategy}>
             {prospects.map((prospect) => (
-              <ProspectCard key={prospect.id} prospect={prospect} />
+              <ProspectCard key={prospect.id} prospect={prospect} onSelectProspect={onSelectProspect} />
             ))}
           </SortableContext>
           {prospects.length === 0 ? (
@@ -134,10 +160,12 @@ function StageColumn({
 export function KanbanBoard({
   prospects,
   onStageChange,
+  onSelectProspect,
   isUpdating,
 }: {
   prospects: Prospect[];
   onStageChange: (prospectId: string, stage: ProspectPipelineStage) => Promise<void>;
+  onSelectProspect?: (prospect: Prospect) => void;
   isUpdating?: boolean;
 }) {
   const [temperatureFilter, setTemperatureFilter] = React.useState<TemperatureFilter>('All');
@@ -223,7 +251,12 @@ export function KanbanBoard({
       <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
         <div className="grid gap-4 xl:grid-cols-5">
           {prospectPipelineStages.map((stage) => (
-            <StageColumn key={stage} stage={stage} prospects={prospectsByStage[stage]} />
+            <StageColumn
+              key={stage}
+              stage={stage}
+              prospects={prospectsByStage[stage]}
+              onSelectProspect={onSelectProspect}
+            />
           ))}
         </div>
       </DndContext>
