@@ -58,6 +58,7 @@ type AgentLookupRow = {
   id: string;
   displayName: string;
   email: string;
+  branchCode: string;
 };
 
 const MAX_IMPORT_FILE_SIZE_BYTES = 20 * 1024 * 1024;
@@ -69,6 +70,20 @@ const AGENT_EDITABLE_STATUSES = new Set<ClientProfile['caseStatus']>(['Uncontact
 const MANAGER_EDITABLE_STATUSES = new Set<ClientProfile['caseStatus']>(['Contacted', 'Forms Submitted', 'BM Signed', 'Done', 'Returned']);
 
 export class ClientProfilesService {
+  private async getActorBranchCode(actorUser: AuthTokenPayload): Promise<string | null> {
+    if (!actorUser.agentId) {
+      return null;
+    }
+
+    const [record] = await db
+      .select({ branchCode: agentProfiles.branchCode })
+      .from(agentProfiles)
+      .where(and(eq(agentProfiles.id, actorUser.agentId), isNull(agentProfiles.deletedAtUtc)))
+      .limit(1);
+
+    return record?.branchCode ?? null;
+  }
+
   private async getAuthorizedClient(
     clientProfileId: string,
     actorUser: AuthTokenPayload,
@@ -94,6 +109,12 @@ export class ClientProfilesService {
     if (actorUser.role === 'Agent') {
       if (!actorUser.agentId || client.assignedAgentId !== actorUser.agentId) {
         throw new ForbiddenError('Agents can only access their own assigned clients.');
+      }
+    } else if (actorUser.role === 'BranchManager') {
+      const actorBranchCode = await this.getActorBranchCode(actorUser);
+
+      if (!actorBranchCode || client.branchCode !== actorBranchCode) {
+        throw new ForbiddenError('Branch Managers can only access clients in their own branch.');
       }
     }
 
@@ -309,7 +330,23 @@ export class ClientProfilesService {
     };
   }
 
-  async listOrphanClients(): Promise<ListOrphanClientsResponse> {
+  async listOrphanClients(actorUser: AuthTokenPayload): Promise<ListOrphanClientsResponse> {
+    const conditions = [
+      isNull(clientProfiles.deletedAtUtc),
+      isNull(clientProfiles.assignedAgentId),
+      eq(clientProfiles.caseStatus, 'Orphan'),
+    ];
+
+    if (actorUser.role === 'BranchManager') {
+      const actorBranchCode = await this.getActorBranchCode(actorUser);
+
+      if (!actorBranchCode) {
+        throw new ForbiddenError('Branch Managers can only view orphan clients in their own branch.');
+      }
+
+      conditions.push(eq(clientProfiles.branchCode, actorBranchCode));
+    }
+
     const rows = await db
       .select({
         id: clientProfiles.id,
@@ -330,13 +367,7 @@ export class ClientProfilesService {
         updatedAtUtc: clientProfiles.updatedAt,
       })
       .from(clientProfiles)
-      .where(
-        and(
-          isNull(clientProfiles.deletedAtUtc),
-          isNull(clientProfiles.assignedAgentId),
-          eq(clientProfiles.caseStatus, 'Orphan'),
-        ),
-      )
+      .where(and(...conditions))
       .orderBy(desc(clientProfiles.updatedAt), desc(clientProfiles.createdAt));
 
     return {
@@ -363,6 +394,14 @@ export class ClientProfilesService {
       }
 
       conditions.push(eq(clientProfiles.assignedAgentId, actorUser.agentId));
+    } else if (actorUser.role === 'BranchManager') {
+      const actorBranchCode = await this.getActorBranchCode(actorUser);
+
+      if (!actorBranchCode) {
+        throw new ForbiddenError('Branch Managers must be linked to a branch profile.');
+      }
+
+      conditions.push(eq(clientProfiles.branchCode, actorBranchCode));
     } else if (query.agentId) {
       conditions.push(eq(clientProfiles.assignedAgentId, query.agentId));
     }
@@ -502,6 +541,8 @@ export class ClientProfilesService {
     }
 
     return withDbTransaction('cosaf.reassign-profiles', async (tx) => {
+      const actorBranchCode =
+        actorUser.role === 'BranchManager' ? await this.getActorBranchCode(actorUser) : null;
       const [sourceAgent, destinationAgent] = await Promise.all([
         preflight.sourceAgentId ? this.findActiveAgent(tx, preflight.sourceAgentId) : null,
         preflight.destinationAgentId ? this.findActiveAgent(tx, preflight.destinationAgentId) : null,
@@ -515,10 +556,20 @@ export class ClientProfilesService {
         throw new NotFoundError('Destination agent was not found.');
       }
 
+      if (
+        actorUser.role === 'BranchManager' &&
+        actorBranchCode &&
+        destinationAgent &&
+        destinationAgent.branchCode !== actorBranchCode
+      ) {
+        throw new ForbiddenError('Branch Managers can only reassign orphan clients within their own branch.');
+      }
+
       const rows = await tx
         .select({
           id: clientProfiles.id,
           assignedAgentId: clientProfiles.assignedAgentId,
+          branchCode: clientProfiles.branchCode,
         })
         .from(clientProfiles)
         .where(
@@ -527,11 +578,17 @@ export class ClientProfilesService {
                 inArray(clientProfiles.id, preflight.validClientProfileIds),
                 eq(clientProfiles.assignedAgentId, preflight.sourceAgentId),
                 isNull(clientProfiles.deletedAtUtc),
+                actorUser.role === 'BranchManager' && actorBranchCode
+                  ? eq(clientProfiles.branchCode, actorBranchCode)
+                  : undefined,
               )
             : and(
                 inArray(clientProfiles.id, preflight.validClientProfileIds),
                 isNull(clientProfiles.assignedAgentId),
                 isNull(clientProfiles.deletedAtUtc),
+                actorUser.role === 'BranchManager' && actorBranchCode
+                  ? eq(clientProfiles.branchCode, actorBranchCode)
+                  : undefined,
               ),
         );
 
@@ -682,9 +739,11 @@ export class ClientProfilesService {
 
   async preflightReassignment(
     input: ClientProfileReassign,
-    _actorUser: AuthTokenPayload,
+    actorUser: AuthTokenPayload,
   ): Promise<ClientProfileReassignPreflightResponse> {
     const issues: ClientProfileReassignIssue[] = [];
+    const actorBranchCode =
+      actorUser.role === 'BranchManager' ? await this.getActorBranchCode(actorUser) : null;
     const sourceAgent = input.sourceAgentId ? await this.findActiveAgent(db, input.sourceAgentId) : null;
     const destinationAgent = input.destinationAgentId
       ? await this.findActiveAgent(db, input.destinationAgentId)
@@ -705,6 +764,18 @@ export class ClientProfilesService {
     }
 
     if (
+      actorUser.role === 'BranchManager' &&
+      actorBranchCode &&
+      ((sourceAgent && sourceAgent.branchCode !== actorBranchCode) ||
+        (destinationAgent && destinationAgent.branchCode !== actorBranchCode))
+    ) {
+      issues.push({
+        code: 'CLIENT_OWNERSHIP_MISMATCH',
+        message: 'Branch Managers can only move clients between agents in their own branch.',
+      });
+    }
+
+    if (
       input.sourceAgentId &&
       input.destinationAgentId &&
       input.destinationAgentId === input.sourceAgentId
@@ -719,6 +790,7 @@ export class ClientProfilesService {
       .select({
         id: clientProfiles.id,
         assignedAgentId: clientProfiles.assignedAgentId,
+        branchCode: clientProfiles.branchCode,
         caseStatus: clientProfiles.caseStatus,
       })
       .from(clientProfiles)
@@ -749,6 +821,15 @@ export class ClientProfilesService {
           message: input.sourceAgentId
             ? 'Selected client profiles must belong to the chosen source agent.'
             : 'Selected client profiles must already be unassigned before they can be mapped to a new agent.',
+          clientProfileId,
+        });
+        continue;
+      }
+
+      if (actorUser.role === 'BranchManager' && actorBranchCode && row.branchCode !== actorBranchCode) {
+        issues.push({
+          code: 'CLIENT_OWNERSHIP_MISMATCH',
+          message: 'Selected client profiles must belong to your branch.',
           clientProfileId,
         });
         continue;
@@ -814,6 +895,7 @@ export class ClientProfilesService {
       .select({
         id: agentProfiles.id,
         displayName: agentProfiles.displayName,
+        branchCode: agentProfiles.branchCode,
         encryptedEmail: userAccounts.encryptedEmail,
       })
       .from(agentProfiles)
@@ -828,12 +910,13 @@ export class ClientProfilesService {
       .limit(1);
 
     return agent
-      ? {
-          id: agent.id,
-          displayName: agent.displayName,
-          email: decryptEmail(agent.encryptedEmail),
-        }
-      : null;
+        ? {
+            id: agent.id,
+            displayName: agent.displayName,
+            email: decryptEmail(agent.encryptedEmail),
+            branchCode: agent.branchCode,
+          }
+        : null;
   }
 }
 

@@ -16,23 +16,27 @@ function toNumber(value: string | number | null | undefined) {
 }
 
 export class MetricsService {
+  private async getActorBranchCode(actorUser: AuthTokenPayload): Promise<string | null> {
+    if (!actorUser.agentId) {
+      return null;
+    }
+
+    const [actorProfile] = await db
+      .select({ branchCode: agentProfiles.branchCode })
+      .from(agentProfiles)
+      .where(and(eq(agentProfiles.id, actorUser.agentId), isNull(agentProfiles.deletedAtUtc)))
+      .limit(1);
+
+    return actorProfile?.branchCode ?? null;
+  }
+
   async getLeaderboardRows(
     query: PerformanceLeaderboardQuery,
     actorUser: AuthTokenPayload,
   ): Promise<PerformanceLeaderboardResponse['rows']> {
     const recordMonth = `${query.year}-${String(query.month).padStart(2, '0')}`;
     const leaderboardConditions = [eq(performanceMetrics.recordMonth, recordMonth)];
-    let branchCode: string | null = null;
-
-    if (actorUser.agentId) {
-      const [actorProfile] = await db
-        .select({ branchCode: agentProfiles.branchCode })
-        .from(agentProfiles)
-        .where(and(eq(agentProfiles.id, actorUser.agentId), isNull(agentProfiles.deletedAtUtc)))
-        .limit(1);
-
-      branchCode = actorProfile?.branchCode ?? null;
-    }
+    const branchCode = await this.getActorBranchCode(actorUser);
 
     if (actorUser.role === 'Agent' && actorUser.agentId) {
       leaderboardConditions.push(eq(performanceMetrics.agentId, actorUser.agentId));
@@ -125,9 +129,12 @@ export class MetricsService {
       gte(performanceMetrics.recordMonth, startMonth),
       lt(performanceMetrics.recordMonth, endMonth),
     ];
+    const branchCode = await this.getActorBranchCode(actorUser);
 
     if (actorUser.role === 'Agent' && actorUser.agentId) {
       metricConditions.push(eq(performanceMetrics.agentId, actorUser.agentId));
+    } else if (actorUser.role === 'BranchManager' && branchCode) {
+      metricConditions.push(eq(agentProfiles.branchCode, branchCode));
     }
 
     const [summaryRows, pointRows] = await Promise.all([
@@ -139,6 +146,10 @@ export class MetricsService {
           totalCommission: sql<string>`coalesce(sum(${performanceMetrics.commissionAmount}), 0)::text`,
         })
         .from(performanceMetrics)
+        .innerJoin(
+          agentProfiles,
+          and(eq(agentProfiles.id, performanceMetrics.agentId), isNull(agentProfiles.deletedAtUtc)),
+        )
         .where(and(...metricConditions)),
       db
         .select({
@@ -149,6 +160,10 @@ export class MetricsService {
           commissionAmount: sql<string>`coalesce(sum(${performanceMetrics.commissionAmount}), 0)::text`,
         })
         .from(performanceMetrics)
+        .innerJoin(
+          agentProfiles,
+          and(eq(agentProfiles.id, performanceMetrics.agentId), isNull(agentProfiles.deletedAtUtc)),
+        )
         .where(and(...metricConditions))
         .groupBy(performanceMetrics.recordMonth)
         .orderBy(performanceMetrics.recordMonth),

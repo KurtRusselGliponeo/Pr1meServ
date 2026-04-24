@@ -41,7 +41,8 @@ Because of that, the original checklist needed downstream corrections.
   - `Admin`
 - Enforce RBAC across all features:
   - `Agent` sees only own data
-  - `BranchManager` and `Admin` see branch-wide operational data
+  - `BranchManager` sees branch-wide operational data within the manager's branch only
+  - `Admin` sees cross-branch operational data and governance views across the whole system
 
 ## Phase 2: Identity, Accounts, and Access Control
 
@@ -109,6 +110,7 @@ Because of that, the original checklist needed downstream corrections.
 - [ ] Show orphan client count, pending COSAF approvals, warning/urgent/lapsed policies, and top/bottom performers.
 - [ ] Add report filters by month, agent, status, product, and lapsation state.
 - [ ] Add `delist agent` workflow.
+- [ ] Enforce that a Branch Manager can act only on agents and orphan queues within the manager's own branch.
 - [ ] When agent is delisted, transfer all clients to internal `Orphan` handling.
 - [ ] Allow BM to assign orphan clients to a new agent.
 - [ ] Notify new assigned agent automatically.
@@ -131,7 +133,7 @@ Because of that, the original checklist needed downstream corrections.
   - approvals
   - reassignments
   - notifications
-- [ ] Allow admin full branch oversight.
+- [ ] Allow admin full cross-branch oversight.
 - [ ] Allow admin to manage users, restore archived users, and reset passwords.
 
 ## Phase 7: COSAF and Orphan Client Workflow
@@ -167,6 +169,7 @@ Because of that, the original checklist needed downstream corrections.
 - [ ] Compute persistency using the locked formula:
   - `Collected M2 to M13 premiums / (Collected M2 to M13 premiums + Uncollected M2 to M13 premiums of lapsed, surrendered, and unit cancelled policies)`
 - [ ] Build BM/Admin leaderboard and drill-down analytics.
+- [ ] Enforce branch scoping for Branch Manager reports and cross-branch scope for Admin reports.
 - [ ] Show monthly trends and comparisons.
 - [ ] Generate downloadable reports for BM/Admin in a clean format.
 - [ ] Include branch-wide views for:
@@ -253,8 +256,10 @@ Because of that, the original checklist needed downstream corrections.
 
 - Replaced downstream references to visible `For Approval` with `Forms Submitted`.
 - Converted vague lapsation threshold wording into the locked `1 month` / `2 months` / `3 months` rule.
-- Removed “persistency still needs confirmation” language and inserted the locked formula.
+- Removed earlier wording that said persistency still needed confirmation and replaced it with the locked formula.
 - Kept `Orphan` as operational/internal in workflow wording.
+- Clarified that `Agent` should not see orphan operational queues.
+- Clarified that `BranchManager` scope is branch-only while `Admin` scope is cross-branch.
 - Kept prospect stages aligned with `Client Agreed` and `Approved`.
 - Added `productType` and `planCode` to Phase 3.
 - Aligned document retention wording to the locked `7-year` archival baseline.

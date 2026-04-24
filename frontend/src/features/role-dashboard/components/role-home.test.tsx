@@ -1,6 +1,8 @@
 'use client';
 
+import type { ReactElement } from 'react';
 import { render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 import { AgentHome } from './agent-home';
@@ -19,6 +21,12 @@ const authState = vi.hoisted(() => ({
 vi.mock('@/features/identity/context/auth-context', () => ({
   useAuth: () => ({
     user: authState.user,
+  }),
+}));
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: vi.fn(),
   }),
 }));
 
@@ -135,6 +143,18 @@ vi.mock('../hooks/use-get-orphan-clients', () => ({
 }));
 
 describe('role home guided workflows', () => {
+  function renderWithProviders(ui: ReactElement) {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+        },
+      },
+    });
+
+    return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+  }
+
   beforeEach(() => {
     authState.user = {
       firstName: 'Test',
@@ -145,7 +165,7 @@ describe('role home guided workflows', () => {
   });
 
   it('renders step-by-step guidance for Agent', () => {
-    render(<AgentHome />);
+    renderWithProviders(<AgentHome />);
 
     expect(screen.getByText(/agent workspace/i)).toBeInTheDocument();
     expect(screen.getByText(/persistency/i)).toBeInTheDocument();
@@ -153,18 +173,20 @@ describe('role home guided workflows', () => {
   });
 
   it('renders step-by-step guidance for Branch Manager', () => {
-    render(<BMHome />);
+    renderWithProviders(<BMHome />);
 
     expect(screen.getByText(/branch manager workspace/i)).toBeInTheDocument();
-    expect(screen.getByText(/report filters/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/filter branch reports by month, agent, status, product, and lapsation state/i),
+    ).toBeInTheDocument();
     expect(screen.getByText(/delist agent workflow/i)).toBeInTheDocument();
   });
 
   it('renders step-by-step guidance for Admin', () => {
-    render(<AdminHome />);
+    renderWithProviders(<AdminHome />);
 
-    expect(screen.getByText(/step 1/i)).toBeInTheDocument();
-    expect(screen.getByText(/check system health/i)).toBeInTheDocument();
+    expect(screen.getByText(/system governance and global search/i)).toBeInTheDocument();
+    expect(screen.getByText(/global system search/i)).toBeInTheDocument();
     expect(screen.getByText(/recommended admin flow/i)).toBeInTheDocument();
   });
 });

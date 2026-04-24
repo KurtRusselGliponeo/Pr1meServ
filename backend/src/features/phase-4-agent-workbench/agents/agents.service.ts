@@ -106,6 +106,20 @@ async function mapAgentProfile(
 }
 
 export class AgentsService {
+  private async getActorBranchCode(actorUser: AuthTokenPayload): Promise<string | null> {
+    if (!actorUser.agentId) {
+      return null;
+    }
+
+    const [record] = await db
+      .select({ branchCode: agentProfiles.branchCode })
+      .from(agentProfiles)
+      .where(and(eq(agentProfiles.id, actorUser.agentId), isNull(agentProfiles.deletedAtUtc)))
+      .limit(1);
+
+    return record?.branchCode ?? null;
+  }
+
   private assertAgentSelfAccess(targetAgentId: string, actorUser: AuthTokenPayload) {
     if (actorUser.role === 'Agent' && actorUser.agentId !== targetAgentId) {
       throw new ForbiddenError('Agents can only access their own profile.');
@@ -523,8 +537,17 @@ export class AgentsService {
     };
   }
 
-  async listAgents(query: ListAgentsQuery): Promise<AgentLookupResponse> {
+  async listAgents(query: ListAgentsQuery, actorUser: AuthTokenPayload): Promise<AgentLookupResponse> {
     const conditions = [isNull(agentProfiles.deletedAtUtc), isNull(userAccounts.deletedAtUtc)];
+    const branchCode = actorUser.role === 'BranchManager' ? await this.getActorBranchCode(actorUser) : null;
+
+    if (actorUser.role === 'BranchManager') {
+      if (!branchCode) {
+        throw new ForbiddenError('Branch Manager lookups require a linked branch profile.');
+      }
+
+      conditions.push(eq(agentProfiles.branchCode, branchCode));
+    }
 
     if (query.search) {
       const searchTerm = `%${query.search.trim()}%`;
@@ -707,7 +730,7 @@ export class AgentsService {
     return this.getAgentProfile(agentId, actorUser);
   }
 
-  async delistAgent(targetAgentCode: string, actorUserId: string): Promise<DelistAgentResponse> {
+  async delistAgent(targetAgentCode: string, actorUser: AuthTokenPayload): Promise<DelistAgentResponse> {
     const normalizedAgentCode = targetAgentCode.trim();
 
     if (!normalizedAgentCode) {
@@ -723,6 +746,7 @@ export class AgentsService {
         .select({
           id: agentProfiles.id,
           agentCode: agentProfiles.agentCode,
+          branchCode: agentProfiles.branchCode,
           status: agentProfiles.status,
         })
         .from(agentProfiles)
@@ -736,6 +760,14 @@ export class AgentsService {
 
       if (!existingAgent) {
         throw new NotFoundError('Agent profile was not found.');
+      }
+
+      if (actorUser.role === 'BranchManager') {
+        const actorBranchCode = await this.getActorBranchCode(actorUser);
+
+        if (!actorBranchCode || actorBranchCode !== existingAgent.branchCode) {
+          throw new ForbiddenError('Branch Managers can only delist agents in their own branch.');
+        }
       }
 
       if (existingAgent.status === 'Terminated') {
@@ -757,13 +789,13 @@ export class AgentsService {
       if (orphanedClientRows.length > 0) {
         await tx.insert(clientAssignmentHistory).values(
           orphanedClientRows.map((row) => ({
-            clientProfileId: row.id,
-            fromAgentId: existingAgent.id,
-            toAgentId: null,
-            actorUserId,
-            branchCode: row.branchCode,
-            reason: 'Agent delisted; moved into orphan handling.',
-            createdAtUtc: updatedAt,
+             clientProfileId: row.id,
+             fromAgentId: existingAgent.id,
+             toAgentId: null,
+             actorUserId: actorUser.id,
+             branchCode: row.branchCode,
+             reason: 'Agent delisted; moved into orphan handling.',
+             createdAtUtc: updatedAt,
           })),
         );
       }
@@ -783,9 +815,9 @@ export class AgentsService {
 
       await logSystemAudit(
         {
-          action: 'agent.delisted',
-          userId: actorUserId,
-          entityName: 'AgentProfile',
+           action: 'agent.delisted',
+           userId: actorUser.id,
+           entityName: 'AgentProfile',
           resourceId: existingAgent.id,
           oldValue: {
             agentCode: existingAgent.agentCode,

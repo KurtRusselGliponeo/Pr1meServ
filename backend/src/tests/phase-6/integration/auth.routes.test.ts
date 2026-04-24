@@ -87,6 +87,7 @@ describe('auth.routes', () => {
         lastName: 'Prime',
         role: 'Agent',
         agentCode: 'AG-001',
+        needsPasswordReset: false,
         createdAtUtc: new Date().toISOString(),
         updatedAtUtc: new Date().toISOString(),
       },
@@ -181,7 +182,7 @@ describe('auth.routes', () => {
 
     const app = await buildApp();
 
-    for (let attempt = 0; attempt < 50; attempt += 1) {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
       const response = await app.inject({
         method: 'POST',
         url: '/api/v1/auth/login',

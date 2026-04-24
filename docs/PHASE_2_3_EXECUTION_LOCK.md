@@ -20,6 +20,7 @@ This document converts the approved next-phase scope into implementation-ready c
 - `NeedsPasswordReset` should remain the enforcement flag for first-login password change flow.
 - User-to-agent linkage must be `1:1`; no shared agent profiles across multiple accounts and no account linked to multiple agent profiles.
 - Agents must be restricted through both route authorization and data-level filtering.
+- Agents must not see orphan operational queues unless a future signed-off requirement introduces a dedicated agent-facing orphan workflow.
 - Sidebar navigation must be role-aware for `Admin`, `BranchManager`, and `Agent`.
 - Profile picture object keys should be deterministic from `agentCode` and stored in secure managed storage.
 - Security-sensitive actions must be captured in audit logs with actor, target, action, and timestamp.
@@ -53,6 +54,7 @@ This document converts the approved next-phase scope into implementation-ready c
 - `prospects`, `documents`, `notifications`, and `audit_logs` should remain distinct bounded tables.
 - Source import pipelines for `NAP`, `APE`, `PER`, and `REC` must preserve enough raw identifiers to reconcile imported records against agent, client, and policy entities.
 - Branch ownership must be explicit and queryable for both agents and clients.
+- Branch-scoped operations for `BranchManager` must be enforced in service logic, not only hidden in the UI.
 - Client history must preserve assignment changes over time rather than overwriting prior ownership without trace.
 - Reassignment history must support who changed it, when it changed, from whom, to whom, and why.
 - Validation must reject or quarantine malformed imports instead of silently accepting broken data.
@@ -83,6 +85,7 @@ This document converts the approved next-phase scope into implementation-ready c
 - Explicit enforcement of temporary password = `8-digit agent code`
 - First-login password-change enforcement across the full user lifecycle
 - Stronger agent-to-agent isolation checks for accounts, clients, metrics, and documents
+- Stronger branch-level isolation checks for `BranchManager` actions on agents, clients, metrics, and orphan workflows
 - Secure agent profile photo storage flow
 - Expanded audit events for identity and access changes
 - Fully normalized `policies`, `policy_transactions`, and `recruitment_records` structures if not already present

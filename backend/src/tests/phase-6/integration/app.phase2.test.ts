@@ -1,27 +1,29 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+
 process.env.JWT_SECRET = process.env.JWT_SECRET ?? 'test-secret';
 process.env.REDIS_HOST = process.env.REDIS_HOST ?? '127.0.0.1';
 process.env.REDIS_PORT = process.env.REDIS_PORT ?? '6379';
 process.env.DATABASE_URL =
   process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/postgres';
 
-jest.mock('../../../db/client', () => ({
+vi.mock('../../../db/client', () => ({
   db: {
-    transaction: jest.fn(),
-    execute: jest.fn(),
-    select: jest.fn(),
-    insert: jest.fn(),
+    transaction: vi.fn(),
+    execute: vi.fn(),
+    select: vi.fn(),
+    insert: vi.fn(),
   },
   dbClient: {},
-  assertDatabaseConnection: jest.fn().mockResolvedValue(undefined),
+  assertDatabaseConnection: vi.fn().mockResolvedValue(undefined),
 }));
 
-jest.mock('../../../lib/redis', () => ({
+vi.mock('../../../lib/redis', () => ({
   redis: {
     status: 'ready',
-    ping: jest.fn().mockResolvedValue('PONG'),
-    on: jest.fn(),
-    defineCommand: jest.fn(),
-    rateLimit: jest.fn(
+    ping: vi.fn().mockResolvedValue('PONG'),
+    on: vi.fn(),
+    defineCommand: vi.fn(),
+    rateLimit: vi.fn(
       (key, timeWindow, max, _continueExceeding, _exponentialBackoff, callback) => {
         const store =
           (
@@ -38,7 +40,8 @@ jest.mock('../../../lib/redis', () => ({
       },
     ),
   },
-  assertRedisConnection: jest.fn().mockResolvedValue(undefined),
+  isRedisEnabled: false,
+  assertRedisConnection: vi.fn().mockResolvedValue(undefined),
 }));
 
 import buildApp from '../../../app';

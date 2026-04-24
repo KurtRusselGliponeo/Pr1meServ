@@ -15,6 +15,7 @@ import { prospectsMigration } from './014_Prospects';
 import { agentStatusesMigration } from './015_AgentStatuses';
 import { orphanPoolAgentMigration } from './016_OrphanPoolAgent';
 import { phaseTwoThreeFoundationMigration } from './017_PhaseTwoThreeFoundation';
+import { phaseOneStatusLockMigration } from './018_PhaseOneStatusLock';
 
 export const phaseOneMigrations = [
   userAccountsMigration,
@@ -50,4 +51,5 @@ export const applicationMigrations = [
   agentStatusesMigration,
   orphanPoolAgentMigration,
   phaseTwoThreeFoundationMigration,
+  phaseOneStatusLockMigration,
 ];

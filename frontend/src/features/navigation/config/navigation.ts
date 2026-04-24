@@ -92,5 +92,33 @@ export function getNavigationItemsForRole(role?: SystemRole | null) {
     return dashboardNavigationItems;
   }
 
-  return dashboardNavigationItems.filter((item) => item.allowedRoles.includes(role));
+  return dashboardNavigationItems
+    .filter((item) => item.allowedRoles.includes(role))
+    .map((item) => {
+      if (item.href !== '/dashboard/cosaf') {
+        return item;
+      }
+
+      if (role === 'Agent') {
+        return {
+          ...item,
+          label: 'COSAF Workflow',
+          description: 'Track assigned cases and upload COSAF documents.',
+        };
+      }
+
+      if (role === 'BranchManager') {
+        return {
+          ...item,
+          label: 'COSAF & Reassignment',
+          description: 'Manage branch approvals and orphan-client reassignment.',
+        };
+      }
+
+      return {
+        ...item,
+        label: 'COSAF & Reassignment',
+        description: 'Oversee cross-branch approvals and reassignment activity.',
+      };
+    });
 }

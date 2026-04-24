@@ -147,7 +147,7 @@ export function BMHome() {
             aria-label="Status"
           >
             <option value="">All statuses</option>
-            {['Uncontacted', 'Contacted', 'Forms Submitted', 'BM Signed', 'Done', 'Returned', 'Orphan'].map(
+            {['Uncontacted', 'Contacted', 'Forms Submitted', 'BM Signed', 'Done', 'Returned'].map(
               (status) => (
                 <option key={status} value={status}>
                   {status}

@@ -29,25 +29,25 @@ This document locks the current Phase 1 business rules for the client reassignme
 
 ## Role Matrix
 
-| Capability                     | Agent                                       | BranchManager | Admin |
-| ------------------------------ | ------------------------------------------- | ------------- | ----- |
-| View assigned client records   | Yes                                         | Yes           | Yes   |
-| Import client profiles         | No                                          | Yes           | Yes   |
-| Reassign clients               | No                                          | Yes           | Yes   |
-| View orphan clients            | Yes, if exposed through shared list filters | Yes           | Yes   |
-| Upload branch documents        | No                                          | Yes           | Yes   |
-| View document library          | Yes                                         | Yes           | Yes   |
-| Pin/unpin documents            | No                                          | Yes           | Yes   |
-| Complete COSAF upload callback | Yes                                         | Yes           | Yes   |
-| Approve or return COSAF        | No                                          | Yes           | Yes   |
-| Access notification logs       | No                                          | No            | Yes   |
-| Manage users                   | No                                          | No            | Yes   |
+| Capability                     | Agent | BranchManager | Admin |
+| ------------------------------ | ----- | ------------- | ----- |
+| View assigned client records   | Yes   | Yes           | Yes   |
+| Import client profiles         | No    | Yes           | Yes   |
+| Reassign clients               | No    | Yes           | Yes   |
+| View orphan clients            | No    | Yes           | Yes   |
+| Upload branch documents        | No    | Yes           | Yes   |
+| View document library          | Yes   | Yes           | Yes   |
+| Pin/unpin documents            | No    | Yes           | Yes   |
+| Complete COSAF upload callback | Yes   | Yes           | Yes   |
+| Approve or return COSAF        | No    | Yes           | Yes   |
+| Access notification logs       | No    | No            | Yes   |
+| Manage users                   | No    | No            | Yes   |
 
 ### Role intent
 
 - `Agent` executes outreach, prospecting, document completion, and follow-up on assigned records.
-- `BranchManager` governs review, approval, reassignment, and branch-level oversight.
-- `Admin` owns platform governance, user management, escalations, and cross-branch operational control.
+- `BranchManager` governs review, approval, reassignment, and branch-level oversight inside the manager's own branch.
+- `Admin` owns platform governance, user management, escalations, and cross-branch operational control across the whole system.
 
 ## Official Client Status Flow
 

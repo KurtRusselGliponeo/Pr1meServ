@@ -47,7 +47,7 @@ const agentsRoutes: FastifyPluginAsync = async (app) => {
     },
     async (request, reply) => {
       const query = ListAgentsQuerySchema.parse(request.query);
-      const result = await agentsService.listAgents(query);
+      const result = await agentsService.listAgents(query, request.authUser);
       return reply.code(200).send(result);
     },
   );
@@ -129,7 +129,7 @@ const agentsRoutes: FastifyPluginAsync = async (app) => {
     },
     async (request, reply) => {
       const body = DelistAgentRequestSchema.parse(request.body);
-      const result = await agentsService.delistAgent(body.targetAgentCode, request.authUser.id);
+      const result = await agentsService.delistAgent(body.targetAgentCode, request.authUser);
       return reply.code(200).send(result);
     },
   );

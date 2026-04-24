@@ -6,6 +6,12 @@ import { and, desc, eq } from 'drizzle-orm';
 import type { CaseStatus, SystemRole } from '@a1prime/schemas';
 import type { AuthTokenPayload } from '@/shared/lib/auth';
 
+type PresignedUploadRequest = {
+  fileName: string;
+  mimeType: string;
+  category: string;
+};
+
 
 
 function parseVersion(value: string) {
@@ -21,6 +27,16 @@ function getBaseFileName(fileName: string) {
  * Handles Google Drive Library Mappings
  */
 export class DocumentsService {
+  async generatePresignedUrl(input: PresignedUploadRequest) {
+    return {
+      signedUrl: '',
+      documentId: nanoid(),
+      fileName: input.fileName,
+      mimeType: input.mimeType,
+      category: input.category,
+    };
+  }
+
   /**
    * Uploads the document directly to Google Drive and tracks it in the database.
    */
@@ -185,7 +201,7 @@ export class DocumentsService {
       })
       .where(eq(clientProfiles.id, clientProfileId));
 
-    const resolvedReviewerId = await this.resolveReviewingManagerId(reviewingBmId);
+    const resolvedReviewerId = await this.resolveReviewingManagerId(clientProfileId, reviewingBmId);
 
     const [existingApproval] = await db
       .select({ id: cosafApprovals.id })
@@ -249,7 +265,7 @@ export class DocumentsService {
     return { success: true };
   }
 
-  private async resolveReviewingManagerId(actorUserId: string) {
+  private async resolveReviewingManagerId(clientProfileId: string, actorUserId: string) {
     const [actor] = await db
       .select({
         id: userAccounts.id,
@@ -261,6 +277,32 @@ export class DocumentsService {
 
     if (actor && ['Admin', 'BranchManager'].includes(actor.role as SystemRole)) {
       return actor.id;
+    }
+
+    const [client] = await db
+      .select({ branchCode: clientProfiles.branchCode })
+      .from(clientProfiles)
+      .where(eq(clientProfiles.id, clientProfileId))
+      .limit(1);
+
+    if (client?.branchCode) {
+      const [branchManager] = await db
+        .select({
+          id: userAccounts.id,
+        })
+        .from(userAccounts)
+        .innerJoin(agentProfiles, eq(agentProfiles.userId, userAccounts.id))
+        .where(
+          and(
+            eq(userAccounts.role, 'BranchManager'),
+            eq(agentProfiles.branchCode, client.branchCode),
+          ),
+        )
+        .limit(1);
+
+      if (branchManager) {
+        return branchManager.id;
+      }
     }
 
     const [manager] = await db

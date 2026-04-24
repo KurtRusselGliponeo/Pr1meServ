@@ -9,8 +9,6 @@ import { lapsationService } from '@/features/phase-5-performance/lapsation/lapsa
 import { createImportQueue } from '@/queues/import.queue';
 
 const lapsationRoutes: FastifyPluginAsync = async (app) => {
-  const importQueue = createImportQueue();
-
   app.get(
     '/lapsation',
     {
@@ -86,6 +84,16 @@ const lapsationRoutes: FastifyPluginAsync = async (app) => {
         XLSX.read(buffer, { type: 'buffer' });
       } catch {
         throw new BadRequestError('Uploaded lapsation workbook could not be parsed as Excel.');
+      }
+
+      let importQueue;
+
+      try {
+        importQueue = createImportQueue();
+      } catch {
+        throw new BadRequestError(
+          'Lapsation imports are unavailable because background jobs are disabled in this environment.',
+        );
       }
 
       await importQueue.add('process-lapsation-upload', {

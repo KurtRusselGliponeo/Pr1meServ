@@ -201,8 +201,9 @@ describe('users.routes', () => {
       id: 'new-user-id',
       firstName: 'New',
       lastName: 'User',
-      email: 'new.user@example.com',
+      email: 'new.user@prulife.com',
       role: 'Agent',
+      needsPasswordReset: true,
       createdAtUtc: new Date().toISOString(),
       updatedAtUtc: new Date().toISOString(),
       deletedAtUtc: null,
@@ -225,14 +226,15 @@ describe('users.routes', () => {
       payload: {
         firstName: 'New',
         lastName: 'User',
-        email: 'new.user@example.com',
-        password: 'password123',
+        email: 'new.user@prulife.com',
         role: 'Agent',
+        agentCode: '12345678',
+        branchCode: 'BR-01',
       },
     });
 
     expect(response.statusCode).toBe(201);
-    expect(response.json().email).toBe('new.user@example.com');
+    expect(response.json().email).toBe('new.user@prulife.com');
 
     await app.close();
   });

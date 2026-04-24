@@ -13,11 +13,11 @@ const downStatements = [
   'ALTER TABLE "ClientProfiles" DROP CONSTRAINT IF EXISTS "chk_clientprofiles_casestatus"',
   `ALTER TABLE "ClientProfiles"
    ADD CONSTRAINT "chk_clientprofiles_casestatus"
-   CHECK ("CaseStatus" IN ('Uncontacted', 'Contacted', 'Submitted', 'Reviewed', 'Completed', 'Returned'))`,
+   CHECK ("CaseStatus" IN ('Uncontacted', 'Contacted', 'For Approval', 'Forms Submitted', 'BM Signed', 'Done', 'Returned', 'Orphan'))`,
 ];
 
-export const clientProfileStatusesMigration: MigrationDefinition = {
-  id: '008_ClientProfileStatuses',
+export const phaseOneStatusLockMigration: MigrationDefinition = {
+  id: '018_PhaseOneStatusLock',
   async up(sql: Sql) {
     for (const statement of upStatements) {
       await sql.unsafe(statement);

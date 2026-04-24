@@ -53,9 +53,9 @@ const authRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     '/auth/login',
     {
-      config: {
-        rateLimit: {
-          max: 50, // Increased for dev testing
+        config: {
+          rateLimit: {
+          max: 5,
           timeWindow: '15 minutes',
         },
       },

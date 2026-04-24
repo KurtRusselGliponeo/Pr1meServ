@@ -7,6 +7,19 @@ import { requireRole } from '@/app/middleware/require-role';
  * Registers S3 and Cloudflare upload logic mappings for the API routing instance.
  */
 export const documentsRoutes: FastifyPluginAsync = async (app) => {
+  app.post('/documents/presigned-url', {
+    preHandler: [app.authenticate, requireRole(['Admin', 'BranchManager'])]
+  }, async (request, reply) => {
+    const parsed = z.object({
+      fileName: z.string().trim().min(1),
+      mimeType: z.string().trim().min(1),
+      category: z.string().trim().min(1),
+    }).parse(request.body);
+
+    const result = await documentsService.generatePresignedUrl(parsed);
+    return reply.code(200).send(result);
+  });
+
   app.post('/documents/upload', {
     preHandler: [app.authenticate, requireRole(['Admin', 'BranchManager'])]
   }, async (request, reply) => {

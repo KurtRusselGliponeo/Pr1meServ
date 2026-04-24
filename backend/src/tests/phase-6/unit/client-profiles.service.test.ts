@@ -235,7 +235,14 @@ describe('ClientProfilesService', () => {
     });
 
     const service = new ClientProfilesService();
-    const result = await service.listOrphanClients();
+    const result = await service.listOrphanClients({
+      id: 'admin-user-1',
+      sub: 'admin-user-1',
+      role: 'Admin',
+      agentId: null,
+      agentCode: null,
+      tokenType: 'access',
+    });
 
     expect(result.meta.total).toBe(1);
     expect(result.data[0]?.assignedAgentId).toBeNull();
