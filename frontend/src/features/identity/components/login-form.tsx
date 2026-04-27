@@ -69,22 +69,22 @@ export function LoginForm() {
   return (
     <div className={submitError ? 'animate-auth-shake' : undefined}>
       <Form {...form}>
-        <form className="space-y-5" onSubmit={form.handleSubmit(onSubmit)}>
+        <form className="space-y-6.5" onSubmit={form.handleSubmit(onSubmit)}>
           <FormField
             control={form.control}
             name="email"
             render={({ field }) => (
-              <FormItem className="space-y-2.5">
-                <FormLabel className="text-[12px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+              <FormItem className="space-y-3">
+                <FormLabel className="text-[0.95rem] font-medium text-foreground">
                   Email address
                 </FormLabel>
                 <FormControl>
                   <div className="relative">
-                    <Mail className="pointer-events-none absolute left-4 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
+                    <Mail className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       autoComplete="email"
                       placeholder="agent@a1prime.com"
-                      className="pl-11 pr-4"
+                      className="h-[58px] rounded-2xl border-border bg-background pl-12 pr-4 text-[0.96rem] shadow-none placeholder:text-muted-foreground/80 focus-visible:translate-y-0 focus-visible:ring-2 focus-visible:ring-primary/20"
                       {...field}
                     />
                   </div>
@@ -98,32 +98,30 @@ export function LoginForm() {
             control={form.control}
             name="password"
             render={({ field }) => (
-              <FormItem className="space-y-2.5">
-                <FormLabel className="text-[12px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-                  Password
-                </FormLabel>
+              <FormItem className="space-y-3">
+                <FormLabel className="text-[0.95rem] font-medium text-foreground">Password</FormLabel>
                 <FormControl>
                   <div className="relative">
-                    <LockKeyhole className="pointer-events-none absolute left-4 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
+                    <LockKeyhole className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       type={showPassword ? 'text' : 'password'}
                       autoComplete="current-password"
                       placeholder="Enter your password"
-                      className="pl-11 pr-12"
+                      className="h-[58px] rounded-2xl border-border bg-background pl-12 pr-12 text-[0.96rem] shadow-none placeholder:text-muted-foreground/80 focus-visible:translate-y-0 focus-visible:ring-2 focus-visible:ring-primary/20"
                       onFocus={warmDashboard}
                       {...field}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword((value) => !value)}
-                      className="absolute right-2 top-1/2 inline-flex size-8 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-colors duration-200 hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                      className="absolute right-3 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
                       aria-label={showPassword ? 'Hide password' : 'Show password'}
                       aria-pressed={showPassword}
                     >
                       {showPassword ? (
-                        <EyeOff className="size-[18px]" aria-hidden="true" />
+                        <EyeOff className="size-5" aria-hidden="true" />
                       ) : (
-                        <Eye className="size-[18px]" aria-hidden="true" />
+                        <Eye className="size-5" aria-hidden="true" />
                       )}
                     </button>
                   </div>
@@ -133,47 +131,46 @@ export function LoginForm() {
             )}
           />
 
-          <FormItem className="flex flex-row items-center justify-between gap-4 space-y-0">
-            <label className="flex items-center gap-2.5 text-[13px] text-muted-foreground">
+          <div className="flex items-center justify-between gap-4 pt-1">
+            <label className="flex items-center gap-2.5 text-[0.93rem] text-muted-foreground">
               <input
                 type="checkbox"
                 checked={rememberMe}
                 onChange={(event) => setRememberMe(event.target.checked)}
-                className="h-4 w-4 rounded border-input text-primary accent-primary"
+                className="h-4 w-4 rounded border-input accent-primary"
               />
-              <span>Remember Me</span>
+              <span className="font-medium">Remember Me</span>
             </label>
+
             <Link
               href="/forgot-password"
-              className="text-[13px] font-medium text-primary underline-offset-4 transition-colors hover:underline focus-visible:outline-none"
+              className="text-[0.93rem] font-semibold text-primary transition-colors hover:text-primary/80"
             >
               Forgot Password?
             </Link>
-          </FormItem>
+          </div>
 
           {submitError ? (
-            <div className="flex items-start gap-3 rounded-2xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            <div className="flex items-start gap-3 rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
               <AlertCircle className="mt-0.5 size-[18px] shrink-0" aria-hidden="true" />
               <span>{submitError}</span>
             </div>
           ) : null}
 
-          <div className="flex justify-center pt-1">
-            <Button
-              type="submit"
-              size="lg"
-              className="h-[46px] w-1/2 rounded-full text-[15px] font-semibold tracking-[0.06em]"
-              onMouseDown={warmDashboard}
-              onFocus={warmDashboard}
-              disabled={form.formState.isSubmitting}
-            >
-              {form.formState.isSubmitting ? (
-                <LoaderCircle className="size-5 animate-spin" />
-              ) : (
-                'Sign In'
-              )}
-            </Button>
-          </div>
+          <Button
+            type="submit"
+            size="lg"
+            className="mt-1 h-[58px] w-full rounded-2xl text-[1rem] font-semibold shadow-none"
+            onMouseDown={warmDashboard}
+            onFocus={warmDashboard}
+            disabled={form.formState.isSubmitting}
+          >
+            {form.formState.isSubmitting ? (
+              <LoaderCircle className="size-5 animate-spin" />
+            ) : (
+              'Sign In'
+            )}
+          </Button>
         </form>
       </Form>
     </div>
