@@ -10,6 +10,11 @@ export const LoginRequestSchema = z.object({
 });
 export type LoginRequest = z.infer<typeof LoginRequestSchema>;
 
+export const ForgotPasswordRequestSchema = z.object({
+  email: z.string().trim().email(),
+});
+export type ForgotPasswordRequest = z.infer<typeof ForgotPasswordRequestSchema>;
+
 export const AuthenticatedUserSchema = z.object({
   id: z.string().uuid(),
   email: z.string().email(),
@@ -56,3 +61,9 @@ export const AuthMeResponseSchema = z.object({
   user: AuthenticatedUserSchema,
 });
 export type AuthMeResponse = z.infer<typeof AuthMeResponseSchema>;
+
+export const ForgotPasswordResponseSchema = z.object({
+  success: z.boolean(),
+  message: z.string().min(1),
+});
+export type ForgotPasswordResponse = z.infer<typeof ForgotPasswordResponseSchema>;

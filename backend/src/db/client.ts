@@ -52,3 +52,18 @@ export async function withDbTransaction<TResult>(
 export async function assertDatabaseConnection(): Promise<void> {
   await db.execute(sql`select 1`);
 }
+
+export async function assertRequiredDatabaseSchema(): Promise<void> {
+  const requiredSchemaChecks = [
+    sql`select 1 from "ClientProfiles" limit 1`,
+    sql`select "ProductType" from "ClientProfiles" limit 1`,
+    sql`select "OriginalFileName" from "DocumentLibrary" limit 1`,
+    sql`select 1 from "Policies" limit 1`,
+    sql`select 1 from "PolicyTransactions" limit 1`,
+    sql`select 1 from "Notifications" limit 1`,
+  ];
+
+  for (const check of requiredSchemaChecks) {
+    await db.execute(check);
+  }
+}

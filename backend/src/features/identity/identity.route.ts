@@ -1,6 +1,10 @@
 import type { FastifyPluginAsync } from 'fastify';
 
-import { LoginRequestSchema, ResetPasswordRequestSchema } from '@a1prime/schemas';
+import {
+  ForgotPasswordRequestSchema,
+  LoginRequestSchema,
+  ResetPasswordRequestSchema,
+} from '@a1prime/schemas';
 import { UnauthorizedError } from '@/lib/errors';
 import { requireRole } from '@/app/middleware/require-role';
 import { authService } from '@/features/identity/identity.service';
@@ -98,6 +102,17 @@ const authRoutes: FastifyPluginAsync = async (app) => {
   app.post('/auth/logout', async (_request, reply) => {
     reply.header('set-cookie', serializeRefreshTokenCookie('', 0));
     return reply.code(204).send();
+  });
+
+  app.post('/auth/forgot-password', async (request, reply) => {
+    const body = ForgotPasswordRequestSchema.parse(request.body);
+
+    await authService.forgotPassword(body.email);
+
+    return reply.code(200).send({
+      success: true,
+      message: 'If an account exists for that email, a reset link will be sent shortly.',
+    });
   });
 
   app.get(

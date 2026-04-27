@@ -28,7 +28,7 @@ import {
   UnauthorizedError,
 } from './lib/errors';
 import { getJwtSecret } from './shared/lib/auth';
-import { assertDatabaseConnection } from './db/client';
+import { assertDatabaseConnection, assertRequiredDatabaseSchema } from './db/client';
 import { validateRequiredConstraints } from './db/migrations/validation';
 import { getQueueHealthSummary } from './shared/lib/queue';
 import { initI18n } from './lib/i18n';
@@ -83,6 +83,8 @@ const buildApp = async () => {
     }
   });
   await assertRedisConnection();
+  await assertDatabaseConnection();
+  await assertRequiredDatabaseSchema();
 
   await app.register(rateLimit, {
     global: true,

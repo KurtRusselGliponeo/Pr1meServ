@@ -1,8 +1,18 @@
 import axios from 'axios';
-import { AuthMeResponseSchema, LoginResponseSchema } from '@a1prime/schemas';
+import {
+  AuthMeResponseSchema,
+  ForgotPasswordResponseSchema,
+  LoginResponseSchema,
+} from '@a1prime/schemas';
 
 import api from '@/services/api-client';
-import type { AuthResponse, LoginRequest, ResetPasswordRequest } from '../types/auth.types';
+import type {
+  AuthResponse,
+  ForgotPasswordRequest,
+  ForgotPasswordResponse,
+  LoginRequest,
+  ResetPasswordRequest,
+} from '../types/auth.types';
 
 export async function login(payload: LoginRequest): Promise<AuthResponse> {
   const response = await api.post('/auth/login', payload);
@@ -56,6 +66,13 @@ export async function refreshAccessToken(): Promise<string> {
 
 export async function logoutRequest(): Promise<void> {
   await api.post('/auth/logout');
+}
+
+export async function forgotPassword(
+  payload: ForgotPasswordRequest,
+): Promise<ForgotPasswordResponse> {
+  const response = await api.post('/auth/forgot-password', payload);
+  return ForgotPasswordResponseSchema.parse(response.data);
 }
 
 export async function resetPassword(payload: ResetPasswordRequest): Promise<AuthResponse['user']> {

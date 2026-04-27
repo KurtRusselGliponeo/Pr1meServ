@@ -36,6 +36,8 @@ const upStatements = [
   `ALTER TABLE "DocumentLibrary"    ENABLE ROW LEVEL SECURITY`,
 
   // ── ClientProfiles ────────────────────────────────────────────────────────
+  // Drop-before-create: Postgres < 17 has no CREATE POLICY IF NOT EXISTS.
+  `DROP POLICY IF EXISTS rls_client_profiles_select ON "ClientProfiles"`,
   `CREATE POLICY rls_client_profiles_select
    ON "ClientProfiles"
    FOR SELECT
@@ -45,6 +47,7 @@ const upStatements = [
      OR current_setting('app.current_agent_id', true) IS NULL
    )`,
 
+  `DROP POLICY IF EXISTS rls_client_profiles_insert ON "ClientProfiles"`,
   `CREATE POLICY rls_client_profiles_insert
    ON "ClientProfiles"
    FOR INSERT
@@ -52,6 +55,7 @@ const upStatements = [
      current_setting('app.current_role', true) IN ('branch_manager', 'admin')
    )`,
 
+  `DROP POLICY IF EXISTS rls_client_profiles_update ON "ClientProfiles"`,
   `CREATE POLICY rls_client_profiles_update
    ON "ClientProfiles"
    FOR UPDATE
@@ -60,6 +64,7 @@ const upStatements = [
      OR "AssignedAgentId"::text = current_setting('app.current_agent_id', true)
    )`,
 
+  `DROP POLICY IF EXISTS rls_client_profiles_delete ON "ClientProfiles"`,
   `CREATE POLICY rls_client_profiles_delete
    ON "ClientProfiles"
    FOR DELETE
@@ -68,6 +73,7 @@ const upStatements = [
    )`,
 
   // ── AgentProfiles ─────────────────────────────────────────────────────────
+  `DROP POLICY IF EXISTS rls_agent_profiles_select ON "AgentProfiles"`,
   `CREATE POLICY rls_agent_profiles_select
    ON "AgentProfiles"
    FOR SELECT
@@ -77,6 +83,7 @@ const upStatements = [
      OR current_setting('app.current_agent_id', true) IS NULL
    )`,
 
+  `DROP POLICY IF EXISTS rls_agent_profiles_update ON "AgentProfiles"`,
   `CREATE POLICY rls_agent_profiles_update
    ON "AgentProfiles"
    FOR UPDATE
@@ -86,6 +93,7 @@ const upStatements = [
    )`,
 
   // ── PerformanceMetrics ────────────────────────────────────────────────────
+  `DROP POLICY IF EXISTS rls_perf_metrics_select ON "PerformanceMetrics"`,
   `CREATE POLICY rls_perf_metrics_select
    ON "PerformanceMetrics"
    FOR SELECT
@@ -95,6 +103,7 @@ const upStatements = [
      OR current_setting('app.current_agent_id', true) IS NULL
    )`,
 
+  `DROP POLICY IF EXISTS rls_perf_metrics_write ON "PerformanceMetrics"`,
   `CREATE POLICY rls_perf_metrics_write
    ON "PerformanceMetrics"
    FOR ALL
@@ -103,7 +112,7 @@ const upStatements = [
    )`,
 
   // ── LapsationRecords ──────────────────────────────────────────────────────
-  // Agents can see lapsation records for their own clients (via sub-select).
+  `DROP POLICY IF EXISTS rls_lapsation_select ON "LapsationRecords"`,
   `CREATE POLICY rls_lapsation_select
    ON "LapsationRecords"
    FOR SELECT
@@ -117,6 +126,7 @@ const upStatements = [
      )
    )`,
 
+  `DROP POLICY IF EXISTS rls_lapsation_write ON "LapsationRecords"`,
   `CREATE POLICY rls_lapsation_write
    ON "LapsationRecords"
    FOR ALL
@@ -125,6 +135,7 @@ const upStatements = [
    )`,
 
   // ── CosafApprovals ────────────────────────────────────────────────────────
+  `DROP POLICY IF EXISTS rls_cosaf_select ON "CosafApprovals"`,
   `CREATE POLICY rls_cosaf_select
    ON "CosafApprovals"
    FOR SELECT
@@ -137,6 +148,7 @@ const upStatements = [
      OR current_setting('app.current_user_id', true) IS NULL
    )`,
 
+  `DROP POLICY IF EXISTS rls_cosaf_write ON "CosafApprovals"`,
   `CREATE POLICY rls_cosaf_write
    ON "CosafApprovals"
    FOR ALL
@@ -145,11 +157,13 @@ const upStatements = [
    )`,
 
   // ── DocumentLibrary — All authenticated users may read; BM/Admin may write ─
+  `DROP POLICY IF EXISTS rls_docs_select ON "DocumentLibrary"`,
   `CREATE POLICY rls_docs_select
    ON "DocumentLibrary"
    FOR SELECT
    USING (true)`,
 
+  `DROP POLICY IF EXISTS rls_docs_write ON "DocumentLibrary"`,
   `CREATE POLICY rls_docs_write
    ON "DocumentLibrary"
    FOR ALL

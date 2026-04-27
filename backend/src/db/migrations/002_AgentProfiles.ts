@@ -15,11 +15,14 @@ const upStatements = [
     CONSTRAINT "ux_agentprofiles_agentcode" UNIQUE ("AgentCode"),
     CONSTRAINT "fk_agentprofiles_userid" FOREIGN KEY ("UserId") REFERENCES "UserAccounts"("Id") ON DELETE RESTRICT
   )`,
-  'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_agentprofiles_userid ON "AgentProfiles"("UserId")',
+  // NOTE: Not using CONCURRENTLY here — this is a bootstrap migration that runs before
+  // the app serves traffic, so a plain index build (which holds a brief lock) is acceptable
+  // and avoids the transaction-boundary limitations that can cause Supabase statement timeouts.
+  'CREATE INDEX IF NOT EXISTS idx_agentprofiles_userid ON "AgentProfiles"("UserId")',
 ];
 
 const downStatements = [
-  'DROP INDEX CONCURRENTLY IF EXISTS idx_agentprofiles_userid',
+  'DROP INDEX IF EXISTS idx_agentprofiles_userid',
   'ALTER TABLE IF EXISTS "AgentProfiles" DROP CONSTRAINT IF EXISTS "fk_agentprofiles_userid"',
   'DROP TABLE IF EXISTS "AgentProfiles"',
 ];

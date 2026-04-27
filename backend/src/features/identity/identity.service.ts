@@ -4,6 +4,7 @@ import { createSigner } from 'fast-jwt';
 
 import type {
   AuthenticatedUser,
+  ForgotPasswordRequest,
   LoginResponse,
   RefreshTokenResponse,
   ResetPasswordRequest,
@@ -40,6 +41,7 @@ type AuthRecord = {
 const INVALID_CREDENTIALS_MESSAGE = 'Invalid email or password';
 const ACCESS_TOKEN_EXPIRES_IN_SECONDS = 15 * 60;
 const REFRESH_TOKEN_EXPIRES_IN_MS = 7 * 24 * 60 * 60 * 1000;
+const PASSWORD_RESET_TOKEN_EXPIRES_IN_MS = 60 * 60 * 1000;
 
 function safeDecryptEmail(payload: string, fallback = 'unknown@local'): string {
   try {
@@ -73,6 +75,17 @@ function createRefreshToken() {
     rawToken,
     hashedToken,
     expiresAt: new Date(Date.now() + REFRESH_TOKEN_EXPIRES_IN_MS),
+  };
+}
+
+function createPasswordResetToken() {
+  const rawToken = crypto.randomBytes(32).toString('base64url');
+  const hashedToken = crypto.createHash('sha256').update(rawToken, 'utf8').digest('hex');
+
+  return {
+    rawToken,
+    hashedToken,
+    expiresAt: new Date(Date.now() + PASSWORD_RESET_TOKEN_EXPIRES_IN_MS),
   };
 }
 
@@ -157,6 +170,61 @@ async function findAuthRecordByRefreshTokenHash(
 }
 
 export class AuthService {
+  async forgotPassword(email: ForgotPasswordRequest['email']): Promise<void> {
+    const normalizedEmail = normalizeEmail(email);
+    const [record] = await db
+      .select({
+        userId: userAccounts.id,
+        role: userAccounts.role,
+        firstName: userAccounts.firstName,
+        lastName: userAccounts.lastName,
+      })
+      .from(userAccounts)
+      .where(
+        and(
+          eq(userAccounts.emailHash, hashEmail(normalizedEmail)),
+          isNull(userAccounts.deletedAtUtc),
+        ),
+      )
+      .limit(1);
+
+    if (!record) {
+      return;
+    }
+
+    const resetToken = createPasswordResetToken();
+
+    await withDbTransaction('auth.forgot-password.issue-reset-token', async (tx) => {
+      await tx
+        .update(userAccounts)
+        .set({
+          passwordResetTokenHash: resetToken.hashedToken,
+          passwordResetTokenExpiresAtUtc: resetToken.expiresAt,
+          updatedAt: new Date(),
+        })
+        .where(eq(userAccounts.id, record.userId));
+
+      await logSystemAudit(
+        {
+          action: 'auth.forgot-password',
+          userId: record.userId,
+          entityName: 'UserAccount',
+          resourceId: record.userId,
+          newValue: {
+            firstName: record.firstName,
+            lastName: record.lastName,
+            role: record.role,
+            passwordResetTokenExpiresAtUtc: resetToken.expiresAt.toISOString(),
+          },
+        },
+        tx,
+      );
+
+      // The unhashed token will be passed to emailQueueService when email delivery is wired up.
+      void resetToken.rawToken;
+    });
+  }
+
   async getCurrentUser(userId: string): Promise<AuthenticatedUser> {
     const [record] = await db
       .select({
@@ -285,6 +353,8 @@ export class AuthService {
         .set({
           passwordHash: await hashPassword(input.password),
           needsPasswordReset: false,
+          passwordResetTokenHash: null,
+          passwordResetTokenExpiresAtUtc: null,
           refreshTokenHash: null,
           refreshTokenExpiresAtUtc: null,
           updatedAt,

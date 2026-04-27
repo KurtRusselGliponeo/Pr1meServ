@@ -8,6 +8,8 @@ export const userAccounts = pgTable('UserAccounts', {
   passwordHash: varchar('PasswordHash', { length: 255 }).notNull(),
   refreshTokenHash: varchar('RefreshTokenHash', { length: 64 }),
   refreshTokenExpiresAtUtc: timestamp('RefreshTokenExpiresAtUtc', { withTimezone: true }),
+  passwordResetTokenHash: varchar('PasswordResetTokenHash', { length: 64 }),
+  passwordResetTokenExpiresAtUtc: timestamp('PasswordResetTokenExpiresAtUtc', { withTimezone: true }),
   firstName: varchar('FirstName', { length: 100 }).notNull(),
   lastName: varchar('LastName', { length: 100 }).notNull(),
   role: varchar('SystemRole', { length: 32 }).$type<SystemRole>().notNull(),

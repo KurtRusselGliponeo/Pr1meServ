@@ -19,6 +19,7 @@ import { phaseOneStatusLockMigration } from './018_PhaseOneStatusLock';
 import { documentRepositoryPhaseNineMigration } from './018_DocumentRepositoryPhaseNine';
 import { phaseNineFivePerformanceIndexesMigration } from './019_PhaseNineFivePerformanceIndexes';
 import { phaseTenProspectingMigration } from './020_PhaseTenProspecting';
+import { forgotPasswordResetTokenMigration } from './021_ForgotPasswordResetToken';
 
 export const phaseOneMigrations = [
   userAccountsMigration,
@@ -58,4 +59,5 @@ export const applicationMigrations = [
   documentRepositoryPhaseNineMigration,
   phaseNineFivePerformanceIndexesMigration,
   phaseTenProspectingMigration,
+  forgotPasswordResetTokenMigration,
 ];

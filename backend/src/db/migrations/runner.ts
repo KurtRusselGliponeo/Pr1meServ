@@ -19,7 +19,12 @@ async function run() {
   const sql = postgres(connectionString, {
     max: 1,
     idle_timeout: 20,
-    connect_timeout: 10,
+    connect_timeout: 30,
+    // Disable statement timeout at the driver level for long-running DDL migrations.
+    // Supabase / Postgres may set a default statement_timeout; we override it per-session below.
+    connection: {
+      statement_timeout: 0,
+    },
   });
 
   try {
@@ -39,11 +44,19 @@ async function run() {
 
     for (const migration of selectedMigrations) {
       console.log(`${direction.toUpperCase()}: ${migration.id}`);
+
+      // Explicitly disable statement_timeout for this session so long-running DDL
+      // (e.g. CREATE INDEX CONCURRENTLY, RLS policy creation) is never cancelled
+      // by a server-level or Supabase-level timeout override.
+      await sql`SET statement_timeout = 0`;
+
+      const start = Date.now();
       if (direction === 'up') {
         await migration.up(sql);
       } else {
         await migration.down(sql);
       }
+      console.log(`  ✓ done in ${((Date.now() - start) / 1000).toFixed(2)}s`);
     }
   } finally {
     await sql.end();
