@@ -79,6 +79,22 @@ export async function createQueueConnection(): Promise<ConnectionOptions> {
 export function createQueue<TJobs extends QueueJobDefinitions>(
   definition: QueueDefinition,
 ): QueueHandle<TJobs> {
+  if (!isRedisEnabled) {
+    return {
+      queue: {} as Queue<unknown, unknown, string>,
+      async add<TName extends QueueJobName<TJobs>>(
+        jobName: TName,
+        _data: TJobs[TName],
+        _options?: JobsOptions,
+      ) {
+        logger.warn(
+          { queue: definition.name, jobName },
+          'Redis is disabled. Job was dropped and not queued.',
+        );
+      },
+    };
+  }
+
   const queue = new Queue<unknown, unknown, string>(definition.name, {
     connection: getQueueConnection(),
     defaultJobOptions: definition.defaultJobOptions,
