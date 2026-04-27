@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useSearchParams } from 'next/navigation';
 import { AlertTriangle, CheckCircle2, LoaderCircle, LockKeyhole } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -18,6 +19,7 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/features/identity/context/auth-context';
+import { completePasswordReset as completePasswordResetRequest } from '@/features/identity/services/auth.service';
 import { zodResolver } from '@/features/identity/lib/zod-resolver';
 
 const resetPasswordSchema = z
@@ -40,8 +42,11 @@ const resetPasswordSchema = z
 type ResetPasswordValues = z.infer<typeof resetPasswordSchema>;
 
 export default function ResetPasswordPage() {
+  const searchParams = useSearchParams();
   const { resetPassword } = useAuth();
   const [submitError, setSubmitError] = React.useState<string | null>(null);
+  const [submitSuccess, setSubmitSuccess] = React.useState<string | null>(null);
+  const resetToken = searchParams.get('token');
 
   const form = useForm<ResetPasswordValues>({
     resolver: zodResolver(resetPasswordSchema as never),
@@ -53,12 +58,23 @@ export default function ResetPasswordPage() {
 
   async function onSubmit(values: ResetPasswordValues) {
     setSubmitError(null);
+    setSubmitSuccess(null);
 
     try {
+      if (resetToken) {
+        const response = await completePasswordResetRequest({
+          token: resetToken,
+          password: values.password,
+          confirmPassword: values.confirmPassword,
+        });
+        setSubmitSuccess(response.message);
+        form.reset();
+        return;
+      }
+
       await resetPassword(values.password, values.confirmPassword);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Unable to reset your password right now.';
+      const message = error instanceof Error ? error.message : 'Unable to reset your password right now.';
       setSubmitError(message);
     }
   }
@@ -72,7 +88,9 @@ export default function ResetPasswordPage() {
           </div>
           <CardTitle>Reset your password</CardTitle>
           <CardDescription>
-            Your temporary password must be changed before you can continue to the dashboard.
+            {resetToken
+              ? 'Set a new password for your account using the reset link from your email.'
+              : 'Your temporary password must be changed before you can continue to the dashboard.'}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -116,6 +134,13 @@ export default function ResetPasswordPage() {
                 </div>
               ) : null}
 
+              {submitSuccess ? (
+                <div className="flex items-start gap-3 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-foreground">
+                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" />
+                  <span>{submitSuccess}</span>
+                </div>
+              ) : null}
+
               <div className="rounded-xl border border-border/70 bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
                 <div className="flex items-center gap-2 font-medium text-foreground">
                   <CheckCircle2 className="size-4 text-primary" />
@@ -138,7 +163,7 @@ export default function ResetPasswordPage() {
                     Updating password
                   </>
                 ) : (
-                  'Continue to dashboard'
+                  resetToken ? 'Reset password' : 'Continue to dashboard'
                 )}
               </Button>
             </form>

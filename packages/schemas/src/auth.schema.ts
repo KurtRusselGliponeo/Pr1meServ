@@ -28,23 +28,34 @@ export const AuthenticatedUserSchema = z.object({
 });
 export type AuthenticatedUser = z.infer<typeof AuthenticatedUserSchema>;
 
-export const ResetPasswordRequestSchema = z
-  .object({
-    password: z
-      .string()
-      .min(8, 'Password must be at least 8 characters.')
-      .max(128, 'Password is too long.')
-      .regex(/[a-z]/, 'Password must contain a lowercase letter.')
-      .regex(/[A-Z]/, 'Password must contain an uppercase letter.')
-      .regex(/[0-9]/, 'Password must contain a number.')
-      .regex(/[^A-Za-z0-9]/, 'Password must contain a special character.'),
-    confirmPassword: z.string().min(1, 'Please confirm your password.'),
-  })
+const resetPasswordFieldsSchema = z.object({
+  password: z
+    .string()
+    .min(8, 'Password must be at least 8 characters.')
+    .max(128, 'Password is too long.')
+    .regex(/[a-z]/, 'Password must contain a lowercase letter.')
+    .regex(/[A-Z]/, 'Password must contain an uppercase letter.')
+    .regex(/[0-9]/, 'Password must contain a number.')
+    .regex(/[^A-Za-z0-9]/, 'Password must contain a special character.'),
+  confirmPassword: z.string().min(1, 'Please confirm your password.'),
+});
+
+export const ResetPasswordRequestSchema = resetPasswordFieldsSchema
   .refine((data: { password: string; confirmPassword: string }) => data.password === data.confirmPassword, {
     path: ['confirmPassword'],
     message: 'Passwords do not match.',
   });
 export type ResetPasswordRequest = z.infer<typeof ResetPasswordRequestSchema>;
+
+export const ResetPasswordWithTokenRequestSchema = resetPasswordFieldsSchema
+  .extend({
+    token: z.string().trim().min(1, 'Reset token is required.'),
+  })
+  .refine((data: { password: string; confirmPassword: string }) => data.password === data.confirmPassword, {
+    path: ['confirmPassword'],
+    message: 'Passwords do not match.',
+  });
+export type ResetPasswordWithTokenRequest = z.infer<typeof ResetPasswordWithTokenRequestSchema>;
 
 export const LoginResponseSchema = z.object({
   accessToken: z.string().min(1),
@@ -67,3 +78,9 @@ export const ForgotPasswordResponseSchema = z.object({
   message: z.string().min(1),
 });
 export type ForgotPasswordResponse = z.infer<typeof ForgotPasswordResponseSchema>;
+
+export const ResetPasswordWithTokenResponseSchema = z.object({
+  success: z.boolean(),
+  message: z.string().min(1),
+});
+export type ResetPasswordWithTokenResponse = z.infer<typeof ResetPasswordWithTokenResponseSchema>;

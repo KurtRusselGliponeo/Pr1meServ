@@ -4,6 +4,7 @@ import {
   ForgotPasswordRequestSchema,
   LoginRequestSchema,
   ResetPasswordRequestSchema,
+  ResetPasswordWithTokenRequestSchema,
 } from '@a1prime/schemas';
 import { UnauthorizedError } from '@/lib/errors';
 import { requireRole } from '@/app/middleware/require-role';
@@ -112,6 +113,17 @@ const authRoutes: FastifyPluginAsync = async (app) => {
     return reply.code(200).send({
       success: true,
       message: 'If an account exists for that email, a reset link will be sent shortly.',
+    });
+  });
+
+  app.post('/auth/reset-password/complete', async (request, reply) => {
+    const body = ResetPasswordWithTokenRequestSchema.parse(request.body);
+
+    await authService.completePasswordReset(body.token, body);
+
+    return reply.code(200).send({
+      success: true,
+      message: 'Your password has been reset successfully.',
     });
   });
 

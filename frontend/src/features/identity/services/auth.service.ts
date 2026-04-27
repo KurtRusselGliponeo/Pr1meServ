@@ -3,6 +3,7 @@ import {
   AuthMeResponseSchema,
   ForgotPasswordResponseSchema,
   LoginResponseSchema,
+  ResetPasswordWithTokenResponseSchema,
 } from '@a1prime/schemas';
 
 import api from '@/services/api-client';
@@ -12,6 +13,8 @@ import type {
   ForgotPasswordResponse,
   LoginRequest,
   ResetPasswordRequest,
+  ResetPasswordWithTokenRequest,
+  ResetPasswordWithTokenResponse,
 } from '../types/auth.types';
 
 export async function login(payload: LoginRequest): Promise<AuthResponse> {
@@ -73,6 +76,13 @@ export async function forgotPassword(
 ): Promise<ForgotPasswordResponse> {
   const response = await api.post('/auth/forgot-password', payload);
   return ForgotPasswordResponseSchema.parse(response.data);
+}
+
+export async function completePasswordReset(
+  payload: ResetPasswordWithTokenRequest,
+): Promise<ResetPasswordWithTokenResponse> {
+  const response = await api.post('/auth/reset-password/complete', payload);
+  return ResetPasswordWithTokenResponseSchema.parse(response.data);
 }
 
 export async function resetPassword(payload: ResetPasswordRequest): Promise<AuthResponse['user']> {

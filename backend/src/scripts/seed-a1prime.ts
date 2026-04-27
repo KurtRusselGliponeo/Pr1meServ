@@ -38,6 +38,10 @@ function makeEmail(firstName: string, lastName: string): string {
   return `pluk${f}.${l}@gmail.com`;
 }
 
+function getAgentEmail(agent: { firstName: string; lastName: string; email?: string }): string {
+  return agent.email ?? makeEmail(agent.firstName, agent.lastName);
+}
+
 function daysAgo(n: number): Date {
   const d = new Date();
   d.setDate(d.getDate() - n);
@@ -70,6 +74,7 @@ const AGENTS = [
   { firstName: 'Carlo',    lastName: 'Mendoza',     agentCode: '70005003', policyBase: 20000200 },
   { firstName: 'Liza',     lastName: 'Garcia',      agentCode: '70005004', policyBase: 20000300 },
   { firstName: 'Ramon',    lastName: 'Villanueva',  agentCode: '70005005', policyBase: 20000400 },
+  { firstName: 'Kurt',     lastName: 'Gliponeo',    email: 'plukkurt.gliponeo@gmail.com', agentCode: '70005006', policyBase: 20000500 },
 ];
 
 // Product types used across clients
@@ -119,7 +124,7 @@ async function seed() {
   const agentProfileIds: Record<string, string> = {}; // agentCode → agentProfile.id
 
   for (const ag of AGENTS) {
-    const email  = normalizeEmail(makeEmail(ag.firstName, ag.lastName));
+    const email  = normalizeEmail(getAgentEmail(ag));
     const ehash  = hashEmail(email);
     const dName  = `${ag.firstName} ${ag.lastName}`;
     let userId: string;
@@ -466,7 +471,7 @@ async function seed() {
   console.log('\n  Seeding notifications...');
   const agUserIds: string[] = [];
   for (const ag of AGENTS) {
-    const email = normalizeEmail(makeEmail(ag.firstName, ag.lastName));
+    const email = normalizeEmail(getAgentEmail(ag));
     const [row] = await db.select({ id: userAccounts.id }).from(userAccounts)
       .where(eq(userAccounts.emailHash, hashEmail(email))).limit(1);
     if (row) agUserIds.push(row.id);
@@ -542,7 +547,7 @@ async function seed() {
   console.log('─────────────────────────────────────────────────────');
   console.log(`  Branch Manager : ${BM.email}`);
   for (const ag of AGENTS) {
-    const email = makeEmail(ag.firstName, ag.lastName);
+    const email = getAgentEmail(ag);
     console.log(`  Agent ${ag.agentCode}   : ${email}`);
   }
   console.log(`  Password (all) : ${DEFAULT_PASSWORD}`);

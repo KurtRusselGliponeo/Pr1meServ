@@ -8,10 +8,12 @@ import type {
   LoginResponse,
   RefreshTokenResponse,
   ResetPasswordRequest,
+  ResetPasswordWithTokenRequest,
   UserRole,
 } from '@a1prime/schemas';
 import { db, withDbTransaction } from '@/db/client';
 import { UnauthorizedError } from '@/lib/errors';
+import { emailQueueService } from '@/features/notifications/email-queue.service';
 import { agentProfiles, userAccounts } from '@/schema';
 import { getJwtSecret, hashPassword, verifyPassword } from '@/shared/lib/auth';
 import { logSystemAudit } from '@/shared/lib/audit';
@@ -169,12 +171,50 @@ async function findAuthRecordByRefreshTokenHash(
   return record ?? null;
 }
 
+async function findAuthRecordByPasswordResetTokenHash(
+  passwordResetTokenHashValue: string,
+): Promise<AuthRecord | null> {
+  const [record] = await db
+    .select({
+      userId: userAccounts.id,
+      emailHash: userAccounts.emailHash,
+      encryptedEmail: userAccounts.encryptedEmail,
+      passwordHash: userAccounts.passwordHash,
+      firstName: userAccounts.firstName,
+      lastName: userAccounts.lastName,
+      role: userAccounts.role,
+      refreshTokenHash: userAccounts.refreshTokenHash,
+      refreshTokenExpiresAtUtc: userAccounts.refreshTokenExpiresAtUtc,
+      agentId: agentProfiles.id,
+      agentCode: agentProfiles.agentCode,
+      needsPasswordReset: userAccounts.needsPasswordReset,
+      createdAtUtc: userAccounts.createdAt,
+      updatedAtUtc: userAccounts.updatedAt,
+    })
+    .from(userAccounts)
+    .leftJoin(
+      agentProfiles,
+      and(eq(agentProfiles.userId, userAccounts.id), isNull(agentProfiles.deletedAtUtc)),
+    )
+    .where(
+      and(
+        eq(userAccounts.passwordResetTokenHash, passwordResetTokenHashValue),
+        gt(userAccounts.passwordResetTokenExpiresAtUtc, new Date()),
+        isNull(userAccounts.deletedAtUtc),
+      ),
+    )
+    .limit(1);
+
+  return record ?? null;
+}
+
 export class AuthService {
   async forgotPassword(email: ForgotPasswordRequest['email']): Promise<void> {
     const normalizedEmail = normalizeEmail(email);
     const [record] = await db
       .select({
         userId: userAccounts.id,
+        encryptedEmail: userAccounts.encryptedEmail,
         role: userAccounts.role,
         firstName: userAccounts.firstName,
         lastName: userAccounts.lastName,
@@ -193,8 +233,10 @@ export class AuthService {
     }
 
     const resetToken = createPasswordResetToken();
+    const frontendBaseUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+    const resetUrl = `${frontendBaseUrl.replace(/\/$/, '')}/auth/reset-password?token=${encodeURIComponent(resetToken.rawToken)}`;
 
-    await withDbTransaction('auth.forgot-password.issue-reset-token', async (tx) => {
+    const emailPayload = await withDbTransaction('auth.forgot-password.issue-reset-token', async (tx) => {
       await tx
         .update(userAccounts)
         .set({
@@ -220,8 +262,63 @@ export class AuthService {
         tx,
       );
 
-      // The unhashed token will be passed to emailQueueService when email delivery is wired up.
-      void resetToken.rawToken;
+      return {
+        to: safeDecryptEmail(record.encryptedEmail, normalizedEmail),
+        subject: 'Reset your A1 Prime password',
+        text: `Hello ${record.firstName},\n\nWe received a request to reset your password. Use the link below to set a new password:\n\n${resetUrl}\n\nThis link expires in 1 hour. If you did not request this, you can ignore this email.`,
+        html: `<p>Hello ${record.firstName},</p><p>We received a request to reset your password.</p><p><a href="${resetUrl}">Reset your password</a></p><p>This link expires in 1 hour. If you did not request this, you can ignore this email.</p>`,
+        metadata: {
+          templateType: 'FORGOT_PASSWORD',
+          userId: record.userId,
+        },
+      };
+    });
+
+    await emailQueueService.enqueueEmail(emailPayload);
+  }
+
+  async completePasswordReset(
+    rawToken: string,
+    input: ResetPasswordWithTokenRequest,
+  ): Promise<void> {
+    const passwordResetTokenHashValue = crypto
+      .createHash('sha256')
+      .update(rawToken, 'utf8')
+      .digest('hex');
+    const record = await findAuthRecordByPasswordResetTokenHash(passwordResetTokenHashValue);
+
+    if (!record) {
+      throw new UnauthorizedError('Reset link is invalid or has expired.');
+    }
+
+    await withDbTransaction('auth.complete-password-reset', async (tx) => {
+      await tx
+        .update(userAccounts)
+        .set({
+          passwordHash: await hashPassword(input.password),
+          needsPasswordReset: false,
+          passwordResetTokenHash: null,
+          passwordResetTokenExpiresAtUtc: null,
+          refreshTokenHash: null,
+          refreshTokenExpiresAtUtc: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(userAccounts.id, record.userId));
+
+      await logSystemAudit(
+        {
+          action: 'auth.password-reset.completed',
+          userId: record.userId,
+          entityName: 'UserAccount',
+          resourceId: record.userId,
+          newValue: {
+            role: record.role,
+            completedVia: 'reset-link',
+            needsPasswordReset: false,
+          },
+        },
+        tx,
+      );
     });
   }
 

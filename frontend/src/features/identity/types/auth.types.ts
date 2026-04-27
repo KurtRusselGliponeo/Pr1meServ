@@ -39,3 +39,14 @@ export interface ForgotPasswordResponse {
   success: boolean;
   message: string;
 }
+
+export interface ResetPasswordWithTokenRequest {
+  token: string;
+  password: string;
+  confirmPassword: string;
+}
+
+export interface ResetPasswordWithTokenResponse {
+  success: boolean;
+  message: string;
+}
