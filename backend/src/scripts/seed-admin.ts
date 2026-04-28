@@ -37,6 +37,7 @@ async function seedAdmin() {
         firstName,
         lastName,
         role,
+        needsPasswordReset: false,
         deletedAtUtc: null,
         updatedAt: new Date(),
       })
@@ -54,6 +55,7 @@ async function seedAdmin() {
     firstName,
     lastName,
     role,
+    needsPasswordReset: false,
     updatedAt: new Date(),
   });
 
