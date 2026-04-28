@@ -12,6 +12,15 @@ import { sendQueuedEmail } from '@/shared/mail/mailer';
  * Encapsulates queue-safe email notification operations.
  */
 export class EmailQueueService {
+  private canAttemptInlineEmail() {
+    return Boolean(
+      process.env.SMTP_USER?.trim() &&
+        process.env.GMAIL_CLIENT_ID?.trim() &&
+        process.env.GMAIL_CLIENT_SECRET?.trim() &&
+        process.env.GMAIL_REFRESH_TOKEN?.trim(),
+    );
+  }
+
   /**
    * Enqueues an outbound email for asynchronous background delivery.
    *
@@ -24,8 +33,31 @@ export class EmailQueueService {
     if (isRedisEnabled) {
       const notificationQueue = createNotificationQueue();
       await notificationQueue.add('send-email', parsedPayload);
-    } else {
+    } else if (this.canAttemptInlineEmail()) {
       await sendQueuedEmail(parsedPayload);
+    } else {
+      await logSystemAudit({
+        action: 'email.skipped.inline',
+        entityName: 'NotificationEmail',
+        newValue: {
+          to: parsedPayload.to,
+          subject: parsedPayload.subject,
+          reason: 'Missing local mail configuration.',
+        },
+      });
+
+      await db.insert(notifications).values({
+        channel: 'email',
+        subject: parsedPayload.subject,
+        message: parsedPayload.html ?? parsedPayload.text ?? '',
+        status: 'skipped',
+        metadata: JSON.stringify({
+          to: parsedPayload.to,
+          reason: 'Missing local mail configuration.',
+        }),
+      });
+
+      return;
     }
 
     await logSystemAudit({

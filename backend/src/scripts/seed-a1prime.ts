@@ -176,7 +176,7 @@ async function seed() {
   // 3. Client Profiles (8 per agent = 40 total) ──────────────────────────────
   console.log('\n  Seeding client profiles...');
   const clientStatuses: Array<'Uncontacted' | 'Contacted' | 'Forms Submitted' | 'BM Signed' | 'Done' | 'Returned' | 'Orphan'> =
-    ['Uncontacted', 'Contacted', 'Forms Submitted', 'BM Signed', 'Done', 'Contacted', 'Returned', 'Uncontacted'];
+    ['Forms Submitted', 'Forms Submitted', 'Forms Submitted', 'BM Signed', 'Done', 'Contacted', 'Returned', 'Uncontacted'];
   const policyStatuses: Array<'Active' | 'Lapsed' | 'Cancelled' | 'Matured'> =
     ['Active', 'Active', 'Active', 'Active', 'Active', 'Lapsed', 'Active', 'Active'];
 

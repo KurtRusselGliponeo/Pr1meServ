@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm';
 import Decimal from 'decimal.js';
-import { fileTypeFromBuffer } from 'file-type';
+
 import type { MultipartFile } from '@fastify/multipart';
 
 import type {
@@ -693,6 +693,7 @@ export class AgentsService {
     }
 
     const buffer = await upload.toBuffer();
+    const { fileTypeFromBuffer } = await import('file-type');
     const detectedType = await fileTypeFromBuffer(buffer);
     const mimeType = detectedType?.mime ?? upload.mimetype;
 

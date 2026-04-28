@@ -1,5 +1,5 @@
 import { and, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
-import { fileTypeFromBuffer } from 'file-type';
+
 import { nanoid } from 'nanoid';
 import type { MultipartFile } from '@fastify/multipart';
 
@@ -500,6 +500,7 @@ export class ClientProfilesService {
     }
 
     const fileBuffer = Buffer.concat(chunks);
+    const { fileTypeFromBuffer } = await import('file-type');
     const detectedFileType = await fileTypeFromBuffer(fileBuffer);
 
     if (

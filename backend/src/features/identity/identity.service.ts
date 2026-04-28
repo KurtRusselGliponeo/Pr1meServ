@@ -15,7 +15,7 @@ import { db, withDbTransaction } from '@/db/client';
 import { UnauthorizedError } from '@/lib/errors';
 import { emailQueueService } from '@/features/notifications/email-queue.service';
 import { agentProfiles, userAccounts } from '@/schema';
-import { getJwtSecret, hashPassword, verifyPassword } from '@/shared/lib/auth';
+import { getAccessTokenExpiresIn, getJwtSecret, hashPassword, verifyPassword } from '@/shared/lib/auth';
 import { logSystemAudit } from '@/shared/lib/audit';
 import { decryptEmail, hashEmail, normalizeEmail } from '@/shared/lib/encryption';
 
@@ -41,7 +41,6 @@ type AuthRecord = {
 };
 
 const INVALID_CREDENTIALS_MESSAGE = 'Invalid email or password';
-const ACCESS_TOKEN_EXPIRES_IN_SECONDS = 15 * 60;
 const REFRESH_TOKEN_EXPIRES_IN_MS = 7 * 24 * 60 * 60 * 1000;
 const PASSWORD_RESET_TOKEN_EXPIRES_IN_MS = 60 * 60 * 1000;
 
@@ -56,7 +55,7 @@ function safeDecryptEmail(payload: string, fallback = 'unknown@local'): string {
 function buildAccessToken(user: LoginUser, agentId: string | null): string {
   const signAccessToken = createSigner({
     key: getJwtSecret(),
-    expiresIn: ACCESS_TOKEN_EXPIRES_IN_SECONDS,
+    expiresIn: getAccessTokenExpiresIn(),
   });
 
   return signAccessToken({

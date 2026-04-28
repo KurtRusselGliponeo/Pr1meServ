@@ -1,3 +1,5 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import { nanoid } from 'nanoid';
 
 import { gdriveService } from '@/lib/gdrive';
@@ -44,6 +46,22 @@ function getConfiguredProvider(): StorageProvider {
   return 'GoogleDrive';
 }
 
+function hasGoogleDriveConfig() {
+  return Boolean(
+    process.env.GOOGLE_CLIENT_EMAIL?.trim() &&
+      process.env.GOOGLE_PRIVATE_KEY?.trim() &&
+      process.env.GDRIVE_FOLDER_ID?.trim(),
+  );
+}
+
+async function writeLocalFallback(storagePath: string, buffer: Buffer) {
+  const root = path.resolve(process.cwd(), '.local-storage');
+  const absolutePath = path.join(root, ...storagePath.split('/'));
+  await fs.mkdir(path.dirname(absolutePath), { recursive: true });
+  await fs.writeFile(absolutePath, buffer);
+  return absolutePath;
+}
+
 function buildStoragePath(input: UploadStoredDocumentInput) {
   const scope = input.branchCode ?? 'GLOBAL';
   return `${scope}/${input.category}/${input.versionGroup}/${nanoid()}-${input.fileName}`;
@@ -65,6 +83,17 @@ export class DocumentStorageService {
         provider,
         fileUrl: storagePath,
         storageKey: storagePath,
+        webViewLink: null,
+      };
+    }
+
+    if (!hasGoogleDriveConfig()) {
+      const absolutePath = await writeLocalFallback(storagePath, input.buffer);
+
+      return {
+        provider: 'GoogleDrive',
+        fileUrl: absolutePath,
+        storageKey: absolutePath,
         webViewLink: null,
       };
     }
