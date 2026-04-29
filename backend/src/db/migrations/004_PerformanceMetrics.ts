@@ -15,6 +15,12 @@ const upStatements = [
     "UpdatedAtUtc" timestamptz DEFAULT NOW() NOT NULL,
     CONSTRAINT "fk_perfmetrics_agentid" FOREIGN KEY ("AgentId") REFERENCES "AgentProfiles"("Id") ON DELETE RESTRICT
   )`,
+  // Local fresh-install compatibility:
+  // align the table with the current schema expected by the rich seed and app code.
+  `ALTER TABLE "PerformanceMetrics"
+   ADD COLUMN IF NOT EXISTS "RecruitmentCount" integer DEFAULT 0 NOT NULL`,
+  `ALTER TABLE "PerformanceMetrics"
+   ADD COLUMN IF NOT EXISTS "YtdSurplus" decimal(19,4) DEFAULT 0.0000 NOT NULL`,
   'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_perfmetrics_agentid ON "PerformanceMetrics"("AgentId")',
   'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_perfmetrics_agent_month ON "PerformanceMetrics"("AgentId", "RecordMonth")',
 ];
@@ -22,6 +28,8 @@ const upStatements = [
 const downStatements = [
   'DROP INDEX CONCURRENTLY IF EXISTS idx_perfmetrics_agent_month',
   'DROP INDEX CONCURRENTLY IF EXISTS idx_perfmetrics_agentid',
+  'ALTER TABLE IF EXISTS "PerformanceMetrics" DROP COLUMN IF EXISTS "YtdSurplus"',
+  'ALTER TABLE IF EXISTS "PerformanceMetrics" DROP COLUMN IF EXISTS "RecruitmentCount"',
   'ALTER TABLE IF EXISTS "PerformanceMetrics" DROP CONSTRAINT IF EXISTS "fk_perfmetrics_agentid"',
   'DROP TABLE IF EXISTS "PerformanceMetrics"',
 ];

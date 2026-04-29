@@ -40,6 +40,16 @@ const INVALID_CREDENTIALS_MESSAGE = 'Invalid email or password';
 const ACCESS_TOKEN_EXPIRES_IN_SECONDS = 15 * 60;
 const REFRESH_TOKEN_EXPIRES_IN_MS = 7 * 24 * 60 * 60 * 1000;
 
+function roleNeedsLinkedProfile(role: UserRole): boolean {
+  return role === 'Agent' || role === 'BranchManager';
+}
+
+function buildFallbackAgentCode(role: UserRole, userId: string): string {
+  const compactId = userId.replace(/-/g, '').slice(0, 8).toUpperCase();
+  const prefix = role === 'BranchManager' ? 'BM' : 'AG';
+  return `${prefix}-${compactId}`;
+}
+
 function safeDecryptEmail(payload: string, fallback = 'unknown@local'): string {
   try {
     return decryptEmail(payload);
@@ -155,9 +165,82 @@ async function findAuthRecordByRefreshTokenHash(
   return record ?? null;
 }
 
-/**
- * Provides authentication use cases for Phase 3 auth endpoints.
- */
+async function resolveFallbackBranchCode(): Promise<string> {
+  const [existingBranch] = await db
+    .select({ branchCode: agentProfiles.branchCode })
+    .from(agentProfiles)
+    .where(isNull(agentProfiles.deletedAtUtc))
+    .limit(1);
+
+  return existingBranch?.branchCode?.trim() || 'BR-01';
+}
+
+async function ensureLinkedProfile(record: AuthRecord): Promise<AuthRecord> {
+  if (!roleNeedsLinkedProfile(record.role) || record.agentId) {
+    return record;
+  }
+
+  const fallbackBranchCode = await resolveFallbackBranchCode();
+  const fallbackAgentCode = buildFallbackAgentCode(record.role, record.userId);
+  const displayName = `${record.firstName} ${record.lastName}`.trim();
+  const updatedAt = new Date();
+
+  const [linkedProfile] = await withDbTransaction('auth.ensure-linked-profile', async (tx) => {
+    const [existingProfile] = await tx
+      .select({
+        id: agentProfiles.id,
+        agentCode: agentProfiles.agentCode,
+        branchCode: agentProfiles.branchCode,
+      })
+      .from(agentProfiles)
+      .where(eq(agentProfiles.userId, record.userId))
+      .limit(1);
+
+    if (existingProfile) {
+      const [restoredProfile] = await tx
+        .update(agentProfiles)
+        .set({
+          agentCode: existingProfile.agentCode?.trim() || fallbackAgentCode,
+          branchCode: existingProfile.branchCode?.trim() || fallbackBranchCode,
+          displayName,
+          deletedAtUtc: null,
+          updatedAt,
+        })
+        .where(eq(agentProfiles.id, existingProfile.id))
+        .returning({
+          id: agentProfiles.id,
+          agentCode: agentProfiles.agentCode,
+          branchCode: agentProfiles.branchCode,
+        });
+
+      return [restoredProfile];
+    }
+
+    const [createdProfile] = await tx
+      .insert(agentProfiles)
+      .values({
+        userId: record.userId,
+        agentCode: fallbackAgentCode,
+        branchCode: fallbackBranchCode,
+        displayName,
+        updatedAt,
+      })
+      .returning({
+        id: agentProfiles.id,
+        agentCode: agentProfiles.agentCode,
+        branchCode: agentProfiles.branchCode,
+      });
+
+    return [createdProfile];
+  });
+
+  return {
+    ...record,
+    agentId: linkedProfile?.id ?? null,
+    agentCode: linkedProfile?.agentCode ?? record.agentCode,
+  };
+}
+
 export class AuthService {
   /**
    * Returns the current authenticated user profile for `/auth/me`.
@@ -209,17 +292,19 @@ export class AuthService {
    */
   async login(email: string, password: string): Promise<LoginResult> {
     const normalizedEmail = normalizeEmail(email);
-    const record = await findAuthRecordByEmailHash(hashEmail(normalizedEmail));
+    const authRecord = await findAuthRecordByEmailHash(hashEmail(normalizedEmail));
 
-    if (!record) {
+    if (!authRecord) {
       throw new UnauthorizedError(INVALID_CREDENTIALS_MESSAGE);
     }
 
-    const isPasswordMatch = await verifyPassword(password, record.passwordHash);
+    const isPasswordMatch = await verifyPassword(password, authRecord.passwordHash);
 
     if (!isPasswordMatch) {
       throw new UnauthorizedError(INVALID_CREDENTIALS_MESSAGE);
     }
+
+    const record = await ensureLinkedProfile(authRecord);
 
     const user = {
       ...mapLoginUser(record),
@@ -258,11 +343,13 @@ export class AuthService {
       .createHash('sha256')
       .update(rawRefreshToken, 'utf8')
       .digest('hex');
-    const record = await findAuthRecordByRefreshTokenHash(refreshTokenHashValue);
+    const authRecord = await findAuthRecordByRefreshTokenHash(refreshTokenHashValue);
 
-    if (!record) {
+    if (!authRecord) {
       throw new UnauthorizedError('Unauthorized');
     }
+
+    const record = await ensureLinkedProfile(authRecord);
 
     const user = mapLoginUser(record);
     const accessToken = buildAccessToken(user, record.agentId);

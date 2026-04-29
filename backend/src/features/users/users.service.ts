@@ -41,12 +41,29 @@ function mapManagedUser(row: UserRow): ManagedUser {
   };
 }
 
-function buildAgentCode() {
-  return `AG-${randomUUID().replace(/-/g, '').slice(0, 8).toUpperCase()}`;
+function roleNeedsLinkedProfile(role: ManagedUser['role']): boolean {
+  return role === 'Agent' || role === 'BranchManager';
+}
+
+function buildLinkedProfileCode(role: ManagedUser['role'], userId: string) {
+  const compactId = userId.replace(/-/g, '').slice(0, 8).toUpperCase();
+  const prefix = role === 'BranchManager' ? 'BM' : 'AG';
+  return `${prefix}-${compactId}`;
+}
+
+function resolveRequestedBranchCode(input: CreateUser | UpdateUser): string | null {
+  const branchCode = (input as CreateUser & UpdateUser & { branchCode?: string }).branchCode;
+  return branchCode?.trim() || null;
 }
 
 function buildTemporaryPassword() {
   return randomUUID().replace(/-/g, '').slice(0, 12);
+}
+
+function assertPrulifeEmail(email: string) {
+  if (!email.toLowerCase().endsWith('@prulifeuk.com.ph')) {
+    throw new BusinessRuleError('Agent accounts must use a PRU Life UK email address.');
+  }
 }
 
 /**
@@ -118,6 +135,13 @@ export class UsersService {
   async createUser(input: CreateUser, actorUserId: string): Promise<ManagedUser> {
     const normalizedEmail = normalizeEmail(input.email);
     const emailHashValue = hashEmail(normalizedEmail);
+    const isAgent = input.role === 'Agent';
+    const needsLinkedProfile = roleNeedsLinkedProfile(input.role);
+    const requestedBranchCode = resolveRequestedBranchCode(input);
+
+    if (isAgent) {
+      assertPrulifeEmail(normalizedEmail);
+    }
 
     const [existingUser] = await db
       .select({ id: userAccounts.id })
@@ -153,10 +177,11 @@ export class UsersService {
           deletedAtUtc: userAccounts.deletedAtUtc,
         });
 
-      if (input.role === 'Agent') {
+      if (needsLinkedProfile) {
         await tx.insert(agentProfiles).values({
           userId: createdUser.id,
-          agentCode: buildAgentCode(),
+          agentCode: input.role === 'Agent' ? input.agentCode! : buildLinkedProfileCode(input.role, createdUser.id),
+          branchCode: requestedBranchCode ?? 'BR-01',
           displayName: `${createdUser.firstName} ${createdUser.lastName}`.trim(),
           updatedAt: new Date(),
         });
@@ -171,6 +196,16 @@ export class UsersService {
           newValue: {
             role: createdUser.role,
             email: decryptEmail(createdUser.encryptedEmail),
+            onboarding: needsLinkedProfile
+              ? {
+                  agentCode:
+                    input.role === 'Agent' ? input.agentCode : buildLinkedProfileCode(input.role, createdUser.id),
+                  branchCode: requestedBranchCode ?? 'BR-01',
+                  temporaryPasswordSource: input.role === 'Agent' ? 'agentCode' : 'manual',
+                }
+              : {
+                  temporaryPasswordSource: 'manual',
+                },
           },
         },
         tx,
@@ -230,11 +265,14 @@ export class UsersService {
           deletedAtUtc: userAccounts.deletedAtUtc,
         });
 
-      const needsAgentProfile = input.role === 'Agent';
+      const needsAgentProfile = roleNeedsLinkedProfile(input.role);
       const nextDisplayName = `${updatedUser.firstName} ${updatedUser.lastName}`.trim();
+      const requestedBranchCode = resolveRequestedBranchCode(input);
       const [existingAgentProfile] = await tx
         .select({
           id: agentProfiles.id,
+          agentCode: agentProfiles.agentCode,
+          branchCode: agentProfiles.branchCode,
           deletedAtUtc: agentProfiles.deletedAtUtc,
         })
         .from(agentProfiles)
@@ -263,7 +301,8 @@ export class UsersService {
       if (needsAgentProfile && !existingAgentProfile) {
         await tx.insert(agentProfiles).values({
           userId,
-          agentCode: buildAgentCode(),
+          agentCode: buildLinkedProfileCode(input.role, userId),
+          branchCode: requestedBranchCode ?? 'BR-01',
           displayName: nextDisplayName,
           updatedAt: updatedAtUtc,
         });
@@ -271,6 +310,8 @@ export class UsersService {
         await tx
           .update(agentProfiles)
           .set({
+            agentCode: existingAgentProfile.agentCode || buildLinkedProfileCode(input.role, userId),
+            branchCode: requestedBranchCode ?? existingAgentProfile.branchCode ?? 'BR-01',
             displayName: nextDisplayName,
             deletedAtUtc: null,
             updatedAt: updatedAtUtc,

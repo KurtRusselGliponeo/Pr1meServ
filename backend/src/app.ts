@@ -51,12 +51,20 @@ const buildApp = async () => {
     loggerInstance: logger,
   });
 
+  const allowedCorsOrigins = [
+    process.env.FRONTEND_URL || 'http://localhost:3000',
+    'http://localhost:3001',
+    'http://127.0.0.1:3001',
+    'http://localhost:3005',
+    'http://127.0.0.1:3005',
+  ];
+
   await initI18n();
 
   await app.register(sentryPlugin);
 
   await app.register(cors, {
-    origin: [process.env.FRONTEND_URL || 'http://localhost:3000', 'http://127.0.0.1:3005', 'http://localhost:3005'],
+    origin: allowedCorsOrigins,
     credentials: true,
   });
 

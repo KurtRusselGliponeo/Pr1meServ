@@ -15,11 +15,24 @@ const upStatements = [
     CONSTRAINT "ux_agentprofiles_agentcode" UNIQUE ("AgentCode"),
     CONSTRAINT "fk_agentprofiles_userid" FOREIGN KEY ("UserId") REFERENCES "UserAccounts"("Id") ON DELETE RESTRICT
   )`,
-  'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_agentprofiles_userid ON "AgentProfiles"("UserId")',
+  // NOTE: Not using CONCURRENTLY here — this is a bootstrap migration that runs before
+  // the app serves traffic, so a plain index build (which holds a brief lock) is acceptable
+  // and avoids the transaction-boundary limitations that can cause Supabase statement timeouts.
+  // Local fresh-install compatibility:
+  // align the bootstrap table with the current schema expected by later migrations and seeds.
+  `ALTER TABLE "AgentProfiles"
+   ADD COLUMN IF NOT EXISTS "BranchCode" varchar(50) NOT NULL DEFAULT 'UNASSIGNED'`,
+  `ALTER TABLE "AgentProfiles"
+   ADD COLUMN IF NOT EXISTS "ProfileImageKey" varchar(255)`,
+  'CREATE INDEX IF NOT EXISTS idx_agentprofiles_userid ON "AgentProfiles"("UserId")',
+  'CREATE INDEX IF NOT EXISTS idx_agentprofiles_branchcode ON "AgentProfiles"("BranchCode")',
 ];
 
 const downStatements = [
-  'DROP INDEX CONCURRENTLY IF EXISTS idx_agentprofiles_userid',
+  'DROP INDEX IF EXISTS idx_agentprofiles_branchcode',
+  'DROP INDEX IF EXISTS idx_agentprofiles_userid',
+  'ALTER TABLE IF EXISTS "AgentProfiles" DROP COLUMN IF EXISTS "ProfileImageKey"',
+  'ALTER TABLE IF EXISTS "AgentProfiles" DROP COLUMN IF EXISTS "BranchCode"',
   'ALTER TABLE IF EXISTS "AgentProfiles" DROP CONSTRAINT IF EXISTS "fk_agentprofiles_userid"',
   'DROP TABLE IF EXISTS "AgentProfiles"',
 ];

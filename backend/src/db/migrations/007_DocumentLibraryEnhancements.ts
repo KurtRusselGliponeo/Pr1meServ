@@ -3,6 +3,18 @@ import type { Sql } from 'postgres';
 import type { MigrationDefinition } from './types';
 
 const upStatements = [
+  // Local fresh-install compatibility:
+  // older environments already had DocumentLibrary, but a clean local database does not.
+  `CREATE TABLE IF NOT EXISTS "DocumentLibrary" (
+     "Id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+     "UploadedByUserId" uuid NOT NULL REFERENCES "UserAccounts"("Id"),
+     "FileUrl" text NOT NULL,
+     "Category" varchar(50) NOT NULL,
+     "MimeType" varchar(50) NOT NULL,
+     "Version" varchar(16) DEFAULT '1.0' NOT NULL,
+     "CreatedAtUtc" timestamptz DEFAULT now() NOT NULL
+   )`,
+  'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_doclibrary_userid ON "DocumentLibrary"("UploadedByUserId")',
   `ALTER TABLE "DocumentLibrary"
    ADD COLUMN IF NOT EXISTS "FileName" varchar(255)`,
   `UPDATE "DocumentLibrary"
@@ -20,6 +32,7 @@ const upStatements = [
 
 const downStatements = [
   'DROP INDEX CONCURRENTLY IF EXISTS idx_doclibrary_pinned',
+  'DROP INDEX CONCURRENTLY IF EXISTS idx_doclibrary_userid',
   'ALTER TABLE "DocumentLibrary" DROP COLUMN IF EXISTS "IsPinned"',
   'ALTER TABLE "DocumentLibrary" DROP COLUMN IF EXISTS "FileName"',
 ];

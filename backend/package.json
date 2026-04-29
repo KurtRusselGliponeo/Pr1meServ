@@ -8,6 +8,8 @@
     "dev": "tsx watch --env-file=../.env src/app.ts",
     "dev:worker": "tsx watch --env-file=../.env src/jobs/worker.ts",
     "analyze:queries": "tsx --env-file=../.env src/scripts/explain-analyze.ts",
+    "db:create:local": "tsx --env-file=../.env src/scripts/manage-local-db.ts create",
+    "db:reset:local": "tsx --env-file=../.env src/scripts/manage-local-db.ts reset",
     "seed:admin": "ts-node-dev --transpile-only --exit-child src/scripts/seed-admin.ts",
     "migrate:phase1:up": "ts-node-dev --transpile-only --exit-child src/db/migrations/runner.ts up",
     "migrate:phase1:down": "ts-node-dev --transpile-only --exit-child src/db/migrations/runner.ts down",

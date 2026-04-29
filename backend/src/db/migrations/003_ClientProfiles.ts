@@ -23,15 +23,28 @@ const upStatements = [
     CONSTRAINT "chk_clientprofiles_policystatus" CHECK ("PolicyStatus" IN ('Active', 'Lapsed', 'Cancelled', 'Matured')),
     CONSTRAINT "fk_clientprofiles_assignedagentid" FOREIGN KEY ("AssignedAgentId") REFERENCES "AgentProfiles"("Id") ON DELETE RESTRICT
   )`,
+  // Local fresh-install compatibility:
+  // align the bootstrap table with the current schema expected by later migrations and the rich seed.
+  `ALTER TABLE "ClientProfiles"
+   ADD COLUMN IF NOT EXISTS "BranchCode" varchar(50) NOT NULL DEFAULT 'UNASSIGNED'`,
+  `ALTER TABLE "ClientProfiles"
+   ADD COLUMN IF NOT EXISTS "ProductType" varchar(120)`,
+  `ALTER TABLE "ClientProfiles"
+   ADD COLUMN IF NOT EXISTS "PlanCode" varchar(50)`,
   'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_clientprofiles_agentid ON "ClientProfiles"("AssignedAgentId")',
   'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_clientprofiles_active ON "ClientProfiles"("AssignedAgentId") WHERE "DeletedAtUtc" IS NULL',
   'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_clientprofiles_agent_status ON "ClientProfiles"("AssignedAgentId", "PolicyStatus")',
+  'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_clientprofiles_branchcode ON "ClientProfiles"("BranchCode")',
 ];
 
 const downStatements = [
+  'DROP INDEX CONCURRENTLY IF EXISTS idx_clientprofiles_branchcode',
   'DROP INDEX CONCURRENTLY IF EXISTS idx_clientprofiles_agent_status',
   'DROP INDEX CONCURRENTLY IF EXISTS idx_clientprofiles_active',
   'DROP INDEX CONCURRENTLY IF EXISTS idx_clientprofiles_agentid',
+  'ALTER TABLE IF EXISTS "ClientProfiles" DROP COLUMN IF EXISTS "PlanCode"',
+  'ALTER TABLE IF EXISTS "ClientProfiles" DROP COLUMN IF EXISTS "ProductType"',
+  'ALTER TABLE IF EXISTS "ClientProfiles" DROP COLUMN IF EXISTS "BranchCode"',
   'ALTER TABLE IF EXISTS "ClientProfiles" DROP CONSTRAINT IF EXISTS "fk_clientprofiles_assignedagentid"',
   'DROP TABLE IF EXISTS "ClientProfiles"',
 ];
