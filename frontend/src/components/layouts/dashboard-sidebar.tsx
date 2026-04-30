@@ -27,12 +27,19 @@ function NavigationList({
   const router = useRouter();
   const { items } = useNavigation();
   const { navigate, pendingHref } = useDashboardNavigation();
+  const prefetchedRoutes = React.useRef(new Set<string>());
 
-  React.useEffect(() => {
-    items.forEach((item) => {
-      router.prefetch(item.href as Route);
-    });
-  }, [items, router]);
+  const prefetchRoute = React.useCallback(
+    (href: string) => {
+      if (prefetchedRoutes.current.has(href)) {
+        return;
+      }
+
+      prefetchedRoutes.current.add(href);
+      void router.prefetch(href as Route);
+    },
+    [router],
+  );
 
   return (
     <nav aria-label="Dashboard" className="flex flex-col gap-1 px-2">
@@ -47,7 +54,9 @@ function NavigationList({
           <Link
             key={item.href}
             href={item.href as Route}
-            prefetch
+            prefetch={false}
+            onMouseEnter={() => prefetchRoute(item.href)}
+            onFocus={() => prefetchRoute(item.href)}
             onClick={(event) => {
               if (
                 event.defaultPrevented ||
@@ -61,6 +70,7 @@ function NavigationList({
               }
 
               event.preventDefault();
+              prefetchRoute(item.href);
               navigate(item.href, onNavigate);
             }}
             aria-current={isActive ? 'page' : undefined}

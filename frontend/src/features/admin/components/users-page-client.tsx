@@ -159,7 +159,7 @@ export function UsersPageClient() {
     [resetUserPasswordMutation, restoreUserMutation, softDeleteMutation, updateUserMutation],
   );
 
-  if (usersQuery.isPending) {
+  if (usersQuery.isPending && !usersQuery.data) {
     return <LoadingSkeleton rows={6} columns={4} />;
   }
 
@@ -184,6 +184,9 @@ export function UsersPageClient() {
           Create branch accounts, review current access, edit user details, reset passwords, and
           archive or restore users while preserving the audit trail.
         </p>
+        {usersQuery.isFetching ? (
+          <p className="mt-3 text-sm text-muted-foreground">Refreshing user records...</p>
+        ) : null}
       </section>
 
       <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">

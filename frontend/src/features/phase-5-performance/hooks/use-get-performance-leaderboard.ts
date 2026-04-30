@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import {
   PerformanceLeaderboardQuerySchema,
   PerformanceLeaderboardResponseSchema,
@@ -14,6 +14,7 @@ import type { PerformanceLeaderboardResponse } from '../types/performance-metric
 export function useGetPerformanceLeaderboard(month: number, year: number) {
   const query = useQuery({
     queryKey: queryKeys.performanceLeaderboard(month, year),
+    placeholderData: keepPreviousData,
     queryFn: async () => {
       const params = PerformanceLeaderboardQuerySchema.parse({ month, year });
       const response = await api.get('/metrics/leaderboard', { params });

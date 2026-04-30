@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import {
   GetPerformanceMetricsQuerySchema,
   PerformanceMetricsResponseSchema,
@@ -14,6 +14,7 @@ import type { PerformanceMetricsResponse } from '../types/performance-metrics.ty
 export function useGetPerformanceMetrics(month: number, year: number, filterRole = 'all') {
   const query = useQuery({
     queryKey: queryKeys.metrics(filterRole, month, year),
+    placeholderData: keepPreviousData,
     queryFn: async () => {
       const params = GetPerformanceMetricsQuerySchema.parse({
         month,

@@ -168,11 +168,15 @@ export function PerformancePageClient() {
   const metricsQuery = useGetPerformanceMetrics(month, year);
   const leaderboardQuery = useGetPerformanceLeaderboard(month, year);
   const previousLeaderboardQuery = useGetPerformanceLeaderboard(previousPeriod.month, previousPeriod.year);
+  const isRefreshing =
+    metricsQuery.isFetching ||
+    leaderboardQuery.isFetching ||
+    previousLeaderboardQuery.isFetching;
 
   if (
-    metricsQuery.isPending ||
-    leaderboardQuery.isPending ||
-    previousLeaderboardQuery.isPending
+    (metricsQuery.isPending && !metricsQuery.data) ||
+    (leaderboardQuery.isPending && !leaderboardQuery.data) ||
+    (previousLeaderboardQuery.isPending && !previousLeaderboardQuery.data)
   ) {
     return <PerformanceDashboardSkeleton />;
   }
@@ -239,6 +243,11 @@ export function PerformancePageClient() {
               Track APE momentum, branch persistency, and the current leaderboard with responsive
               visuals backed by live metrics queries.
             </p>
+            {isRefreshing ? (
+              <p className="mt-3 text-sm text-muted-foreground">
+                Updating the latest performance snapshot...
+              </p>
+            ) : null}
           </div>
           <MonthYearPicker
             month={month}

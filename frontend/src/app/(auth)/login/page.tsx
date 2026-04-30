@@ -1,20 +1,6 @@
 'use client';
 
-import { DM_Sans, Playfair_Display } from 'next/font/google';
-
 import { LoginForm, useAuth } from '@/features/identity';
-
-const playfair = Playfair_Display({
-  subsets: ['latin'],
-  variable: '--font-login-display',
-  weight: ['500', '600'],
-});
-
-const dmSans = DM_Sans({
-  subsets: ['latin'],
-  variable: '--font-login-sans',
-  weight: ['400', '500'],
-});
 
 function BrandShield({
   className,
@@ -57,8 +43,8 @@ export default function LoginPage() {
 
   return (
     <div
-      className={`${playfair.variable} ${dmSans.variable} min-h-screen bg-[#443b20]`}
-      style={{ fontFamily: 'var(--font-login-sans)' }}
+      className="min-h-screen bg-[#443b20]"
+      style={{ fontFamily: '"Segoe UI", system-ui, sans-serif' }}
     >
       <div className="grid min-h-screen md:grid-cols-[44fr_56fr]">
 
@@ -81,7 +67,7 @@ export default function LoginPage() {
                   {/* "Pr1meServ" — same size as right panel heading feel, kept proportional */}
                   <p
                     className="font-semibold text-white"
-                    style={{ fontSize: '19px', fontFamily: 'var(--font-login-display)' }}
+                    style={{ fontSize: '19px', fontFamily: 'Georgia, Cambria, "Times New Roman", serif' }}
                   >
                     Pr1meServ
                   </p>
@@ -96,7 +82,7 @@ export default function LoginPage() {
             <div className="mb-8">
               <p
                 className="font-medium text-white"
-                style={{ fontSize: '38px', lineHeight: '1.2', fontFamily: 'var(--font-login-display)' }}
+                style={{ fontSize: '38px', lineHeight: '1.2', fontFamily: 'Georgia, Cambria, "Times New Roman", serif' }}
               >
                 Nice to see you again
               </p>
@@ -141,7 +127,7 @@ export default function LoginPage() {
             {/* Heading — 38px, same as left panel */}
             <h1
               className="w-full font-medium text-white"
-              style={{ fontSize: '38px', lineHeight: '1.2', fontFamily: 'var(--font-login-display)' }}
+              style={{ fontSize: '38px', lineHeight: '1.2', fontFamily: 'Georgia, Cambria, "Times New Roman", serif' }}
             >
               Let&apos;s make every day{' '}
               <span className="italic" style={{ color: '#e8d8a8' }}>Meaningful</span> together.
@@ -171,7 +157,7 @@ export default function LoginPage() {
                 >
                   <p
                     className="font-medium text-white"
-                    style={{ fontSize: '32px', fontFamily: 'var(--font-login-display)' }}
+                    style={{ fontSize: '32px', fontFamily: 'Georgia, Cambria, "Times New Roman", serif' }}
                   >
                     {stat.value}
                   </p>

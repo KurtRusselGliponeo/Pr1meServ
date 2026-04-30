@@ -73,12 +73,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   React.useEffect(() => {
-    if (!isHydrated || user) {
+    if (!isHydrated) {
+      return;
+    }
+
+    const isProtectedRoute =
+      pathname.startsWith('/dashboard') || pathname === '/auth/reset-password';
+    const shouldAttemptSessionRestore =
+      isProtectedRoute || Boolean(user) || Boolean(getAccessToken());
+
+    if (!shouldAttemptSessionRestore) {
       return;
     }
 
     void refreshUser();
-  }, [isHydrated, refreshUser, user]);
+  }, [isHydrated, pathname, refreshUser, user]);
 
   const login = React.useCallback(
     async (values: LoginFormValues) => {

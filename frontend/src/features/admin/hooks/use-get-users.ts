@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { ListUsersQuerySchema, ListUsersResponseSchema } from '@a1prime/schemas';
 
 import api from '@/services/api-client';
@@ -11,6 +11,7 @@ import type { ManagedUsersResponse } from '../types/user-management.types';
 export function useGetUsers(page: number, roleFilter = '') {
   const query = useQuery({
     queryKey: queryKeys.users(String(page), roleFilter),
+    placeholderData: keepPreviousData,
     queryFn: async () => {
       const params = ListUsersQuerySchema.parse({
         page,

@@ -31,7 +31,7 @@ export function LapsationPageClient() {
   const reinstateMutation = useReinstateLapsationRecord();
   const [selectedRecord, setSelectedRecord] = React.useState<LapsationRecordSummary | null>(null);
 
-  if (dashboardQuery.isPending) {
+  if (dashboardQuery.isPending && !dashboardQuery.data) {
     return <LoadingSkeleton rows={6} columns={5} />;
   }
 
@@ -83,6 +83,9 @@ export function LapsationPageClient() {
           Monitor policies nearing lapse, review assigned ownership, and mark successful
           reinstatements from a live branch dashboard.
         </p>
+        {dashboardQuery.isFetching ? (
+          <p className="mt-3 text-sm text-muted-foreground">Refreshing lapsation records...</p>
+        ) : null}
       </section>
 
       {isAdmin ? <NapUploadPortal /> : null}

@@ -42,6 +42,14 @@ Before redesigning screens, confirm what is actually making the system feel slow
   - repeated data fetching
   - a combination of the above
 
+### End-of-Phase Report
+
+At the end of this phase, the implementer should provide:
+
+- `Completed:` a clear list of finished checks and measurements
+- `Pending:` a clear list of what is still unresolved
+- `Suggestions:` recommended next fixes or follow-up investigations
+
 ---
 
 ## Phase 1: Performance Stabilization and Fast Perceived Loading
@@ -76,6 +84,14 @@ If the login page is slow, the dashboard is slow, and navigation is slow, users 
 - Dashboard content becomes visible without long blank or loading-only states.
 - Clicking a sidebar item feels immediate, even if some inner content still loads.
 - Users can tell the system is working because each page shows clear progressive loading feedback.
+
+### End-of-Phase Report
+
+At the end of this phase, the implementer should provide:
+
+- `Completed:` performance fixes already applied
+- `Pending:` remaining slow areas or unstable pages
+- `Suggestions:` next performance or UX improvements worth doing
 
 ---
 
@@ -114,6 +130,14 @@ Once the system feels faster, refine the shared layout because it affects every 
 - Main content gets more room when the sidebar is collapsed.
 - Navigation remains clear even when labels are hidden.
 - The shell still looks balanced on common laptop screen sizes.
+
+### End-of-Phase Report
+
+At the end of this phase, the implementer should provide:
+
+- `Completed:` sidebar and shell improvements already implemented
+- `Pending:` remaining layout issues or responsive adjustments
+- `Suggestions:` enhancements for navigation clarity or spacing polish
 
 ---
 
@@ -163,6 +187,14 @@ Use the provided reference images as inspiration, not as a direct copy:
 - Uploading is easier to understand at a glance.
 - The new visuals improve clarity, not just decoration.
 
+### End-of-Phase Report
+
+At the end of this phase, the implementer should provide:
+
+- `Completed:` documentation page and upload improvements already implemented
+- `Pending:` remaining UI gaps or unresolved edge cases
+- `Suggestions:` next visual or usability refinements for the documents workflow
+
 ---
 
 ## Phase 4: Core UI Consistency Pass
@@ -188,6 +220,14 @@ After the biggest layout and document improvements are done, standardize the res
 - Shared components feel like part of one system.
 - Tables, forms, modals, and panels follow the same spacing rhythm.
 - Visual polish improves without changing user workflows.
+
+### End-of-Phase Report
+
+At the end of this phase, the implementer should provide:
+
+- `Completed:` standardization work already finished
+- `Pending:` remaining inconsistent components or pages
+- `Suggestions:` additional design-system rules or cleanup opportunities
 
 ---
 
@@ -219,6 +259,14 @@ After the shared UI is stable, improve the experience per user role.
 - Important actions are easier to find for each role.
 - Unnecessary controls are reduced.
 
+### End-of-Phase Report
+
+At the end of this phase, the implementer should provide:
+
+- `Completed:` role-based improvements already delivered
+- `Pending:` remaining role-specific pain points
+- `Suggestions:` workflow improvements per role
+
 ---
 
 ## Phase 6: Final QA, Responsive Review, and Rollout
@@ -238,6 +286,14 @@ This phase ensures that the improvements are stable before wider adoption.
 - Release by phase, not as one large UI rewrite.
 - Start with shared shell and performance wins because they affect all pages.
 - Move to page-level upgrades only after the core layout feels stable.
+
+### End-of-Phase Report
+
+At the end of this phase, the implementer should provide:
+
+- `Completed:` QA, responsive checks, and rollout tasks already done
+- `Pending:` remaining bugs, regressions, or release blockers
+- `Suggestions:` final polish items or post-release follow-ups
 
 ---
 

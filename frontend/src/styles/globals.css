@@ -194,7 +194,7 @@
   }
 
   html {
-    font-family: var(--font-inter), system-ui, sans-serif;
+    font-family: "Segoe UI", system-ui, sans-serif;
     scroll-behavior: smooth;
   }
 

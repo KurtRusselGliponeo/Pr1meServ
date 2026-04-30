@@ -28,7 +28,7 @@ export function DocumentLibrary() {
   const [searchQuery, setSearchQuery] = useState('');
   const queryClient = useQueryClient();
   const categoryFilter = activeCategory === 'All' ? undefined : activeCategory;
-  const { data: documents, isLoading } = useGetDocuments(categoryFilter);
+  const { data: documents, isLoading, isFetching } = useGetDocuments(categoryFilter);
 
   const filteredDocuments = React.useMemo(() => {
     if (!documents) return [];
@@ -80,6 +80,10 @@ export function DocumentLibrary() {
           Upload Form
         </Button>
       </div>
+
+      {isFetching && documents ? (
+        <p className="text-sm text-muted-foreground">Refreshing documents in the background...</p>
+      ) : null}
 
       <div className="rounded-md border">
         <div className="flex flex-col gap-4 border-b border-border/70 bg-background/80 p-4 sm:flex-row sm:items-center sm:justify-between">

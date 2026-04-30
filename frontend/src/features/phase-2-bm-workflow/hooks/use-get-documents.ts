@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 
 import api from '@/services/api-client';
 import { getErrorMessage } from '@/lib/error-utils';
@@ -10,6 +10,7 @@ import type { DocumentLibraryItem } from '../types/document-library.types';
 export function useGetDocuments(category?: string) {
   const query = useQuery({
     queryKey: queryKeys.documents(category),
+    placeholderData: keepPreviousData,
     queryFn: async () => {
       const response = await api.get('/documents', {
         params: category ? { category } : undefined,
