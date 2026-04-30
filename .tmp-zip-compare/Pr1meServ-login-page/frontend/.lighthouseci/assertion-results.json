@@ -1,0 +1,27 @@
+[
+  {
+    "name": "minScore",
+    "expected": 0.85,
+    "actual": 0.56,
+    "values": [0.56],
+    "operator": ">=",
+    "passed": false,
+    "auditProperty": "performance",
+    "auditId": "categories",
+    "level": "error",
+    "url": "http://127.0.0.1:3005/dashboard"
+  },
+  {
+    "name": "maxNumericValue",
+    "expected": 300,
+    "actual": 9694.7586,
+    "values": [9694.7586],
+    "operator": "<=",
+    "passed": false,
+    "auditId": "total-blocking-time",
+    "level": "error",
+    "url": "http://127.0.0.1:3005/dashboard",
+    "auditTitle": "Total Blocking Time",
+    "auditDocumentationLink": "https://developer.chrome.com/docs/lighthouse/performance/lighthouse-total-blocking-time/"
+  }
+]

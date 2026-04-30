@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+.next/
+out/
+coverage/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/settings.json
+*.log
+*.local
+
+# Drizzle migrations (keep the folder, ignore auto-generated meta)
+backend/src/shared/db/migrations/meta/
+
+# Legacy — preserved for reference, not active
+legacy-client/node_modules/
+legacy-client/dist/
+legacy-server/node_modules/
+legacy-server/dist/

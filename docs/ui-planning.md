@@ -1,8 +1,152 @@
 # UI Improvement Plan
 
-This document is a phased UI and UX roadmap for the A1 Prime system. The goal is to improve the product without changing everything at once. We will prioritize the work that has the biggest impact on usability first, especially the current slowness when opening the system, loading the login page, and switching between dashboard pages.
+This document now serves two purposes:
 
-The plan below is intentionally ordered. Each phase should be reviewed before moving to the next one so the team can confirm that the earlier improvements are stable.
+- preserve the original phased UI and UX roadmap
+- add a requirements-aligned delivery plan for the current COSAF deadline
+
+The project is still UI-led, but it is no longer practical to treat this as a UI-only effort. If a backend, schema, API, upload, notification, or audit change is required to complete the workflow correctly, it is in scope for this plan.
+
+The short rule going forward is:
+
+- visual polish matters
+- workflow completion matters more
+- demo reliability matters most
+
+## Current Position
+
+Based on the current branch, the original requirements document, and the recent Phase 0 and Phase 1 work:
+
+- the system already has real foundations for COSAF, notifications, lapsation, performance, documents, and role-based access
+- the strongest implementation areas right now are COSAF workflow foundations, document repository, audit logging, and role-based restrictions
+- the weakest areas right now are live verification coverage, dashboard performance consistency, and confidence around some notification and performance flows
+
+For the requirement review that supports this plan, see:
+
+- `docs/requirements-alignment-review.md`
+- `docs/phase-0-baseline-check.md`
+
+## Current Status Against the Original Phases
+
+### Phase 0: Baseline Check and Problem Confirmation
+
+Status: `Mostly done`
+
+What is done now:
+
+- slow entry points were investigated
+- login, dashboard shell, and route-switch slowness were examined
+- baseline findings were documented
+- main causes were narrowed to startup/auth/loading/refetch/navigation behavior
+
+What still keeps this from being perfect:
+
+- a clean final timing sheet for every target action is still incomplete
+- not every route has a stable live measurement yet
+
+### Phase 1: Performance Stabilization and Fast Perceived Loading
+
+Status: `Partially done`
+
+What is done now:
+
+- public auth path work was reduced
+- dashboard navigation prefetching was made less aggressive
+- several blocking loading states were softened
+- cached content is kept visible more often during refetches
+
+What still needs work:
+
+- the slowest dashboard routes still need final stabilization
+- the performance page remains a risk area
+
+### Phase 2: Dashboard Shell and Navigation Refinement
+
+Status: `Started, not complete`
+
+What is already visible:
+
+- some shell/navigation improvements exist
+
+What is still pending:
+
+- a focused shared-shell cleanup pass
+- final sidebar behavior and spacing decisions
+
+### Phase 3 to Phase 6
+
+Status: `Not completed as structured phases yet`
+
+Some pieces exist in the codebase already, but these phases have not yet been completed in a deliberate, verified way.
+
+## Delivery Rule for the May 4 Deadline
+
+For the current deadline, this plan must prioritize manager-demo readiness over broad redesign.
+
+That means the real implementation order should be:
+
+1. make COSAF fully usable end-to-end
+2. verify the required backend support behind COSAF and documents
+3. stabilize the slowest pages enough for a clean demo
+4. improve loading, error, and empty states
+5. polish the shared shell and selected pages only after the core workflows are dependable
+
+## Must-Finish Before Presentation
+
+### Track A: Workflow Completion
+
+These are the highest-priority items because they affect whether the system truly meets the original branch requirements:
+
+- orphan client reassignment must work clearly end-to-end
+- assigned agents must be able to upload COSAF forms and required documents
+- Admin and Branch Manager must be able to review, approve, or return submissions
+- returned submissions must always carry a clear reason
+- signed-copy handling must be easy to demonstrate
+- case statuses must visibly change in the UI
+- audit/history visibility must be good enough to build trust in the workflow
+
+### Track B: Demo Safety and Performance
+
+- login and dashboard entry must feel reliable
+- slow pages must avoid unclear loading traps
+- the shell should remain visible while content updates
+- errors and empty states should be understandable to non-technical users
+
+### Track C: Presentation Polish
+
+- make the COSAF path look intentional and trustworthy
+- make the documents area easier to browse and use
+- improve role-home clarity for Admin, BM, and Agent where it helps the demo
+
+## Backend Scope Clarification
+
+This plan explicitly allows backend work when it supports the workflow or makes the UI honest and usable.
+
+Examples that are in scope:
+
+- schema and migration updates needed for statuses or auditability
+- API fixes for reassignment, uploads, approvals, or signed copies
+- notification logic
+- performance query fixes
+- document versioning or archive behavior
+- seeded local demo data
+
+Examples that are not the main goal:
+
+- unrelated platform rewrites
+- architectural changes that do not help the presentation deadline
+
+## Recommended Working Sequence From Here
+
+1. close the remaining COSAF and verification gaps
+2. verify documents and notification logs in real local use
+3. stabilize the performance and lapsation pages enough for presentation
+4. clean up the dashboard shell and highest-visibility pages
+5. run a final requirement-by-requirement demo checklist
+
+## Original UI Phase Roadmap
+
+The original roadmap is preserved below so we do not lose the earlier planning context. It still matters, especially after the deadline, but it should now be read together with the delivery rules above.
 
 ---
 

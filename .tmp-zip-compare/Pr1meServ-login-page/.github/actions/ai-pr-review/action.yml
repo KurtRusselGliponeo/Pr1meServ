@@ -1,0 +1,41 @@
+name: AI PR Review
+description: Posts an AI-powered code review comment using Claude
+
+inputs:
+  diff_path:
+    description: Path to the git diff file
+    required: true
+  github_token:
+    description: GitHub token for posting comments
+    required: true
+  anthropic_api_key:
+    description: Anthropic API key for Claude
+    required: true
+  pr_number:
+    description: Pull request number
+    required: true
+  repo:
+    description: Repository in owner/repo format
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 20
+
+    - name: Install dependencies
+      shell: bash
+      run: npm install @anthropic-ai/sdk@latest
+      working-directory: /tmp
+
+    - name: Run AI review
+      shell: bash
+      env:
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic_api_key }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        DIFF_PATH: ${{ inputs.diff_path }}
+        PR_NUMBER: ${{ inputs.pr_number }}
+        REPO: ${{ inputs.repo }}
+      run: node ${{ github.action_path }}/review.mjs

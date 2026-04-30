@@ -79,8 +79,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const isProtectedRoute =
       pathname.startsWith('/dashboard') || pathname === '/auth/reset-password';
-    const shouldAttemptSessionRestore =
-      isProtectedRoute || Boolean(user) || Boolean(getAccessToken());
+    const hasAccessToken = Boolean(getAccessToken());
+
+    if (user && hasAccessToken) {
+      return;
+    }
+
+    const shouldAttemptSessionRestore = isProtectedRoute || hasAccessToken;
 
     if (!shouldAttemptSessionRestore) {
       return;
@@ -88,6 +93,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     void refreshUser();
   }, [isHydrated, pathname, refreshUser, user]);
+
+  React.useEffect(() => {
+    if (!isHydrated || !user) {
+      return;
+    }
+
+    if (user.needsPasswordReset && pathname !== '/auth/reset-password') {
+      router.replace('/auth/reset-password');
+      return;
+    }
+
+    if (!user.needsPasswordReset && pathname === '/auth/reset-password') {
+      router.replace('/dashboard');
+    }
+  }, [isHydrated, pathname, router, user]);
 
   const login = React.useCallback(
     async (values: LoginFormValues) => {
@@ -100,7 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setUser(session.user);
       startTransition(() => {
-        router.replace('/dashboard');
+        router.replace(session.user.needsPasswordReset ? '/auth/reset-password' : '/dashboard');
       });
     },
     [router],

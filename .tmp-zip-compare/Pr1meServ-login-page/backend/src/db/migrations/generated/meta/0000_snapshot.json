@@ -1,0 +1,525 @@
+{
+  "id": "0fd9d3b8-59b7-4c5a-b0f8-c724d8dcc304",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.UserAccounts": {
+      "name": "UserAccounts",
+      "schema": "",
+      "columns": {
+        "Id": {
+          "name": "Id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "EmailHash": {
+          "name": "EmailHash",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "Email": {
+          "name": "Email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "PasswordHash": {
+          "name": "PasswordHash",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "RefreshTokenHash": {
+          "name": "RefreshTokenHash",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "RefreshTokenExpiresAtUtc": {
+          "name": "RefreshTokenExpiresAtUtc",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "FirstName": {
+          "name": "FirstName",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "LastName": {
+          "name": "LastName",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "SystemRole": {
+          "name": "SystemRole",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "CreatedAtUtc": {
+          "name": "CreatedAtUtc",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "UpdatedAtUtc": {
+          "name": "UpdatedAtUtc",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "DeletedAtUtc": {
+          "name": "DeletedAtUtc",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "UserAccounts_EmailHash_unique": {
+          "name": "UserAccounts_EmailHash_unique",
+          "nullsNotDistinct": false,
+          "columns": ["EmailHash"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.AgentProfiles": {
+      "name": "AgentProfiles",
+      "schema": "",
+      "columns": {
+        "Id": {
+          "name": "Id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "UserId": {
+          "name": "UserId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "AgentCode": {
+          "name": "AgentCode",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "DisplayName": {
+          "name": "DisplayName",
+          "type": "varchar(200)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "CreatedAtUtc": {
+          "name": "CreatedAtUtc",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "UpdatedAtUtc": {
+          "name": "UpdatedAtUtc",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "DeletedAtUtc": {
+          "name": "DeletedAtUtc",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "idx_agentprofiles_userid": {
+          "name": "idx_agentprofiles_userid",
+          "columns": [
+            {
+              "expression": "UserId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "AgentProfiles_UserId_UserAccounts_Id_fk": {
+          "name": "AgentProfiles_UserId_UserAccounts_Id_fk",
+          "tableFrom": "AgentProfiles",
+          "tableTo": "UserAccounts",
+          "columnsFrom": ["UserId"],
+          "columnsTo": ["Id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "AgentProfiles_UserId_unique": {
+          "name": "AgentProfiles_UserId_unique",
+          "nullsNotDistinct": false,
+          "columns": ["UserId"]
+        },
+        "AgentProfiles_AgentCode_unique": {
+          "name": "AgentProfiles_AgentCode_unique",
+          "nullsNotDistinct": false,
+          "columns": ["AgentCode"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.ClientProfiles": {
+      "name": "ClientProfiles",
+      "schema": "",
+      "columns": {
+        "Id": {
+          "name": "Id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "AssignedAgentId": {
+          "name": "AssignedAgentId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "FirstName": {
+          "name": "FirstName",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "LastName": {
+          "name": "LastName",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "PolicyNumber": {
+          "name": "PolicyNumber",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ModalPremium": {
+          "name": "ModalPremium",
+          "type": "numeric(19, 4)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "Api": {
+          "name": "Api",
+          "type": "numeric(19, 4)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "SumAssured": {
+          "name": "SumAssured",
+          "type": "numeric(19, 4)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "CommissionAmount": {
+          "name": "CommissionAmount",
+          "type": "numeric(19, 4)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "CaseStatus": {
+          "name": "CaseStatus",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "PolicyStatus": {
+          "name": "PolicyStatus",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "CreatedAtUtc": {
+          "name": "CreatedAtUtc",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "UpdatedAtUtc": {
+          "name": "UpdatedAtUtc",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "DeletedAtUtc": {
+          "name": "DeletedAtUtc",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "idx_clientprofiles_agentid": {
+          "name": "idx_clientprofiles_agentid",
+          "columns": [
+            {
+              "expression": "AssignedAgentId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "ClientProfiles_AssignedAgentId_AgentProfiles_Id_fk": {
+          "name": "ClientProfiles_AssignedAgentId_AgentProfiles_Id_fk",
+          "tableFrom": "ClientProfiles",
+          "tableTo": "AgentProfiles",
+          "columnsFrom": ["AssignedAgentId"],
+          "columnsTo": ["Id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "ClientProfiles_PolicyNumber_unique": {
+          "name": "ClientProfiles_PolicyNumber_unique",
+          "nullsNotDistinct": false,
+          "columns": ["PolicyNumber"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.PerformanceMetrics": {
+      "name": "PerformanceMetrics",
+      "schema": "",
+      "columns": {
+        "Id": {
+          "name": "Id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "AgentId": {
+          "name": "AgentId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "RecordMonth": {
+          "name": "RecordMonth",
+          "type": "varchar(7)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ModalPremium": {
+          "name": "ModalPremium",
+          "type": "numeric(19, 4)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "Api": {
+          "name": "Api",
+          "type": "numeric(19, 4)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "SumAssured": {
+          "name": "SumAssured",
+          "type": "numeric(19, 4)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "CommissionAmount": {
+          "name": "CommissionAmount",
+          "type": "numeric(19, 4)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "CreatedAtUtc": {
+          "name": "CreatedAtUtc",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "UpdatedAtUtc": {
+          "name": "UpdatedAtUtc",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_perfmetrics_agentid": {
+          "name": "idx_perfmetrics_agentid",
+          "columns": [
+            {
+              "expression": "AgentId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "PerformanceMetrics_AgentId_AgentProfiles_Id_fk": {
+          "name": "PerformanceMetrics_AgentId_AgentProfiles_Id_fk",
+          "tableFrom": "PerformanceMetrics",
+          "tableTo": "AgentProfiles",
+          "columnsFrom": ["AgentId"],
+          "columnsTo": ["Id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.SystemAuditLogs": {
+      "name": "SystemAuditLogs",
+      "schema": "",
+      "columns": {
+        "Id": {
+          "name": "Id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "ActorUserId": {
+          "name": "ActorUserId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Action": {
+          "name": "Action",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "EntityName": {
+          "name": "EntityName",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "EntityId": {
+          "name": "EntityId",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "OldValue": {
+          "name": "OldValue",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "NewValue": {
+          "name": "NewValue",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "CreatedAtUtc": {
+          "name": "CreatedAtUtc",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_auditlogs_actoruserid": {
+          "name": "idx_auditlogs_actoruserid",
+          "columns": [
+            {
+              "expression": "ActorUserId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "SystemAuditLogs_ActorUserId_UserAccounts_Id_fk": {
+          "name": "SystemAuditLogs_ActorUserId_UserAccounts_Id_fk",
+          "tableFrom": "SystemAuditLogs",
+          "tableTo": "UserAccounts",
+          "columnsFrom": ["ActorUserId"],
+          "columnsTo": ["Id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

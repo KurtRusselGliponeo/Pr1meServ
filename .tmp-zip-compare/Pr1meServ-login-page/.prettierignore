@@ -1,0 +1,10 @@
+node_modules
+.next
+dist
+coverage
+package-lock.json
+frontend/tsconfig.tsbuildinfo
+legacy-client
+legacy-server
+ANTIGRAVITY_PROMPT.md
+backend/src/shared/db/migrations/generated

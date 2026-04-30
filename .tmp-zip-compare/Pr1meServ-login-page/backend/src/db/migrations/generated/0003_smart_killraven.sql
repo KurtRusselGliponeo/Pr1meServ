@@ -1,0 +1,1 @@
+ALTER TABLE "UserAccounts" ADD COLUMN "NeedsPasswordReset" boolean DEFAULT true NOT NULL;
