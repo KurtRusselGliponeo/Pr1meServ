@@ -21,14 +21,15 @@ export function DashboardMobileNav() {
   const [isOpen, setIsOpen] = React.useState(false);
   const router = useRouter();
   const { items } = useNavigation();
-  const { warmRoute } = useWarmDashboardData();
+  const { warmPrimaryRoutes } = useWarmDashboardData();
 
   React.useEffect(() => {
-    items.forEach((item) => {
-      router.prefetch(item.href as Route);
-      warmRoute(item.href);
+    const topRoutes = items.slice(0, 2).map((item) => item.href);
+    topRoutes.forEach((href) => {
+      router.prefetch(href as Route);
     });
-  }, [items, router, warmRoute]);
+    warmPrimaryRoutes(topRoutes);
+  }, [items, router, warmPrimaryRoutes]);
 
   return (
     <div className="lg:hidden">
@@ -61,4 +62,3 @@ export function DashboardMobileNav() {
     </div>
   );
 }
-

@@ -71,8 +71,11 @@ export function PerformancePageClient() {
   const leaderboardQuery = useGetPerformanceLeaderboard(month, year);
   const downloadReportMutation = useDownloadPerformanceReport();
   const canDownload = user?.role === 'Admin' || user?.role === 'BranchManager';
+  const isInitialLoading =
+    (metricsQuery.isPending && !metricsQuery.data) ||
+    (leaderboardQuery.isPending && !leaderboardQuery.data);
 
-  if (metricsQuery.isPending || leaderboardQuery.isPending) {
+  if (isInitialLoading) {
     return <PerformanceDashboardSkeleton />;
   }
 
@@ -141,6 +144,11 @@ export function PerformancePageClient() {
             </p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            {metricsQuery.isFetching || leaderboardQuery.isFetching ? (
+              <div className="rounded-full border border-white/50 bg-brand-gradient-soft px-4 py-2 text-sm text-muted-foreground shadow-soft dark:border-white/10">
+                Refreshing report data...
+              </div>
+            ) : null}
             <MonthYearPicker
               month={month}
               year={year}

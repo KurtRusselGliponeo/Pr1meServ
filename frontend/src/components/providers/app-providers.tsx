@@ -19,11 +19,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
   const [queryClient] = React.useState(
     () =>
       new QueryClient({
-        queryCache: new QueryCache({
-          onError: (error) => {
-            toast.error(getErrorMessage(error));
-          },
-        }),
+        queryCache: new QueryCache(),
         mutationCache: new MutationCache({
           onError: (error) => {
             toast.error(getErrorMessage(error));
@@ -36,6 +32,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
             gcTime: 15 * 60 * 1000,
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
+            refetchOnMount: false,
           },
           mutations: {
             retry: 0,

@@ -1,3 +1,5 @@
+/* global URL, console, setTimeout */
+
 /**
  * @param {import('puppeteer').Browser} browser
  * @param {{url: string, options: any}} context

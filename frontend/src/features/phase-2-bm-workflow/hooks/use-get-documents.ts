@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 
 import { getErrorMessage } from '@/lib/error-utils';
 import { queryKeys } from '@/services/query-client';
@@ -19,6 +19,7 @@ export function useGetDocuments(filters: UseGetDocumentsFilters = {}) {
       `${filters.category ?? 'all'}:${filters.search ?? ''}:${filters.fileType ?? 'all'}:${filters.includeArchived ? 'archived' : 'active'}`,
     ),
     queryFn: () => fetchDocuments(filters),
+    placeholderData: keepPreviousData,
     staleTime: 10 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
   });
@@ -30,4 +31,3 @@ export function useGetDocuments(filters: UseGetDocumentsFilters = {}) {
       : null,
   };
 }
-

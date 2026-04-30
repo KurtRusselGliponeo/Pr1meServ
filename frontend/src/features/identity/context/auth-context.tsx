@@ -85,14 +85,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const shouldAttemptSessionRestore = isProtectedRoute || hasAccessToken;
+    const shouldAttemptSessionRestore = (isProtectedRoute || hasAccessToken) && !isRestoringSession;
 
     if (!shouldAttemptSessionRestore) {
       return;
     }
 
     void refreshUser();
-  }, [isHydrated, pathname, refreshUser, user]);
+  }, [isHydrated, isRestoringSession, pathname, refreshUser, user]);
 
   React.useEffect(() => {
     if (!isHydrated || !user) {

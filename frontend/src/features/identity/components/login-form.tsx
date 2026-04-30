@@ -1,35 +1,23 @@
 'use client';
 
 import * as React from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { AlertCircle, Eye, EyeOff, LoaderCircle, LockKeyhole, Mail } from 'lucide-react';
+import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { useWarmDashboardData } from '@/features/navigation/hooks/use-warm-dashboard-data';
 import { useAuth } from '../context/auth-context';
 import { loginSchema, type LoginFormValues } from '../lib/login-schema';
 import { zodResolver } from '../lib/zod-resolver';
 
 export function LoginForm() {
-  const router = useRouter();
   const { login } = useAuth();
-  const { warmRoute } = useWarmDashboardData();
   const [submitError, setSubmitError] = React.useState<string | null>(null);
   const [showPassword, setShowPassword] = React.useState(false);
   const [rememberMe, setRememberMe] = React.useState(false);
-  const dashboardPrefetchedRef = React.useRef(false);
-
-  const warmDashboard = React.useCallback(() => {
-    if (dashboardPrefetchedRef.current) return;
-    dashboardPrefetchedRef.current = true;
-    router.prefetch('/dashboard');
-    warmRoute('/dashboard');
-  }, [router, warmRoute]);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema as never),
@@ -52,7 +40,6 @@ export function LoginForm() {
   }, [emailValue, passwordValue, submitError]);
 
   async function onSubmit(values: LoginFormValues) {
-    warmDashboard();
     setSubmitError(null);
     try {
       await login(values);
@@ -121,7 +108,6 @@ export function LoginForm() {
                       autoComplete="current-password"
                       placeholder="Enter your password"
                       className="h-14 rounded-2xl border border-white/10 bg-white/5 pl-11 pr-12 text-[0.93rem] text-white placeholder:text-white/25 focus-visible:border-emerald-400/40 focus-visible:ring-0"
-                      onFocus={warmDashboard}
                       {...field}
                     />
                     <button
@@ -173,8 +159,6 @@ export function LoginForm() {
             type="submit"
             size="lg"
             className="mt-2 h-14 w-full rounded-2xl bg-emerald-400 text-[1rem] font-semibold text-emerald-950 shadow-none hover:bg-emerald-300 disabled:opacity-60"
-            onMouseDown={warmDashboard}
-            onFocus={warmDashboard}
             disabled={form.formState.isSubmitting}
           >
             {form.formState.isSubmitting ? (

@@ -101,8 +101,9 @@ export function ProspectsPageClient() {
     value: agent.agentCode,
     label: `${agent.displayName} (${agent.agentCode})`,
   }));
+  const isInitialLoading = prospectsQuery.isPending && !prospectsQuery.data;
 
-  if (prospectsQuery.isPending) {
+  if (isInitialLoading) {
     return <LoadingSkeleton rows={5} columns={4} />;
   }
 
@@ -189,6 +190,11 @@ export function ProspectsPageClient() {
         <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
           <Filter className="h-4 w-4" />
           Filter the pipeline by lead temperature, stage, and follow-up urgency.
+          {prospectsQuery.isFetching ? (
+            <span className="rounded-full border border-white/50 bg-brand-gradient-soft px-3 py-1 text-xs font-medium text-muted-foreground shadow-soft dark:border-white/10">
+              Refreshing prospects...
+            </span>
+          ) : null}
         </div>
         <div className="grid gap-3 lg:grid-cols-[1.5fr_1fr_1fr_auto]">
           <div className="relative">

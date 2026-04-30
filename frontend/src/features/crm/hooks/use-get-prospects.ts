@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { ListProspectsQuerySchema, ListProspectsResponseSchema, type ListProspectsQuery } from '@a1prime/schemas';
 
 import api from '@/services/api-client';
@@ -18,6 +18,7 @@ export function useGetProspects(filters: ListProspectsQuery = {}) {
       });
       return ListProspectsResponseSchema.parse(response.data);
     },
+    placeholderData: keepPreviousData,
     staleTime: 5 * 60 * 1000,
   });
 

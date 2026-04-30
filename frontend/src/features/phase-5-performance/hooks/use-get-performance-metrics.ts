@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 
 import { getErrorMessage } from '@/lib/error-utils';
 import { queryKeys } from '@/services/query-client';
@@ -10,6 +10,7 @@ export function useGetPerformanceMetrics(month: number, year: number, filterRole
   const query = useQuery({
     queryKey: queryKeys.metrics(filterRole, month, year),
     queryFn: () => fetchPerformanceMetrics(month, year, filterRole),
+    placeholderData: keepPreviousData,
     staleTime: 10 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
   });
@@ -21,4 +22,3 @@ export function useGetPerformanceMetrics(month: number, year: number, filterRole
       : null,
   };
 }
-

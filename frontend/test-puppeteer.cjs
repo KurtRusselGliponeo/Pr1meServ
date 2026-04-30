@@ -1,3 +1,5 @@
+/* global console */
+
 const puppeteer = require('puppeteer');
 
 (async () => {

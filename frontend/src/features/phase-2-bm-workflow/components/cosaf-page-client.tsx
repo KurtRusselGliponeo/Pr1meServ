@@ -48,6 +48,7 @@ export function CosafPageClient({ searchParams }: CosafPageClientProps) {
     status,
     search: deferredSearchValue,
   });
+  const isInitialLoading = isPending && !data;
 
   React.useEffect(() => {
     if (!data?.meta.hasNextPage) {
@@ -90,9 +91,9 @@ export function CosafPageClient({ searchParams }: CosafPageClientProps) {
         </div>
       </section>
 
-      {isPending ? <LoadingSkeleton rows={6} columns={5} /> : null}
+      {isInitialLoading ? <LoadingSkeleton rows={6} columns={5} /> : null}
 
-      {!isPending && errorMessage ? (
+      {!isInitialLoading && errorMessage ? (
         <section
           className="rounded-3xl border border-destructive/30 bg-destructive/10 p-5 text-sm text-destructive shadow-soft"
           role="alert"
@@ -107,7 +108,7 @@ export function CosafPageClient({ searchParams }: CosafPageClientProps) {
         </section>
       ) : null}
 
-      {!isPending && !errorMessage && data?.data.length ? (
+      {!isInitialLoading && !errorMessage && data?.data.length ? (
         <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
           <ClientProfilesTable
             data={data.data}
@@ -172,7 +173,7 @@ export function CosafPageClient({ searchParams }: CosafPageClientProps) {
         </div>
       ) : null}
 
-      {!isPending && !errorMessage && !data?.data.length ? (
+      {!isInitialLoading && !errorMessage && !data?.data.length ? (
         <EmptyState
           icon={Users}
           title="No client profiles found for the current filter"

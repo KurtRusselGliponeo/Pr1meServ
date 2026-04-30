@@ -6,18 +6,18 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'next/navigation';
 import { Download, FileIcon, History, Pin, Search, Upload } from 'lucide-react';
 
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { DocumentUploadModal } from './document-upload-modal';
-import { DocumentLibraryTableSkeleton } from '@/components/ui/panel-skeletons';
-import { useGetDocuments } from '@/features/phase-2-bm-workflow/hooks/use-get-documents';
+import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Input } from '@/components/ui/input';
+import { DocumentLibraryTableSkeleton } from '@/components/ui/panel-skeletons';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAuth } from '@/features/identity';
+import { useGetDocuments } from '@/features/phase-2-bm-workflow/hooks/use-get-documents';
+import type { DocumentLibraryItem } from '@/features/phase-2-bm-workflow/types/document-library.types';
 import api from '@/services/api-client';
 import { queryKeys } from '@/services/query-client';
-import type { DocumentLibraryItem } from '@/features/phase-2-bm-workflow/types/document-library.types';
+import { DocumentUploadModal } from './document-upload-modal';
 
 const categories = [
   'All',
@@ -55,6 +55,7 @@ export function DocumentLibrary() {
     fileType,
     includeArchived,
   });
+  const isInitialLoading = isLoading && !data;
 
   const historyQuery = useMutation({
     mutationFn: async (documentId: string) => {
@@ -76,7 +77,8 @@ export function DocumentLibrary() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === queryKeys.documents()[0],
+        predicate: (query) =>
+          Array.isArray(query.queryKey) && query.queryKey[0] === queryKeys.documents()[0],
       });
     },
   });
@@ -88,7 +90,8 @@ export function DocumentLibrary() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === queryKeys.documents()[0],
+        predicate: (query) =>
+          Array.isArray(query.queryKey) && query.queryKey[0] === queryKeys.documents()[0],
       });
     },
   });
@@ -117,7 +120,8 @@ export function DocumentLibrary() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === queryKeys.documents()[0],
+        predicate: (query) =>
+          Array.isArray(query.queryKey) && query.queryKey[0] === queryKeys.documents()[0],
       });
     },
   });
@@ -136,14 +140,18 @@ export function DocumentLibrary() {
       }
 
       const nextDescription = window.prompt('Description', document.description ?? '');
-      const nextKeywords = window.prompt('Keywords (comma separated)', document.keywords.join(', '));
+      const nextKeywords = window.prompt(
+        'Keywords (comma separated)',
+        document.keywords.join(', '),
+      );
 
       await metadataMutation.mutateAsync({
         id: document.id,
         fileName: nextFileName,
         description: nextDescription,
         keywords:
-          nextKeywords?.split(',').map((value) => value.trim()).filter(Boolean) ?? document.keywords,
+          nextKeywords?.split(',').map((value) => value.trim()).filter(Boolean) ??
+          document.keywords,
         category: document.category,
       });
     },
@@ -152,7 +160,10 @@ export function DocumentLibrary() {
 
   const handleArchive = React.useCallback(
     async (document: DocumentLibraryItem) => {
-      const reason = window.prompt('Archive reason', 'Superseded by a newer repository version.');
+      const reason = window.prompt(
+        'Archive reason',
+        'Superseded by a newer repository version.',
+      );
       if (!reason) {
         return;
       }
@@ -165,11 +176,11 @@ export function DocumentLibrary() {
     [archiveMutation],
   );
 
-  if (isLoading && !data) {
+  if (isInitialLoading) {
     return <DocumentLibraryTableSkeleton />;
   }
 
-  if (!isLoading && errorMessage) {
+  if (!isInitialLoading && errorMessage) {
     return (
       <EmptyState
         icon={FileIcon}
@@ -187,10 +198,16 @@ export function DocumentLibrary() {
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Document Library</h2>
           <p className="text-muted-foreground">
-            Centralized repository with version history, archive controls, search, and branch-safe access.
+            Centralized repository with version history, archive controls, search, and branch-safe
+            access.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {isLoading ? (
+            <div className="rounded-full border border-white/50 bg-brand-gradient-soft px-4 py-2 text-sm text-muted-foreground shadow-soft dark:border-white/10">
+              Refreshing document results...
+            </div>
+          ) : null}
           <Button variant="outline" asChild>
             <Link href="/dashboard/cosaf?category=COSAF">COSAF quick link</Link>
           </Button>
@@ -273,10 +290,14 @@ export function DocumentLibrary() {
                       <div>
                         <div className="flex items-center gap-2">
                           <p className="font-medium">{doc.originalFileName}</p>
-                          {doc.isPinned ? <Pin className="h-3 w-3 fill-current text-brand" /> : null}
+                          {doc.isPinned ? (
+                            <Pin className="h-3 w-3 fill-current text-brand" />
+                          ) : null}
                           {doc.isArchived ? <Badge variant="secondary">Archived</Badge> : null}
                         </div>
-                        <p className="text-xs text-muted-foreground">{doc.description ?? 'No description'}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {doc.description ?? 'No description'}
+                        </p>
                         <p className="mt-1 text-xs text-muted-foreground">
                           {doc.keywords.length > 0 ? doc.keywords.join(', ') : 'No keywords'}
                         </p>
@@ -289,19 +310,27 @@ export function DocumentLibrary() {
                   <TableCell>
                     <div>
                       <p>v{doc.version}</p>
-                      <p className="text-xs text-muted-foreground">{doc.fileExtension.toUpperCase()}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {doc.fileExtension.toUpperCase()}
+                      </p>
                     </div>
                   </TableCell>
                   <TableCell>{doc.branchCode ?? 'Global'}</TableCell>
                   <TableCell>
                     <div>
                       <p>{formatDate(doc.createdAtUtc)}</p>
-                      <p className="text-xs text-muted-foreground">{(doc.fileSizeBytes / 1024 / 1024).toFixed(2)} MB</p>
+                      <p className="text-xs text-muted-foreground">
+                        {(doc.fileSizeBytes / 1024 / 1024).toFixed(2)} MB
+                      </p>
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex flex-wrap justify-end gap-2">
-                      <Button variant="outline" size="sm" onClick={() => handleDownload(doc.id)}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDownload(doc.id)}
+                      >
                         <Download className="mr-2 h-4 w-4" />
                         Download
                       </Button>
@@ -316,15 +345,25 @@ export function DocumentLibrary() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => pinMutation.mutate({ id: doc.id, isPinned: !doc.isPinned })}
+                            onClick={() =>
+                              pinMutation.mutate({ id: doc.id, isPinned: !doc.isPinned })
+                            }
                           >
                             <Pin className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="sm" onClick={() => handleEditMetadata(doc)}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditMetadata(doc)}
+                          >
                             Edit
                           </Button>
                           {!doc.isArchived ? (
-                            <Button variant="ghost" size="sm" onClick={() => handleArchive(doc)}>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleArchive(doc)}
+                            >
                               Archive
                             </Button>
                           ) : null}
@@ -339,7 +378,7 @@ export function DocumentLibrary() {
         </Table>
       </div>
 
-      {historyDocumentId && historyQuery.data ? (
+      {historyDocumentId ? (
         <div className="rounded-md border p-4">
           <div className="mb-4 flex items-center justify-between">
             <div>
@@ -352,24 +391,39 @@ export function DocumentLibrary() {
               <Link href="/dashboard/documents">Close history</Link>
             </Button>
           </div>
-          <div className="space-y-3">
-            {historyQuery.data.map((item) => (
-              <div key={item.id} className="rounded-xl border p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="font-medium">{item.originalFileName}</p>
-                    <p className="text-xs text-muted-foreground">
-                      v{item.version} · {item.isArchived ? 'Archived' : 'Active'} · {formatDate(item.createdAtUtc)}
-                    </p>
+          {historyQuery.isPending ? (
+            <DocumentLibraryTableSkeleton />
+          ) : historyQuery.error ? (
+            <EmptyState
+              icon={History}
+              title="Version history unavailable"
+              description="We couldn't load the document history for that file right now."
+            />
+          ) : historyQuery.data ? (
+            <div className="space-y-3">
+              {historyQuery.data.map((item) => (
+                <div key={item.id} className="rounded-xl border p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="font-medium">{item.originalFileName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        v{item.version} | {item.isArchived ? 'Archived' : 'Active'} |{' '}
+                        {formatDate(item.createdAtUtc)}
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDownload(item.id)}
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Download
+                    </Button>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => handleDownload(item.id)}>
-                    <Download className="mr-2 h-4 w-4" />
-                    Download
-                  </Button>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : null}
         </div>
       ) : null}
 

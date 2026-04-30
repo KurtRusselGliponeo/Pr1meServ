@@ -28,6 +28,7 @@ export function useWarmDashboardData() {
   const queryClient = useQueryClient();
   const { user, isHydrated } = useAuth();
   const warmedRoutesRef = React.useRef(new Set<string>());
+  const primaryRoutesRef = React.useRef<string[]>([]);
 
   const warmRoute = React.useCallback(
     (href: string) => {
@@ -131,21 +132,32 @@ export function useWarmDashboardData() {
     [isHydrated, queryClient, user],
   );
 
+  const warmPrimaryRoutes = React.useCallback(
+    (hrefs: readonly string[]) => {
+      if (!isHydrated || !user) {
+        return;
+      }
+
+      const nextPrimaryRoutes = hrefs.filter((href) => href !== '/dashboard');
+
+      if (
+        primaryRoutesRef.current.length === nextPrimaryRoutes.length &&
+        primaryRoutesRef.current.every((href, index) => href === nextPrimaryRoutes[index])
+      ) {
+        return;
+      }
+
+      primaryRoutesRef.current = nextPrimaryRoutes;
+      nextPrimaryRoutes.slice(0, 2).forEach((href) => {
+        warmRoute(href);
+      });
+    },
+    [isHydrated, user, warmRoute],
+  );
+
   React.useEffect(() => {
-    if (!isHydrated || !user) {
-      return;
-    }
+    primaryRoutesRef.current = [];
+  }, [user?.role]);
 
-    warmRoute('/dashboard/cosaf');
-    warmRoute('/dashboard/lapsation');
-    warmRoute('/dashboard/documents');
-    warmRoute('/dashboard/performance');
-    warmRoute('/dashboard/prospects');
-
-    if (user.role !== 'Agent') {
-      warmRoute('/dashboard/cosaf/reassign');
-    }
-  }, [isHydrated, user, warmRoute]);
-
-  return { warmRoute };
+  return { warmPrimaryRoutes, warmRoute };
 }

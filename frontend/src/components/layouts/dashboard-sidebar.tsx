@@ -28,14 +28,15 @@ function NavigationList({
   const router = useRouter();
   const { items } = useNavigation();
   const { navigate, pendingHref } = useDashboardNavigation();
-  const { warmRoute } = useWarmDashboardData();
+  const { warmPrimaryRoutes, warmRoute } = useWarmDashboardData();
 
   React.useEffect(() => {
-    items.forEach((item) => {
-      router.prefetch(item.href as Route);
-      warmRoute(item.href);
+    const topRoutes = items.slice(0, 2).map((item) => item.href);
+    topRoutes.forEach((href) => {
+      router.prefetch(href as Route);
     });
-  }, [items, router, warmRoute]);
+    warmPrimaryRoutes(topRoutes);
+  }, [items, router, warmPrimaryRoutes]);
 
   return (
     <nav aria-label="Dashboard" className="flex flex-col gap-1 px-2">
@@ -80,6 +81,7 @@ function NavigationList({
               collapsed && 'justify-center px-2 py-3',
             )}
             title={collapsed ? item.label : undefined}
+            aria-label={collapsed ? item.label : undefined}
           >
             <span
               className={cn(
@@ -110,9 +112,14 @@ export { NavigationList };
 
 export function DashboardSidebar({ collapsed, onToggleCollapsed }: DashboardSidebarProps) {
   return (
-    <aside className="hidden lg:flex lg:w-[280px] lg:flex-col lg:border-r lg:bg-background/95 lg:backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex h-full flex-col gap-4 p-4">
-        <div className="flex h-[60px] items-center gap-3 px-2">
+    <aside
+      className={cn(
+        'hidden lg:flex lg:flex-col lg:border-r lg:bg-background/95 lg:backdrop-blur supports-[backdrop-filter]:bg-background/60',
+        collapsed ? 'lg:w-[88px]' : 'lg:w-[280px]',
+      )}
+    >
+      <div className={cn('flex h-full flex-col gap-4 p-4', collapsed && 'px-3')}>
+        <div className={cn('flex h-[60px] items-center gap-3 px-2', collapsed && 'justify-center px-0')}>
           <div className={cn('flex flex-col', collapsed && 'hidden')}>
             <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
               A1 Prime
@@ -124,7 +131,11 @@ export function DashboardSidebar({ collapsed, onToggleCollapsed }: DashboardSide
             variant="ghost"
             size="icon"
             onClick={onToggleCollapsed}
-            className="ml-auto h-8 w-8 text-muted-foreground hover:text-foreground"
+            className={cn(
+              'h-8 w-8 text-muted-foreground hover:text-foreground',
+              collapsed ? 'mx-auto' : 'ml-auto',
+            )}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             <PanelLeftClose
               className={cn('h-4 w-4 transition-transform', collapsed && 'rotate-180')}
