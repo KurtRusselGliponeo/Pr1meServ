@@ -5,7 +5,6 @@ import {
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
-  getPaginationRowModel,
   useReactTable,
   type ColumnDef,
   type SortingState,
@@ -48,6 +47,8 @@ export function CosafApprovalsPanel() {
       desc: true,
     },
   ]);
+  const [pageIndex, setPageIndex] = React.useState(0);
+  const pageSize = 10;
 
   const columns = React.useMemo<Array<ColumnDef<CosafApprovalItem>>>(
     () => [
@@ -144,7 +145,7 @@ export function CosafApprovalsPanel() {
         ),
       },
     ],
-    [approveMutation, rejectMutation],
+    [approveMutation, rejectMutation, signedCopyMutation],
   );
 
   const table = useReactTable({
@@ -156,11 +157,14 @@ export function CosafApprovalsPanel() {
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: {
-      pagination: { pageSize: 10 },
-    },
   });
+  const sortedRows = table.getRowModel().rows;
+  const pageCount = Math.max(1, Math.ceil(sortedRows.length / pageSize));
+  const pageRows = sortedRows.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize);
+
+  React.useEffect(() => {
+    setPageIndex((currentPageIndex) => Math.min(currentPageIndex, pageCount - 1));
+  }, [pageCount]);
 
   const handleReject = React.useCallback(
     async (approvalId: string, reason: string) => {
@@ -247,7 +251,7 @@ export function CosafApprovalsPanel() {
                 ))}
               </TableHeader>
               <TableBody>
-                {table.getRowModel().rows.map((row) => (
+                {pageRows.map((row) => (
                   <TableRow key={row.id} className="border-white/40 dark:border-white/10">
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id}>
@@ -258,11 +262,29 @@ export function CosafApprovalsPanel() {
                 ))}
               </TableBody>
             </Table>
-            {table.getPageCount() > 1 && (
+            {pageCount > 1 && (
               <div className="flex items-center justify-between px-4 py-3 border-t border-white/20 dark:border-white/10">
-                <Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>Previous</Button>
-                <span className="text-xs text-muted-foreground">Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}</span>
-                <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>Next</Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPageIndex((currentPageIndex) => Math.max(0, currentPageIndex - 1))}
+                  disabled={pageIndex === 0}
+                >
+                  Previous
+                </Button>
+                <span className="text-xs text-muted-foreground">
+                  Page {pageIndex + 1} of {pageCount}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setPageIndex((currentPageIndex) => Math.min(pageCount - 1, currentPageIndex + 1))
+                  }
+                  disabled={pageIndex >= pageCount - 1}
+                >
+                  Next
+                </Button>
               </div>
             )}
           </div>

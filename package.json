@@ -5,6 +5,7 @@
   "private": true,
   "scripts": {
     "prepare": "husky",
+    "check:tsconfig": "node scripts/check-tsconfig-deprecations.mjs",
     "dev": "concurrently -n \"WEB,API\" -c \"bgBlue.bold,bgMagenta.bold\" \"npm run dev:frontend\" \"npm run dev:backend\"",
     "dev:frontend": "npm run dev --workspace=frontend",
     "dev:backend": "npm run dev --workspace=backend",
@@ -17,7 +18,7 @@
     "db:rebuild": "npm run db:rollback && npm run db:migrate:phase1",
     "format:check": "prettier --check .",
     "format:write": "prettier --write .",
-    "typecheck:all": "npm run typecheck --workspaces --if-present",
+    "typecheck:all": "npm run check:tsconfig && npm run typecheck --workspaces --if-present",
     "lint:all": "npm run lint --workspaces --if-present",
     "test:all": "npm run test --workspace=backend",
     "test:unit": "npm run test:unit --workspace=backend",

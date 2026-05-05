@@ -50,7 +50,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
         <AuthProvider>
           {children}
           <Toaster
-            position="top-right"
+            position="bottom-right"
             expand
             richColors
             closeButton

@@ -3,7 +3,7 @@ import { db, withDbTransaction } from '@/db/client';
 import { BadRequestError, ForbiddenError, NotFoundError } from '@/lib/errors';
 import { agentProfiles, clientProfiles, userAccounts } from '@/schema';
 import { logSystemAudit } from '@/shared/lib/audit';
-import type { AuthenticatedUser } from '@a1prime/schemas';
+import type { AuthTokenPayload } from '@/shared/lib/auth';
 
 export interface PolicyRecordRow {
   id: string;
@@ -50,8 +50,8 @@ export interface CreatePolicyRecordInput {
 export interface UpdatePolicyRecordInput {
   firstName?: string;
   lastName?: string;
-  productType?: string;
-  planCode?: string;
+  productType?: string | null;
+  planCode?: string | null;
   modalPremium?: number;
   api?: number;
   sumAssured?: number;
@@ -68,7 +68,7 @@ const VALID_CASE_STATUSES = ['Uncontacted', 'Contacted', 'Forms Submitted', 'BM 
 const VALID_POLICY_STATUSES = ['Active', 'Lapsed', 'Cancelled', 'Matured'];
 
 export class AdminPolicyService {
-  async listPolicies(agentId: string | undefined, search: string | undefined, actor: AuthenticatedUser) {
+  async listPolicies(agentId: string | undefined, search: string | undefined, actor: AuthTokenPayload) {
     if (actor.role !== 'Admin') throw new ForbiddenError('Admin access required.');
 
     const conditions = [isNull(clientProfiles.deletedAtUtc)];
@@ -146,7 +146,7 @@ export class AdminPolicyService {
     }));
   }
 
-  async createPolicy(input: CreatePolicyRecordInput, actor: AuthenticatedUser): Promise<{ id: string }> {
+  async createPolicy(input: CreatePolicyRecordInput, actor: AuthTokenPayload): Promise<{ id: string }> {
     if (actor.role !== 'Admin') throw new ForbiddenError('Admin access required.');
 
     if (!VALID_CASE_STATUSES.includes(input.caseStatus)) {
@@ -195,7 +195,7 @@ export class AdminPolicyService {
 
       await logSystemAudit({
         action: 'admin.policy.create',
-        userId: actor.id,
+        userId: actor.sub,
         entityName: 'ClientProfile',
         resourceId: row.id,
         newValue: { policyNumber: input.policyNumber, agentId: input.agentId },
@@ -207,7 +207,7 @@ export class AdminPolicyService {
     return { id: inserted.id };
   }
 
-  async updatePolicy(clientProfileId: string, input: UpdatePolicyRecordInput, actor: AuthenticatedUser): Promise<void> {
+  async updatePolicy(clientProfileId: string, input: UpdatePolicyRecordInput, actor: AuthTokenPayload): Promise<void> {
     if (actor.role !== 'Admin') throw new ForbiddenError('Admin access required.');
 
     const [existing] = await db
@@ -246,7 +246,7 @@ export class AdminPolicyService {
 
       await logSystemAudit({
         action: 'admin.policy.update',
-        userId: actor.id,
+        userId: actor.sub,
         entityName: 'ClientProfile',
         resourceId: clientProfileId,
         newValue: input as Record<string, unknown>,
@@ -254,7 +254,7 @@ export class AdminPolicyService {
     });
   }
 
-  async deletePolicy(clientProfileId: string, actor: AuthenticatedUser): Promise<void> {
+  async deletePolicy(clientProfileId: string, actor: AuthTokenPayload): Promise<void> {
     if (actor.role !== 'Admin') throw new ForbiddenError('Admin access required.');
 
     const [existing] = await db
@@ -272,7 +272,7 @@ export class AdminPolicyService {
 
       await logSystemAudit({
         action: 'admin.policy.delete',
-        userId: actor.id,
+        userId: actor.sub,
         entityName: 'ClientProfile',
         resourceId: clientProfileId,
       }, tx);

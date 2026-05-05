@@ -8,6 +8,7 @@ import {
   Trophy,
   Library,
   BriefcaseBusiness,
+  FileSpreadsheet,
 } from 'lucide-react';
 import type { SystemRole } from '@a1prime/schemas';
 
@@ -50,6 +51,14 @@ export const dashboardNavigationItems: readonly NavigationItem[] = [
     label: 'Performance Leaderboard',
     description: 'Track agent rankings and KPIs.',
     icon: Trophy,
+    allowedRoles: ['Admin', 'BranchManager', 'Agent'],
+    matchMode: 'startsWith',
+  },
+  {
+    href: '/dashboard/policies',
+    label: 'Policy Inventory',
+    description: 'View all policies in your allowed scope.',
+    icon: FileSpreadsheet,
     allowedRoles: ['Admin', 'BranchManager', 'Agent'],
     matchMode: 'startsWith',
   },

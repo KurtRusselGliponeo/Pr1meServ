@@ -7,7 +7,6 @@
     "lib": ["ES2022"],
     "outDir": "dist",
     "rootDir": "..",
-    "baseUrl": ".",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,

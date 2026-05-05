@@ -1,9 +1,5 @@
 {
   "compilerOptions": {
-    "strict": true,
-    "baseUrl": ".",
-    "paths": {
-      "@a1prime/schemas": ["packages/schemas/src/index.ts"]
-    }
+    "strict": true
   }
 }

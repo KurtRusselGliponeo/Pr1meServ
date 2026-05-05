@@ -19,6 +19,7 @@ import metricsRoutes from './features/phase-5-performance/metrics/metrics.route'
 import notificationsRoutes from './features/notifications/notifications.route';
 import usersRoutes from './features/users/users.route';
 import adminPolicyRoutes from './features/admin/admin-policy.route';
+import policiesRoutes from './features/policies/policies.route';
 import { assertRedisConnection, isRedisEnabled, redis } from './lib/redis';
 import { logger } from './lib/logger';
 import {
@@ -181,6 +182,7 @@ const buildApp = async () => {
   await app.register(authRoutes, { prefix: '/api/v1' });
   await app.register(usersRoutes, { prefix: '/api/v1' });
   await app.register(adminPolicyRoutes, { prefix: '/api/v1' });
+  await app.register(policiesRoutes, { prefix: '/api/v1' });
   await app.register(agentsRoutes, { prefix: '/api/v1' });
   await app.register(prospectsRoutes, { prefix: '/api/v1' });
   await app.register(clientProfilesRoutes, { prefix: '/api/v1' });

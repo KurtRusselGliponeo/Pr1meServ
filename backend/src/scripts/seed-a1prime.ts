@@ -295,7 +295,7 @@ async function seed() {
 
   // 6. PER records (persistency, 1 per agent current month) ─────────────────
   console.log('\n  Seeding PER records...');
-  const persistencyValues = [85.32, 78.91, 92.14, 88.67, 73.45];
+  const persistencyValues = [85.32, 78.91, 92.14, 88.67, 73.45, 90.00];
   const unitPer = 83.90;
   const branchPer = 83.70;
 
