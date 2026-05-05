@@ -3,6 +3,8 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { ArrowRightLeft, FileClock, Filter, Trophy, UserX } from 'lucide-react';
+import { Command } from 'cmdk';
+import { Input } from '@/components/ui/input';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +13,8 @@ import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
 import { useGetAgents } from '@/features/phase-3-reassignment/hooks/use-get-agents';
 import { useDelistAgent } from '../hooks/use-delist-agent';
 import { useGetBranchManagerDashboard } from '../hooks/use-get-branch-manager-dashboard';
+import { ConfirmActionDialog } from '@/components/ui/confirm-action-dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat(undefined, {
@@ -41,6 +45,8 @@ export function BMHome() {
   const agentsQuery = useGetAgents('');
   const delistAgentMutation = useDelistAgent();
   const [agentCodeToDelist, setAgentCodeToDelist] = React.useState('');
+  const [agentSearchQuery, setAgentSearchQuery] = React.useState('');
+  const [isAgentSearchOpen, setIsAgentSearchOpen] = React.useState(false);
 
   if (dashboardQuery.isPending) {
     return <LoadingSkeleton rows={5} columns={4} />;
@@ -219,28 +225,100 @@ export function BMHome() {
               Delisting immediately moves that portfolio into orphan handling so you can reassign it
               and notify the next agent.
             </p>
-            <input
-              className="min-h-11 w-full rounded-xl border border-input bg-background px-3 text-sm"
-              placeholder="Agent code"
-              value={agentCodeToDelist}
-              onChange={(event) => setAgentCodeToDelist(event.target.value)}
-              aria-label="Agent code to delist"
+            <div className="relative w-full">
+              <Input
+                className="min-h-11 w-full rounded-xl"
+                placeholder="Search agent by name or code to delist..."
+                value={agentSearchQuery}
+                onChange={(e) => {
+                  setAgentSearchQuery(e.target.value);
+                  setIsAgentSearchOpen(true);
+                  if (agentCodeToDelist) setAgentCodeToDelist('');
+                }}
+                onFocus={() => setIsAgentSearchOpen(true)}
+              />
+              {isAgentSearchOpen && agentsQuery.data?.data && (
+                <div className="absolute z-10 top-[calc(100%+8px)] w-full rounded-2xl border bg-background shadow-lg">
+                  <Command className="overflow-hidden rounded-2xl bg-transparent">
+                    <Command.List className="max-h-60 overflow-y-auto p-2">
+                      <Command.Empty className="p-3 text-sm text-muted-foreground">No agent found.</Command.Empty>
+                      {agentsQuery.data.data
+                        .filter((a: any) => a.displayName.toLowerCase().includes(agentSearchQuery.toLowerCase()) || a.agentCode.toLowerCase().includes(agentSearchQuery.toLowerCase()))
+                        .map((agent: any) => (
+                        <Command.Item
+                          key={agent.id}
+                          value={agent.agentCode}
+                          onSelect={() => {
+                            setAgentCodeToDelist(agent.agentCode);
+                            setAgentSearchQuery(`${agent.displayName} (${agent.agentCode})`);
+                            setIsAgentSearchOpen(false);
+                          }}
+                          className="flex cursor-pointer items-center justify-between rounded-xl px-3 py-2 text-sm hover:bg-accent"
+                        >
+                          {agent.displayName} ({agent.agentCode})
+                        </Command.Item>
+                      ))}
+                    </Command.List>
+                  </Command>
+                </div>
+              )}
+              {isAgentSearchOpen && (
+                <div 
+                  className="fixed inset-0 z-0" 
+                  onClick={() => setIsAgentSearchOpen(false)} 
+                />
+              )}
+            </div>
+            <ConfirmActionDialog
+              title="Delist Agent"
+              description={`Are you sure you want to delist agent ${agentCodeToDelist}? This will instantly move all their clients to the Orphan pool.`}
+              confirmLabel="Yes, delist agent"
+              isPending={delistAgentMutation.isPending}
+              onConfirm={() => delistAgentMutation.mutate(agentCodeToDelist.trim())}
+              trigger={
+                <Button
+                  type="button"
+                  className="min-h-11 w-full rounded-full"
+                  disabled={!agentCodeToDelist.trim() || delistAgentMutation.isPending}
+                >
+                  Delist agent
+                </Button>
+              }
             />
-            <Button
-              type="button"
-              className="min-h-11 rounded-full"
-              disabled={!agentCodeToDelist.trim() || delistAgentMutation.isPending}
-              onClick={() => delistAgentMutation.mutate(agentCodeToDelist.trim())}
+            <Dialog 
+              open={delistAgentMutation.isSuccess && !!delistAgentMutation.data} 
+              onOpenChange={(open) => {
+                if (!open) {
+                  delistAgentMutation.reset();
+                  setAgentCodeToDelist('');
+                  setAgentSearchQuery('');
+                }
+              }}
             >
-              Delist agent
-            </Button>
-            {delistAgentMutation.data ? (
-              <p className="text-sm text-muted-foreground">
-                {delistAgentMutation.data.targetAgentCode} delisted.{' '}
-                {delistAgentMutation.data.orphanedClientProfiles} client(s) moved to orphan handling
-                and imported source data was preserved.
-              </p>
-            ) : null}
+              <DialogContent className="rounded-3xl">
+                <DialogHeader>
+                  <DialogTitle className="text-emerald-600">Successfully Delisted!</DialogTitle>
+                  <DialogDescription className="leading-6 pt-2">
+                    Agent <strong>{delistAgentMutation.data?.targetAgentCode}</strong> has been successfully delisted.
+                    <br /><br />
+                    <strong>{delistAgentMutation.data?.orphanedClientProfiles}</strong> client(s) were moved to the Orphan pool and are now awaiting reassignment.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="mt-4 flex justify-end">
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      delistAgentMutation.reset();
+                      setAgentCodeToDelist('');
+                      setAgentSearchQuery('');
+                    }}
+                    className="min-h-11 rounded-2xl"
+                  >
+                    Close
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
             {delistAgentMutation.errorMessage ? (
               <p className="text-sm text-destructive">{delistAgentMutation.errorMessage}</p>
             ) : null}

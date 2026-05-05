@@ -20,6 +20,7 @@ import { documentRepositoryPhaseNineMigration } from './018_DocumentRepositoryPh
 import { phaseNineFivePerformanceIndexesMigration } from './019_PhaseNineFivePerformanceIndexes';
 import { phaseTenProspectingMigration } from './020_PhaseTenProspecting';
 import { forgotPasswordResetTokenMigration } from './021_ForgotPasswordResetToken';
+import { policyRecordsMigration } from './022_PolicyRecordsAdminFields';
 
 export const phaseOneMigrations = [
   userAccountsMigration,
@@ -60,4 +61,6 @@ export const applicationMigrations = [
   phaseNineFivePerformanceIndexesMigration,
   phaseTenProspectingMigration,
   forgotPasswordResetTokenMigration,
+  policyRecordsMigration,
 ];
+

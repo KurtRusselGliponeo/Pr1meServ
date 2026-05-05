@@ -1,6 +1,6 @@
 import type { CaseStatus, PolicyStatus } from '@a1prime/schemas';
 import { sql } from 'drizzle-orm';
-import { decimal, index, pgTable, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
+import { date, decimal, index, pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
 
 import { agentProfiles } from './agent-profiles';
 
@@ -22,6 +22,9 @@ export const clientProfiles = pgTable(
     commissionAmount: decimal('CommissionAmount', { precision: 19, scale: 4 }).notNull(),
     caseStatus: varchar('CaseStatus', { length: 32 }).$type<CaseStatus>().notNull(),
     policyStatus: varchar('PolicyStatus', { length: 32 }).$type<PolicyStatus>().notNull(),
+    dateIssued: date('DateIssued'),
+    dateClosed: date('DateClosed'),
+    notes: text('Notes'),
     createdAt: timestamp('CreatedAtUtc', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('UpdatedAtUtc', { withTimezone: true }).defaultNow().notNull(),
     deletedAtUtc: timestamp('DeletedAtUtc', { withTimezone: true }),

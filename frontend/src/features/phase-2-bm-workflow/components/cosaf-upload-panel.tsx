@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { FileUp, LoaderCircle, Search, UploadCloud } from 'lucide-react';
+import { FileUp, LoaderCircle, Search, UploadCloud, AlertTriangle } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import type { AuthenticatedUser, ClientProfile, ListClientProfilesResponse } from '@a1prime/schemas';
@@ -77,6 +77,8 @@ export function CosafUploadPanel() {
       file: undefined,
     },
   });
+
+  const selectedBucket = form.watch('bucket');
 
   const clientsQuery = useGetClientProfiles(
     1,
@@ -248,6 +250,18 @@ export function CosafUploadPanel() {
                 </FormItem>
               )}
             />
+
+            {selectedBucket === 'ids' ? (
+              <div className="flex items-start gap-3 rounded-2xl border border-amber-500/50 bg-amber-500/10 p-4 text-sm text-amber-600 dark:text-amber-400">
+                <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+                <div>
+                  <p className="font-semibold">Notice</p>
+                  <p className="mt-1">
+                    Uploading an ID does NOT submit this case for Manager Review. You must still upload the signed COSAF Form to proceed.
+                  </p>
+                </div>
+              </div>
+            ) : null}
 
             <FormField
               control={form.control}

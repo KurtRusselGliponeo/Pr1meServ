@@ -68,7 +68,7 @@ export default function LoginPage() {
            * Current: pr-20 lg:pr-28  →  form sits comfortably left of the wave
            * ─────────────────────────────────────────────────────────────────
            */}
-          <div className="relative ml-[20%] w-full max-w-[400px] pr-30 lg:pr-38">
+          <div className="relative ml-[20%] w-full max-w-[400px] pr-28 lg:pr-32">
             {/* Brand */}
             <div className="mb-10 flex items-center gap-3">
               <BrandShield />

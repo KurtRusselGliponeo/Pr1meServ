@@ -447,6 +447,8 @@ async function seed() {
   const cosafCases: Array<{ clientIdx: number; status: string; reason: string | null }> = [
     { clientIdx: 0, status: 'PENDING',  reason: null },
     { clientIdx: 1, status: 'PENDING',  reason: null },
+    { clientIdx: 35, status: 'PENDING',  reason: null },
+    { clientIdx: 36, status: 'APPROVED', reason: 'BM approved.' },
     { clientIdx: 2, status: 'APPROVED', reason: 'Agent resigned. Client reassigned per BM directive.' },
     { clientIdx: 3, status: 'REJECTED', reason: 'Insufficient justification provided for reassignment.' },
   ];

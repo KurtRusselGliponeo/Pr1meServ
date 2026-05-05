@@ -34,7 +34,44 @@ export class EmailQueueService {
       const notificationQueue = createNotificationQueue();
       await notificationQueue.add('send-email', parsedPayload);
     } else if (this.canAttemptInlineEmail()) {
-      await sendQueuedEmail(parsedPayload);
+      sendQueuedEmail(parsedPayload).catch(async (error) => {
+        try {
+          await db.insert(notifications).values({
+            channel: 'email',
+            subject: parsedPayload.subject,
+            message: parsedPayload.html ?? parsedPayload.text ?? '',
+            status: 'failed',
+            metadata: JSON.stringify({
+              to: parsedPayload.to,
+              error: error instanceof Error ? error.message : String(error),
+            }),
+          });
+        } catch {
+          // Silent catch for background db error
+        }
+      });
+      
+      // Assume queued/sent for the immediate response
+      await logSystemAudit({
+        action: 'email.sent.inline.async',
+        entityName: 'NotificationEmail',
+        newValue: {
+          to: parsedPayload.to,
+          subject: parsedPayload.subject,
+        },
+      });
+
+      await db.insert(notifications).values({
+        channel: 'email',
+        subject: parsedPayload.subject,
+        message: parsedPayload.html ?? parsedPayload.text ?? '',
+        status: 'sent',
+        metadata: JSON.stringify({
+          to: parsedPayload.to,
+        }),
+      });
+
+      return;
     } else {
       await logSystemAudit({
         action: 'email.skipped.inline',

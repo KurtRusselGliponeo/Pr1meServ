@@ -125,7 +125,11 @@ export function CosafPageClient({ searchParams }: CosafPageClientProps) {
                   ? 'Done'
                   : client.caseStatus === 'Returned'
                     ? 'Contacted'
-                    : 'Contacted';
+                    : client.caseStatus === 'Uncontacted'
+                      ? 'Contacted'
+                      : null;
+
+              if (!nextStatus) return;
 
               try {
                 await updateStatusMutation.mutateAsync({

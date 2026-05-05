@@ -15,7 +15,7 @@ import { useGetLapsationDashboard } from '../hooks/use-get-lapsation-dashboard';
 import { useReinstateLapsationRecord } from '../hooks/use-reinstate-lapsation-record';
 import type { LapsationRecordSummary } from '../types/lapsation.types';
 import { LapsationResolutionDialog } from './lapsation-resolution-dialog';
-import { NapUploadPortal } from './nap-upload-portal';
+import { NapApeManualEntry } from './nap-ape-manual-entry';
 
 function formatCurrency(value: string) {
   return new Intl.NumberFormat(undefined, {
@@ -31,6 +31,8 @@ export function LapsationPageClient() {
   const dashboardQuery = useGetLapsationDashboard();
   const reinstateMutation = useReinstateLapsationRecord();
   const [selectedRecord, setSelectedRecord] = React.useState<LapsationRecordSummary | null>(null);
+  const [lapPage, setLapPage] = React.useState(1);
+  const LAP_PER_PAGE = 10;
 
   if (dashboardQuery.isPending) {
     return <LoadingSkeleton rows={6} columns={5} />;
@@ -91,7 +93,7 @@ export function LapsationPageClient() {
         </p>
       </section>
 
-      {canImport ? <NapUploadPortal /> : null}
+      {canImport ? <NapApeManualEntry /> : null}
 
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
         <Card>
@@ -163,7 +165,7 @@ export function LapsationPageClient() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/20 dark:divide-white/10">
-                  {visibleRecords.map((record: (typeof visibleRecords)[number]) => (
+                  {visibleRecords.slice((lapPage - 1) * LAP_PER_PAGE, lapPage * LAP_PER_PAGE).map((record: (typeof visibleRecords)[number]) => (
                     <tr key={record.id}>
                       <td className="py-4 pr-4">
                         <p className="font-semibold text-foreground">{record.policyNumber}</p>
@@ -193,6 +195,13 @@ export function LapsationPageClient() {
                   ))}
                 </tbody>
               </table>
+              {visibleRecords.length > LAP_PER_PAGE && (
+                <div className="flex items-center justify-between mt-4">
+                  <Button variant="outline" size="sm" onClick={() => setLapPage(p => Math.max(1, p - 1))} disabled={lapPage === 1}>Previous</Button>
+                  <span className="text-xs text-muted-foreground">Page {lapPage} of {Math.max(1, Math.ceil(visibleRecords.length / LAP_PER_PAGE))}</span>
+                  <Button variant="outline" size="sm" onClick={() => setLapPage(p => Math.min(Math.ceil(visibleRecords.length / LAP_PER_PAGE), p + 1))} disabled={lapPage >= Math.ceil(visibleRecords.length / LAP_PER_PAGE)}>Next</Button>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

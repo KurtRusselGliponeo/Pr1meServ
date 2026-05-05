@@ -81,6 +81,13 @@ export function AdminHome() {
         {[
           {
             step: 'Quick action',
+            title: 'Policy records',
+            description: 'View, manually add, and edit per-policy closed deal records for any agent.',
+            href: '/dashboard/admin/policies',
+            cta: 'Open policy records',
+          },
+          {
+            step: 'Quick action',
             title: 'Create account',
             description: 'Provision Admin, Branch Manager, and Agent accounts with the locked onboarding rules.',
             href: '/dashboard/admin/users',

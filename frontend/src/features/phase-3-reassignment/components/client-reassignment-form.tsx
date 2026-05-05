@@ -98,9 +98,16 @@ function OrphanClientCard({
   onViewHistory: (clientId: string) => void;
 }) {
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       onClick={() => onToggle(client.id)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onToggle(client.id);
+        }
+      }}
       className={cn(
         'flex h-full flex-col rounded-[28px] border px-4 py-4 text-left shadow-soft transition-all duration-200',
         'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring/20',
@@ -150,7 +157,7 @@ function OrphanClientCard({
           View history
         </Button>
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -206,6 +213,9 @@ export function ClientReassignmentForm({
 }: ClientReassignmentFormProps) {
   const shouldReduceMotion = useReducedMotion();
   const [destinationAgent, setDestinationAgent] = React.useState<AgentLookupItem | null>(null);
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const [agentPage, setAgentPage] = React.useState(1);
+  const ITEMS_PER_PAGE = 10;
   const [selectedClientIds, setSelectedClientIds] = React.useState<string[]>([]);
   const [lastPreflight, setLastPreflight] =
     React.useState<ClientProfileReassignPreflightResponse | null>(null);
@@ -289,7 +299,7 @@ export function ClientReassignmentForm({
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        <section className="grid gap-4 xl:grid-cols-[0.88fr_1.12fr]">
+        <section className="grid gap-4 xl:grid-cols-2">
           <div className="space-y-4 rounded-[28px] border border-white/50 bg-background/70 p-4 shadow-soft dark:border-white/10 dark:bg-white/[0.03]">
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -320,7 +330,7 @@ export function ClientReassignmentForm({
                   No active agents matched your search.
                 </div>
               ) : null}
-              {agents.map((agent) => (
+              {agents.slice((agentPage - 1) * ITEMS_PER_PAGE, agentPage * ITEMS_PER_PAGE).map((agent) => (
                 <DestinationAgentCard
                   key={agent.id}
                   agent={agent}
@@ -328,6 +338,13 @@ export function ClientReassignmentForm({
                   onSelect={setDestinationAgent}
                 />
               ))}
+              {agents.length > ITEMS_PER_PAGE && (
+                <div className="flex items-center justify-between mt-2">
+                  <Button variant="outline" size="sm" onClick={() => setAgentPage(p => Math.max(1, p - 1))} disabled={agentPage === 1}>Previous</Button>
+                  <span className="text-xs text-muted-foreground">Page {agentPage} of {Math.max(1, Math.ceil(agents.length / ITEMS_PER_PAGE))}</span>
+                  <Button variant="outline" size="sm" onClick={() => setAgentPage(p => Math.min(Math.ceil(agents.length / ITEMS_PER_PAGE), p + 1))} disabled={agentPage >= Math.ceil(agents.length / ITEMS_PER_PAGE)}>Next</Button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -381,7 +398,7 @@ export function ClientReassignmentForm({
               </div>
             ) : null}
             <div className="grid gap-3 sm:grid-cols-2">
-              {orphanClients.map((client) => (
+              {orphanClients.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE).map((client) => (
                 <motion.div
                   key={client.id}
                   layout={!shouldReduceMotion}
@@ -404,6 +421,13 @@ export function ClientReassignmentForm({
                   />
                 </motion.div>
               ))}
+              {orphanClients.length > ITEMS_PER_PAGE && (
+                <div className="flex items-center justify-between mt-4 col-span-1 sm:col-span-2">
+                  <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>Previous</Button>
+                  <span className="text-xs text-muted-foreground">Page {currentPage} of {Math.max(1, Math.ceil(orphanClients.length / ITEMS_PER_PAGE))}</span>
+                  <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(Math.ceil(orphanClients.length / ITEMS_PER_PAGE), p + 1))} disabled={currentPage >= Math.ceil(orphanClients.length / ITEMS_PER_PAGE)}>Next</Button>
+                </div>
+              )}
             </div>
           </div>
         </section>

@@ -3,6 +3,7 @@
 import { Bell, ChevronDown, LogOut, Search } from 'lucide-react';
 
 import { ThemeSwitcher } from '@/components/ui/theme-switcher';
+import { MessengerDialog } from '@/components/layouts/messenger-dialog';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -49,6 +50,7 @@ export function DashboardHeader({ navigationTrigger }: DashboardHeaderProps) {
 
         <div className="flex items-center gap-3">
           <ThemeSwitcher />
+          <MessengerDialog />
 
           <Button
             type="button"

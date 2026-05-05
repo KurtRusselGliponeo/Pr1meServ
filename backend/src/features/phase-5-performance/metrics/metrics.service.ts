@@ -1,5 +1,6 @@
-import { and, eq, gte, inArray, isNull, lt, sql } from 'drizzle-orm';
+﻿import { and, desc, eq, gte, inArray, isNull, lt, sql } from 'drizzle-orm';
 import Decimal from 'decimal.js';
+import { z } from 'zod';
 
 import type {
   GetPerformanceMetricsQuery,
@@ -7,8 +8,8 @@ import type {
   PerformanceLeaderboardResponse,
   PerformanceMetricsResponse,
 } from '@a1prime/schemas';
-import { db } from '@/db/client';
-import { ForbiddenError } from '@/lib/errors';
+import { db, withDbTransaction } from '@/db/client';
+import { ForbiddenError, NotFoundError } from '@/lib/errors';
 import {
   agentProfiles,
   clientProfiles,
@@ -494,6 +495,112 @@ export class MetricsService {
       agentSection,
     ].join('\n');
   }
+
+  async manualEntry(body: unknown, actor: AuthTokenPayload): Promise<{ id: string; created: boolean }> {
+    if (actor.role !== 'Admin') throw new ForbiddenError('Admin access required.');
+
+    const ManualEntrySchema = z.object({
+      agentId: z.string().uuid(),
+      month: z.number().int().min(1).max(12),
+      year: z.number().int().min(2000).max(2100),
+      nap: z.number().min(0).default(0),
+      ape: z.number().min(0).default(0),
+      sumAssured: z.number().min(0).default(0),
+      commissionAmount: z.number().min(0).default(0),
+      recruitmentCount: z.number().int().min(0).default(0),
+    });
+
+    const input = ManualEntrySchema.parse(body);
+    const monthStr = recordMonth(input.month, input.year);
+
+    const [agent] = await db
+      .select({ id: agentProfiles.id })
+      .from(agentProfiles)
+      .where(and(eq(agentProfiles.id, input.agentId), isNull(agentProfiles.deletedAtUtc)))
+      .limit(1);
+    if (!agent) throw new NotFoundError('Agent not found.');
+
+    const [existing] = await db
+      .select({
+        id: performanceMetrics.id,
+        api: performanceMetrics.api,
+        modalPremium: performanceMetrics.modalPremium,
+        sumAssured: performanceMetrics.sumAssured,
+        commissionAmount: performanceMetrics.commissionAmount,
+        recruitmentCount: performanceMetrics.recruitmentCount,
+      })
+      .from(performanceMetrics)
+      .where(and(eq(performanceMetrics.agentId, input.agentId), eq(performanceMetrics.recordMonth, monthStr)))
+      .limit(1);
+
+    return await withDbTransaction('metrics.manualEntry', async (tx) => {
+      if (existing) {
+        await tx
+          .update(performanceMetrics)
+          .set({
+            api: (toNumber(existing.api) + input.nap).toFixed(4),
+            modalPremium: (toNumber(existing.modalPremium) + input.ape).toFixed(4),
+            sumAssured: (toNumber(existing.sumAssured) + input.sumAssured).toFixed(4),
+            commissionAmount: (toNumber(existing.commissionAmount) + input.commissionAmount).toFixed(4),
+            recruitmentCount: (existing.recruitmentCount ?? 0) + input.recruitmentCount,
+            updatedAt: new Date(),
+          })
+          .where(eq(performanceMetrics.id, existing.id));
+        return { id: existing.id, created: false };
+      }
+
+      const [inserted] = await tx.insert(performanceMetrics).values({
+        agentId: input.agentId,
+        recordMonth: monthStr,
+        api: input.nap.toFixed(4),
+        modalPremium: input.ape.toFixed(4),
+        sumAssured: input.sumAssured.toFixed(4),
+        commissionAmount: input.commissionAmount.toFixed(4),
+        recruitmentCount: input.recruitmentCount,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }).returning({ id: performanceMetrics.id });
+
+      return { id: inserted.id, created: true };
+    });
+  }
+
+  async listManualEntries(actor: AuthTokenPayload) {
+    if (actor.role !== 'Admin') throw new ForbiddenError('Admin access required.');
+
+    return db
+      .select({
+        id: performanceMetrics.id,
+        agentId: performanceMetrics.agentId,
+        agentName: agentProfiles.displayName,
+        agentCode: agentProfiles.agentCode,
+        recordMonth: performanceMetrics.recordMonth,
+        nap: performanceMetrics.api,
+        ape: performanceMetrics.modalPremium,
+        sumAssured: performanceMetrics.sumAssured,
+        commissionAmount: performanceMetrics.commissionAmount,
+        recruitmentCount: performanceMetrics.recruitmentCount,
+        updatedAt: performanceMetrics.updatedAt,
+      })
+      .from(performanceMetrics)
+      .innerJoin(agentProfiles, and(eq(agentProfiles.id, performanceMetrics.agentId), isNull(agentProfiles.deletedAtUtc)))
+      .orderBy(desc(performanceMetrics.updatedAt));
+  }
+
+  async deleteManualEntry(entryId: string, actor: AuthTokenPayload) {
+    if (actor.role !== 'Admin') throw new ForbiddenError('Admin access required.');
+
+    const [existing] = await db
+      .select({ id: performanceMetrics.id })
+      .from(performanceMetrics)
+      .where(eq(performanceMetrics.id, entryId))
+      .limit(1);
+
+    if (!existing) throw new NotFoundError('Performance entry not found.');
+
+    await db.delete(performanceMetrics).where(eq(performanceMetrics.id, entryId));
+  }
 }
 
 export const metricsService = new MetricsService();
+

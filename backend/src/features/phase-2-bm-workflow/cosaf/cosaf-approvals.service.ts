@@ -62,7 +62,7 @@ export class CosafApprovalsService {
        if (actorRole !== 'Admin' && approval.reviewingBmId !== actorId) {
          throw new ForbiddenError('You can only approve records assigned to your queue.');
        }
-       const recipientEmail = await this.findAssignedAgentEmail(approval.clientProfileId);
+       const recipientEmail = await this.findAssignedAgentEmail(approval.clientProfileId, tx);
        
        await tx.update(cosafApprovals).set({ status: 'APPROVED' }).where(eq(cosafApprovals.id, approvalId));
        await tx
@@ -99,7 +99,7 @@ export class CosafApprovalsService {
        if (actorRole !== 'Admin' && approval.reviewingBmId !== actorId) {
          throw new ForbiddenError('You can only reject records assigned to your queue.');
        }
-       const recipientEmail = await this.findAssignedAgentEmail(approval.clientProfileId);
+       const recipientEmail = await this.findAssignedAgentEmail(approval.clientProfileId, tx);
        
        const [rejectedApproval] = await tx
          .update(cosafApprovals)
@@ -222,8 +222,8 @@ export class CosafApprovalsService {
     return { success: true, documentId: document.documentId };
   }
 
-  private async findAssignedAgentEmail(clientProfileId: string): Promise<string | null> {
-    const [record] = await db
+  private async findAssignedAgentEmail(clientProfileId: string, txClient: any = db): Promise<string | null> {
+    const [record] = await txClient
       .select({
         encryptedEmail: userAccounts.encryptedEmail,
       })

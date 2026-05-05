@@ -599,7 +599,7 @@ export class ClientProfilesService {
         .update(clientProfiles)
         .set({
           assignedAgentId: preflight.destinationAgentId,
-          caseStatus: preflight.destinationAgentId ? 'Contacted' : 'Orphan',
+          caseStatus: preflight.destinationAgentId ? 'Uncontacted' : 'Orphan',
           updatedAt,
         })
         .where(inArray(clientProfiles.id, preflight.validClientProfileIds));
@@ -615,7 +615,7 @@ export class ClientProfilesService {
           },
           newValue: {
             assignedAgentId: preflight.destinationAgentId,
-            caseStatus: preflight.destinationAgentId ? 'Contacted' : 'Orphan',
+            caseStatus: preflight.destinationAgentId ? 'Uncontacted' : 'Orphan',
           },
         })),
       );

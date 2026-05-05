@@ -50,7 +50,47 @@ const metricsRoutes: FastifyPluginAsync = async (app) => {
       return reply.code(200).send(csv);
     },
   );
+
+  /**
+   * Manual NAP/APE entry endpoint — Admin only.
+   * Upserts a performance metric row for a given agent + month.
+   * If a row already exists for that agent+month it accumulates (adds) the submitted values.
+   */
+  app.post(
+    '/metrics/manual-entry',
+    {
+      preHandler: [app.authenticate, requireRole(['Admin'])],
+    },
+    async (request, reply) => {
+      const result = await metricsService.manualEntry(request.body, request.authUser);
+      return reply.code(201).send(result);
+    },
+  );
+
+  /** List all manual entry records so admin can review them. */
+  app.get(
+    '/metrics/manual-entries',
+    {
+      preHandler: [app.authenticate, requireRole(['Admin'])],
+    },
+    async (request, reply) => {
+      const result = await metricsService.listManualEntries(request.authUser);
+      return reply.code(200).send(result);
+    },
+  );
+
+  /** Delete a single manual entry record. */
+  app.delete(
+    '/metrics/manual-entries/:entryId',
+    {
+      preHandler: [app.authenticate, requireRole(['Admin'])],
+    },
+    async (request, reply) => {
+      const { entryId } = request.params as { entryId: string };
+      await metricsService.deleteManualEntry(entryId, request.authUser);
+      return reply.code(204).send();
+    },
+  );
 };
 
 export default metricsRoutes;
-

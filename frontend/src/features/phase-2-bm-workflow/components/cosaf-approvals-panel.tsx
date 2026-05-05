@@ -5,6 +5,7 @@ import {
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
+  getPaginationRowModel,
   useReactTable,
   type ColumnDef,
   type SortingState,
@@ -102,11 +103,12 @@ export function CosafApprovalsPanel() {
             <Button
               type="button"
               size="sm"
+              variant="outline"
               onClick={() => approveMutation.mutate({ approvalId: row.original.id })}
               disabled={approveMutation.isPending || rejectMutation.isPending || signedCopyMutation.isPending}
             >
-              <CheckCircle2 className="h-4 w-4" />
-              Accept
+              <CheckCircle2 className="h-4 w-4 mr-2" />
+              Accept (No signature)
             </Button>
             <Button
               type="button"
@@ -154,6 +156,10 @@ export function CosafApprovalsPanel() {
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: {
+      pagination: { pageSize: 10 },
+    },
   });
 
   const handleReject = React.useCallback(
@@ -252,6 +258,13 @@ export function CosafApprovalsPanel() {
                 ))}
               </TableBody>
             </Table>
+            {table.getPageCount() > 1 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t border-white/20 dark:border-white/10">
+                <Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>Previous</Button>
+                <span className="text-xs text-muted-foreground">Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}</span>
+                <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>Next</Button>
+              </div>
+            )}
           </div>
         )}
       </CardContent>
