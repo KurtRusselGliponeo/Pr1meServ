@@ -98,8 +98,8 @@ export function useWarmDashboardData() {
 
       if (baseHref === '/dashboard/lapsation') {
         void queryClient.prefetchQuery({
-          queryKey: queryKeys.lapsation,
-          queryFn: fetchLapsationDashboard,
+          queryKey: queryKeys.lapsation('{}'),
+          queryFn: () => fetchLapsationDashboard(),
           staleTime: 10 * 60 * 1000,
         });
         return;

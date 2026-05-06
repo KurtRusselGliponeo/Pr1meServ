@@ -20,7 +20,7 @@ export const queryKeys = {
   createProspect: ['create-prospect'] as const,
   updateProspect: ['update-prospect'] as const,
   updateProspectStage: ['update-prospect-stage'] as const,
-  lapsation: ['lapsation'] as const,
+  lapsation: (filters: string) => ['lapsation', filters] as const,
   notificationLogs: ['notification-logs'] as const,
   adminOverview: ['admin-overview'] as const,
   adminSearch: (query: string) => ['admin-search', query] as const,

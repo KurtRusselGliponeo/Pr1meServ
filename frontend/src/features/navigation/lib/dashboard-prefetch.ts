@@ -83,8 +83,18 @@ export async function fetchDocuments(filters: DocumentPrefetchFilters = {}) {
   return listDocumentsResponseSchema.parse(response.data);
 }
 
-export async function fetchLapsationDashboard() {
-  const response = await api.get('/lapsation');
+export async function fetchLapsationDashboard(
+  filters: {
+    search?: string;
+    branchCode?: string;
+    agentId?: string;
+    status?: string;
+    followUpStatus?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  } = {},
+) {
+  const response = await api.get('/lapsation', { params: filters });
   return LapsationDashboardResponseSchema.parse(response.data);
 }
 

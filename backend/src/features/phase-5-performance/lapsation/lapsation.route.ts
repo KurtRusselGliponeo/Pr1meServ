@@ -2,6 +2,10 @@ import type { FastifyPluginAsync } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import * as XLSX from 'xlsx';
+import {
+  ListLapsationAlertsQuerySchema,
+  UpdatePolicyStatusInputSchema,
+} from '@a1prime/schemas';
 
 import { BadRequestError } from '@/lib/errors';
 import { requireRole } from '@/app/middleware/require-role';
@@ -15,7 +19,21 @@ const lapsationRoutes: FastifyPluginAsync = async (app) => {
       preHandler: [app.authenticate, requireRole(['Admin', 'BranchManager', 'Agent'])],
     },
     async (request, reply) => {
-      const result = await lapsationService.getDashboard(request.authUser);
+      const query = ListLapsationAlertsQuerySchema.parse(request.query);
+      const result = await lapsationService.getDashboard(request.authUser, query);
+      return reply.code(200).send(result);
+    },
+  );
+
+  app.patch(
+    '/lapsation/policies/:policyId/status',
+    {
+      preHandler: [app.authenticate, requireRole(['Admin', 'BranchManager'])],
+    },
+    async (request, reply) => {
+      const { policyId } = z.object({ policyId: z.string().uuid() }).parse(request.params);
+      const body = UpdatePolicyStatusInputSchema.parse(request.body);
+      const result = await lapsationService.updatePolicyStatus(policyId, body, request.authUser);
       return reply.code(200).send(result);
     },
   );
@@ -27,7 +45,13 @@ const lapsationRoutes: FastifyPluginAsync = async (app) => {
     },
     async (request, reply) => {
       const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
-      const result = await lapsationService.reinstateRecord(id, request.authUser);
+      const body = z
+        .object({
+          reason: z.string().trim().min(1).max(255).optional(),
+          notes: z.string().trim().max(2000).nullable().optional(),
+        })
+        .parse(request.body ?? {});
+      const result = await lapsationService.reinstateRecord(id, request.authUser, body);
       return reply.code(200).send(result);
     },
   );

@@ -1,9 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { AlertTriangle, CheckCircle2, History, ShieldAlert } from 'lucide-react';
-import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { AlertTriangle, CheckCircle2, History, Search, ShieldAlert } from 'lucide-react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -11,11 +10,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
 import { useAuth } from '@/features/identity/context/auth-context';
+import api from '@/services/api-client';
+import { useGetAgents } from '@/features/phase-3-reassignment/hooks/use-get-agents';
 import { useGetLapsationDashboard } from '../hooks/use-get-lapsation-dashboard';
 import { useReinstateLapsationRecord } from '../hooks/use-reinstate-lapsation-record';
 import type { LapsationRecordSummary } from '../types/lapsation.types';
 import { LapsationResolutionDialog } from './lapsation-resolution-dialog';
 import { NapApeManualEntry } from './nap-ape-manual-entry';
+import { PolicyStatusActionDialog } from './policy-status-action-dialog';
 
 function formatCurrency(value: string) {
   return new Intl.NumberFormat(undefined, {
@@ -25,14 +27,76 @@ function formatCurrency(value: string) {
   }).format(Number(value));
 }
 
+function statusTone(status: string) {
+  if (status === 'Reinstated' || status === 'Active') {
+    return 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300';
+  }
+  if (status === 'At Risk') {
+    return 'bg-amber-500/10 text-amber-700 dark:text-amber-300';
+  }
+  return 'bg-rose-500/10 text-rose-700 dark:text-rose-300';
+}
+
+const FOLLOW_UP_STATUSES = ['Open', 'In Progress', 'Resolved', 'Dismissed'] as const;
+
 export function LapsationPageClient() {
   const { user, isHydrated } = useAuth();
-  const searchParams = useSearchParams();
-  const dashboardQuery = useGetLapsationDashboard();
-  const reinstateMutation = useReinstateLapsationRecord();
+  const queryClient = useQueryClient();
+  const [search, setSearch] = React.useState('');
+  const [branchCode, setBranchCode] = React.useState('');
+  const [agentId, setAgentId] = React.useState('');
+  const [status, setStatus] = React.useState('');
+  const [followUpStatus, setFollowUpStatus] = React.useState('');
   const [selectedRecord, setSelectedRecord] = React.useState<LapsationRecordSummary | null>(null);
-  const [lapPage, setLapPage] = React.useState(1);
-  const LAP_PER_PAGE = 10;
+  const [statusRecord, setStatusRecord] = React.useState<LapsationRecordSummary | null>(null);
+  const canManage = isHydrated && (user?.role === 'Admin' || user?.role === 'BranchManager');
+  const agentsQuery = useGetAgents('', true);
+
+  const dashboardQuery = useGetLapsationDashboard({
+    search: search.trim() || undefined,
+    branchCode: branchCode.trim() || undefined,
+    agentId: agentId || undefined,
+    status: status || undefined,
+    followUpStatus: followUpStatus || undefined,
+  });
+
+  const reinstateMutation = useReinstateLapsationRecord();
+  const updateStatusMutation = useMutation({
+    mutationFn: async (input: {
+      policyId: string;
+      status: string;
+      reason: string;
+      notes: string;
+      followUpStatus: string;
+    }) => {
+      const { data } = await api.patch(`/lapsation/policies/${input.policyId}/status`, {
+        status: input.status,
+        reason: input.reason,
+        notes: input.notes || null,
+        followUpStatus: input.followUpStatus,
+      });
+      return data;
+    },
+    onSuccess: async () => {
+      toast.success('Policy status updated.');
+      setStatusRecord(null);
+      await queryClient.invalidateQueries({ queryKey: ['lapsation'] });
+    },
+  });
+
+  const handleResolutionSubmit = React.useCallback(
+    async (policyId: string, values: { resolutionNote: string }) => {
+      await reinstateMutation.mutateAsync({
+        policyId,
+        reason: 'Policy reinstated',
+        notes: values.resolutionNote,
+      });
+      setSelectedRecord(null);
+      toast.success('Policy reinstated and follow-up queue updated.');
+      await queryClient.invalidateQueries({ queryKey: ['lapsation'] });
+    },
+    [queryClient, reinstateMutation],
+  );
 
   if (dashboardQuery.isPending) {
     return <LoadingSkeleton rows={6} columns={5} />;
@@ -42,98 +106,98 @@ export function LapsationPageClient() {
     return (
       <EmptyState
         icon={AlertTriangle}
-        title="Lapsation dashboard unavailable"
-        description={dashboardQuery.errorMessage ?? 'Lapsation data is not available yet.'}
+        title="Policy status dashboard unavailable"
+        description={dashboardQuery.errorMessage ?? 'Policy status data is not available yet.'}
       />
     );
   }
 
   const dashboard = dashboardQuery.data;
-  const canImport = isHydrated && (user?.role === 'Admin' || user?.role === 'BranchManager');
-  const activeFilter = searchParams.get('filter');
-  const visibleRecords = dashboard.records.filter((record: (typeof dashboard.records)[number]) => {
-    if (record.reinstatedAtUtc) {
-      return false;
-    }
-
-    if (activeFilter === 'urgent') {
-      return record.riskLevel === 'Urgent' || record.riskLevel === 'Lapsed';
-    }
-
-    return true;
-  });
-
-  const handleResolutionSubmit = React.useCallback(
-    async (recordId: string) => {
-      await reinstateMutation.mutateAsync(recordId);
-      setSelectedRecord(null);
-      toast.success('Lapsation resolved and removed from your active queue.');
-      await dashboardQuery.refetch();
-    },
-    [dashboardQuery, reinstateMutation],
-  );
+  const queueLabel =
+    user?.role === 'Agent'
+      ? 'Your follow-up queue'
+      : user?.role === 'BranchManager'
+        ? 'Branch policy follow-up queue'
+        : 'Global policy follow-up queue';
 
   return (
     <div className="space-y-6">
       <section className="floating-card bg-white/72 p-6 sm:p-8 dark:bg-card/82">
-        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand/75">
-          Lapsation
-        </p>
+        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand/75">Policy Lifecycle</p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">
-          At-risk and reinstatement tracker
+          Status and lapsation automation
         </h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-          Monitor policies nearing lapse, review assigned ownership, and mark successful
-          reinstatements from a live branch dashboard.
-        </p>
-        <p className="mt-4">
-          <Link href="/dashboard/documents?category=Lapsation%20%26%20Reinstatement" className="text-sm font-medium text-brand underline underline-offset-4">
-            Open Lapsation repository quick link
-          </Link>
+          Track at-risk, lapsed, reinstated, and cancelled policies with scoped follow-up ownership, audit-backed status history, and reinstatement actions.
         </p>
       </section>
 
-      {canImport ? <NapApeManualEntry /> : null}
+      {canManage ? <NapApeManualEntry /> : null}
 
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-        <Card>
-          <CardHeader className="rounded-[28px] bg-brand-gradient-soft">
-            <CardDescription>Total tracked</CardDescription>
-            <CardTitle>{dashboard.summary.totalTracked}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="rounded-[28px] bg-brand-gradient-soft">
-            <CardDescription>At risk</CardDescription>
-            <CardTitle>{dashboard.summary.atRiskCount}</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Threshold: {dashboard.thresholdDays} days before at-risk escalation.
-            </p>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="rounded-[28px] bg-brand-gradient-soft">
-            <CardDescription>Lapsed</CardDescription>
-            <CardTitle>{dashboard.summary.lapsedCount}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="rounded-[28px] bg-brand-gradient-soft">
-            <CardDescription>Reinstated YTD</CardDescription>
-            <CardTitle>{dashboard.summary.reinstatedYtd}</CardTitle>
-          </CardHeader>
-        </Card>
+        <Card><CardHeader className="rounded-[28px] bg-brand-gradient-soft"><CardDescription>Total tracked</CardDescription><CardTitle>{dashboard.summary.totalTracked}</CardTitle></CardHeader></Card>
+        <Card><CardHeader className="rounded-[28px] bg-brand-gradient-soft"><CardDescription>At risk</CardDescription><CardTitle>{dashboard.summary.atRiskCount}</CardTitle></CardHeader></Card>
+        <Card><CardHeader className="rounded-[28px] bg-brand-gradient-soft"><CardDescription>Lapsed</CardDescription><CardTitle>{dashboard.summary.lapsedCount}</CardTitle></CardHeader></Card>
+        <Card><CardHeader className="rounded-[28px] bg-brand-gradient-soft"><CardDescription>Reinstated YTD</CardDescription><CardTitle>{dashboard.summary.reinstatedYtd}</CardTitle></CardHeader></Card>
       </div>
 
-      {visibleRecords.length === 0 ? (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-xl">Filters</CardTitle>
+          <CardDescription>Filter by policy, branch, agent, lifecycle status, and follow-up state.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 lg:grid-cols-5">
+          <div className="relative lg:col-span-2">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              className="h-11 w-full rounded-md border border-input bg-background pl-9 pr-4 text-sm"
+              placeholder="Search policy, client, or agent"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </div>
+          {user?.role === 'Admin' ? (
+            <input
+              className="h-11 rounded-md border border-input bg-background px-3 text-sm"
+              placeholder="Branch code"
+              value={branchCode}
+              onChange={(event) => setBranchCode(event.target.value)}
+            />
+          ) : null}
+          {user?.role !== 'Agent' ? (
+            <select className="h-11 rounded-md border border-input bg-background px-3 text-sm" value={agentId} onChange={(event) => setAgentId(event.target.value)}>
+              <option value="">All agents</option>
+              {(agentsQuery.data?.data ?? []).map((agent) => (
+                <option key={agent.id} value={agent.id}>
+                  {agent.displayName} ({agent.agentCode})
+                </option>
+              ))}
+            </select>
+          ) : null}
+          <select className="h-11 rounded-md border border-input bg-background px-3 text-sm" value={status} onChange={(event) => setStatus(event.target.value)}>
+            <option value="">All statuses</option>
+            {['At Risk', 'Lapsed', 'Reinstated', 'Cancelled', 'Active'].map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+          <select className="h-11 rounded-md border border-input bg-background px-3 text-sm" value={followUpStatus} onChange={(event) => setFollowUpStatus(event.target.value)}>
+            <option value="">All follow-up states</option>
+            {FOLLOW_UP_STATUSES.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+        </CardContent>
+      </Card>
+
+      {dashboard.records.length === 0 ? (
         <EmptyState
           icon={CheckCircle2}
-          title="No lapsation records found"
-          description={
-            activeFilter === 'urgent'
-              ? 'Your urgent lapsation queue is clear right now.'
-              : 'Import or create lapsation records to start tracking branch risk.'
-          }
+          title="No policy lifecycle alerts found"
+          description="No policies match the current filters in your allowed scope."
         />
       ) : (
         <Card>
@@ -143,65 +207,74 @@ export function LapsationPageClient() {
                 <ShieldAlert className="h-5 w-5 text-brand" />
               </div>
               <div>
-                <CardTitle className="text-xl">Pending lapsation action</CardTitle>
+                <CardTitle className="text-xl">{queueLabel}</CardTitle>
                 <CardDescription>
-                  Live records ordered by newest lapse date and ready for follow-up or
-                  reinstatement.
+                  Role-scoped lifecycle alerts with follow-up state, lapse dates, and reinstatement actions.
                 </CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
-              <table className="w-full text-left">
+              <table className="min-w-[1100px] w-full text-left text-sm">
                 <thead>
                   <tr className="border-b border-white/20 text-sm text-muted-foreground dark:border-white/10">
                     <th className="pb-3 pr-4">Policy</th>
                     <th className="pb-3 pr-4">Agent</th>
-                    <th className="pb-3 pr-4">Premium</th>
-                    <th className="pb-3 pr-4">Days since lapse</th>
-                    <th className="pb-3 pr-4">Risk</th>
+                    <th className="pb-3 pr-4">Status</th>
+                    <th className="pb-3 pr-4">Follow-up</th>
+                    <th className="pb-3 pr-4">Changed</th>
+                    <th className="pb-3 pr-4">Reason</th>
                     <th className="pb-3 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/20 dark:divide-white/10">
-                  {visibleRecords.slice((lapPage - 1) * LAP_PER_PAGE, lapPage * LAP_PER_PAGE).map((record: (typeof visibleRecords)[number]) => (
+                  {dashboard.records.map((record) => (
                     <tr key={record.id}>
                       <td className="py-4 pr-4">
                         <p className="font-semibold text-foreground">{record.policyNumber}</p>
                         <p className="text-xs text-muted-foreground">
-                          {record.clientName} | Open
+                          {record.clientName} | {formatCurrency(record.modalPremium)}
                         </p>
                       </td>
-                      <td className="py-4 pr-4">{record.assignedAgentName}</td>
-                      <td className="py-4 pr-4">{formatCurrency(record.modalPremium)}</td>
-                      <td className="py-4 pr-4">{record.daysSinceLapse} days</td>
                       <td className="py-4 pr-4">
-                        <span className="rounded-full bg-brand-gradient-soft px-3 py-1 text-xs font-semibold text-brand">
-                          {record.riskLevel}
+                        <p>{record.assignedAgentName}</p>
+                        <p className="text-xs text-muted-foreground">{record.branchCode}</p>
+                      </td>
+                      <td className="py-4 pr-4">
+                        <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusTone(record.status)}`}>
+                          {record.status}
                         </span>
                       </td>
+                      <td className="py-4 pr-4">{record.followUpStatus}</td>
+                      <td className="py-4 pr-4 text-xs text-muted-foreground">
+                        {new Date(record.statusChangedAtUtc).toLocaleString()}
+                        {record.daysSinceLapse !== null ? ` | ${record.daysSinceLapse} days since lapse` : ''}
+                      </td>
+                      <td className="py-4 pr-4">{record.reason ?? '-'}</td>
                       <td className="py-4 text-right">
-                        <Button
-                          type="button"
-                          size="sm"
-                          disabled={reinstateMutation.isPending}
-                          onClick={() => setSelectedRecord(record)}
-                        >
-                          Resolve lapsation
-                        </Button>
+                        <div className="flex justify-end gap-2">
+                          {canManage ? (
+                            <Button type="button" size="sm" variant="outline" onClick={() => setStatusRecord(record)}>
+                              Update status
+                            </Button>
+                          ) : null}
+                          {canManage && record.status !== 'Reinstated' ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              disabled={reinstateMutation.isPending}
+                              onClick={() => setSelectedRecord(record)}
+                            >
+                              Reinstate
+                            </Button>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              {visibleRecords.length > LAP_PER_PAGE && (
-                <div className="flex items-center justify-between mt-4">
-                  <Button variant="outline" size="sm" onClick={() => setLapPage(p => Math.max(1, p - 1))} disabled={lapPage === 1}>Previous</Button>
-                  <span className="text-xs text-muted-foreground">Page {lapPage} of {Math.max(1, Math.ceil(visibleRecords.length / LAP_PER_PAGE))}</span>
-                  <Button variant="outline" size="sm" onClick={() => setLapPage(p => Math.min(Math.ceil(visibleRecords.length / LAP_PER_PAGE), p + 1))} disabled={lapPage >= Math.ceil(visibleRecords.length / LAP_PER_PAGE)}>Next</Button>
-                </div>
-              )}
             </div>
           </CardContent>
         </Card>
@@ -209,7 +282,7 @@ export function LapsationPageClient() {
 
       <LapsationResolutionDialog
         open={Boolean(selectedRecord)}
-        recordId={selectedRecord?.id ?? null}
+        recordId={selectedRecord?.policyId ?? null}
         policyNumber={selectedRecord?.policyNumber ?? null}
         clientName={selectedRecord?.clientName ?? null}
         isPending={reinstateMutation.isPending}
@@ -218,7 +291,26 @@ export function LapsationPageClient() {
             setSelectedRecord(null);
           }
         }}
-        onSubmit={(recordId) => handleResolutionSubmit(recordId)}
+        onSubmit={(policyId, values) => handleResolutionSubmit(policyId, values)}
+      />
+
+      <PolicyStatusActionDialog
+        open={Boolean(statusRecord)}
+        policyNumber={statusRecord?.policyNumber ?? null}
+        initialStatus={statusRecord?.status ?? 'At Risk'}
+        isPending={updateStatusMutation.isPending}
+        onOpenChange={(open) => {
+          if (!open) {
+            setStatusRecord(null);
+          }
+        }}
+        onSubmit={async (values) => {
+          if (!statusRecord) return;
+          await updateStatusMutation.mutateAsync({
+            policyId: statusRecord.policyId,
+            ...values,
+          });
+        }}
       />
 
       <Card>
@@ -228,9 +320,9 @@ export function LapsationPageClient() {
               <History className="h-5 w-5 text-brand" />
             </div>
             <div>
-              <CardTitle className="text-xl">Reinstatement and lapsation history</CardTitle>
+              <CardTitle className="text-xl">Status timeline</CardTitle>
               <CardDescription>
-                Timeline of at-risk, lapsed, and reinstated policy events in your current scope.
+                Recent At Risk, Lapsed, Reinstated, and Cancelled events in your allowed scope.
               </CardDescription>
             </div>
           </div>
@@ -239,19 +331,22 @@ export function LapsationPageClient() {
           {dashboard.timeline.length === 0 ? (
             <EmptyState
               icon={History}
-              title="No lapsation history yet"
-              description="Imported NAP transitions will appear here once policies move through risk and reinstatement events."
+              title="No lifecycle history yet"
+              description="Status changes will appear here once policies move through the follow-up workflow."
             />
           ) : (
             <div className="space-y-3">
-              {dashboard.timeline.slice(0, 10).map((event) => (
+              {dashboard.timeline.slice(0, 12).map((event) => (
                 <div
                   key={event.id}
                   className="flex items-center justify-between rounded-[24px] border border-white/30 bg-background/70 px-4 py-3 dark:border-white/10"
                 >
                   <div>
                     <p className="font-semibold text-foreground">{event.policyNumber}</p>
-                    <p className="text-xs text-muted-foreground">{event.eventType}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {event.eventType}
+                      {event.reason ? ` | ${event.reason}` : ''}
+                    </p>
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {new Date(event.effectiveAtUtc).toLocaleString()}
