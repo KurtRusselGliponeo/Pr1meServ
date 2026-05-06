@@ -21,6 +21,7 @@ import { phaseNineFivePerformanceIndexesMigration } from './019_PhaseNineFivePer
 import { phaseTenProspectingMigration } from './020_PhaseTenProspecting';
 import { forgotPasswordResetTokenMigration } from './021_ForgotPasswordResetToken';
 import { policyRecordsMigration } from './022_PolicyRecordsAdminFields';
+import { adminDataCenterFoundationMigration } from './023_AdminDataCenterFoundation';
 
 export const phaseOneMigrations = [
   userAccountsMigration,
@@ -62,5 +63,6 @@ export const applicationMigrations = [
   phaseTenProspectingMigration,
   forgotPasswordResetTokenMigration,
   policyRecordsMigration,
+  adminDataCenterFoundationMigration,
 ];
 

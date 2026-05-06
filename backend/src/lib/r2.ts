@@ -1,4 +1,4 @@
-import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 type UploadPrivateObjectInput = {
@@ -86,6 +86,16 @@ export class R2Service {
       {
         expiresIn: expiresInSeconds,
       },
+    );
+  }
+
+  async deletePrivateObject(key: string): Promise<void> {
+    this.ensureInitialized();
+    await this.client!.send(
+      new DeleteObjectCommand({
+        Bucket: this.bucketName!,
+        Key: key,
+      }),
     );
   }
 }

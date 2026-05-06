@@ -10,7 +10,15 @@ const caseStatusSchema = z.enum([
   'Orphan',
 ]);
 
-const policyStatusSchema = z.enum(['Active', 'Lapsed', 'Cancelled', 'Matured']);
+const policyStatusSchema = z.enum([
+  'Active',
+  'At Risk',
+  'Lapsed',
+  'Reinstated',
+  'Cancelled',
+  'Matured',
+  'Pending',
+]);
 
 export const ListClientProfilesQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),

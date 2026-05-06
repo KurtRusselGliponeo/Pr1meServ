@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 export * from './auth.schema';
 export * from './agents.schema';
+export * from './admin-data-center.schema';
 export * from './background-jobs.schema';
 export * from './client-profile-import.schema';
 export * from './client-assignment-history.schema';
@@ -32,6 +33,14 @@ export const caseStatuses = [
 export const caseStatusSchema = z.enum(caseStatuses);
 export type CaseStatus = z.infer<typeof caseStatusSchema>;
 
-export const policyStatuses = ['Active', 'Lapsed', 'Cancelled', 'Matured'] as const;
+export const policyStatuses = [
+  'Active',
+  'At Risk',
+  'Lapsed',
+  'Reinstated',
+  'Cancelled',
+  'Matured',
+  'Pending',
+] as const;
 export const policyStatusSchema = z.enum(policyStatuses);
 export type PolicyStatus = z.infer<typeof policyStatusSchema>;

@@ -62,6 +62,17 @@ async function writeLocalFallback(storagePath: string, buffer: Buffer) {
   return absolutePath;
 }
 
+async function deleteLocalFallback(storageKey: string) {
+  const root = path.resolve(process.cwd(), '.local-storage');
+  const absolutePath = path.resolve(storageKey);
+
+  if (!absolutePath.startsWith(root + path.sep)) {
+    return;
+  }
+
+  await fs.rm(absolutePath, { force: true });
+}
+
 function buildStoragePath(input: UploadStoredDocumentInput) {
   const scope = input.branchCode ?? 'GLOBAL';
   return `${scope}/${input.category}/${input.versionGroup}/${nanoid()}-${input.fileName}`;
@@ -121,6 +132,22 @@ export class DocumentStorageService {
       downloadUrl: fallbackUrl,
       expiresAtUtc: null,
     };
+  }
+
+  async delete(provider: StorageProvider, storageKey: string) {
+    if (provider === 'R2') {
+      await r2Service.deletePrivateObject(storageKey);
+      return;
+    }
+
+    if (path.isAbsolute(storageKey)) {
+      await deleteLocalFallback(storageKey);
+      return;
+    }
+
+    if (hasGoogleDriveConfig()) {
+      await gdriveService.deleteFile(storageKey);
+    }
   }
 }
 

@@ -4,7 +4,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'next/navigation';
-import { Download, FileIcon, History, Pin, Search, Upload } from 'lucide-react';
+import { Download, FileIcon, History, Pin, Search, Trash2, Upload } from 'lucide-react';
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -93,6 +93,18 @@ export function DocumentLibrary() {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await api.delete(`/documents/${id}`);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === queryKeys.documents()[0],
+      });
+    },
+  });
+
   const metadataMutation = useMutation({
     mutationFn: async ({
       id,
@@ -163,6 +175,21 @@ export function DocumentLibrary() {
       });
     },
     [archiveMutation],
+  );
+
+  const handlePermanentDelete = React.useCallback(
+    async (document: DocumentLibraryItem) => {
+      const confirmed = window.confirm(
+        `Permanently delete "${document.originalFileName}"? This cannot be undone.`,
+      );
+
+      if (!confirmed) {
+        return;
+      }
+
+      await deleteMutation.mutateAsync(document.id);
+    },
+    [deleteMutation],
   );
 
   if (isLoading && !data) {
@@ -305,14 +332,14 @@ export function DocumentLibrary() {
                         <Download className="mr-2 h-4 w-4" />
                         Download
                       </Button>
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href={`/dashboard/documents?history=${doc.id}`}>
-                          <History className="mr-2 h-4 w-4" />
-                          History
-                        </Link>
-                      </Button>
                       {canManageDocuments ? (
                         <>
+                          <Button variant="outline" size="sm" asChild>
+                            <Link href={`/dashboard/documents?history=${doc.id}`}>
+                              <History className="mr-2 h-4 w-4" />
+                              History
+                            </Link>
+                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -328,6 +355,15 @@ export function DocumentLibrary() {
                               Archive
                             </Button>
                           ) : null}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handlePermanentDelete(doc)}
+                            disabled={deleteMutation.isPending}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </Button>
                         </>
                       ) : null}
                     </div>

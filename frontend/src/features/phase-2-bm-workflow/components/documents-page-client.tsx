@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { FileText, Filter, Pin, PinOff, UploadCloud } from 'lucide-react';
+import { Download, FileText, Filter, Pin, PinOff, UploadCloud } from 'lucide-react';
 import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,8 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
 import { useGetDocuments } from '../hooks/use-get-documents';
 import { useUpdateDocumentPin } from '../hooks/use-update-document-pin';
+import { useAuth } from '@/features/identity';
+import api from '@/services/api-client';
 
 const categories = ['All', 'COSAF', 'Compliance', 'Performance', 'Recruitment'] as const;
 const moduleQuickLinks = [
@@ -27,9 +29,17 @@ function formatCreatedAt(value: string) {
 }
 
 export function DocumentsPageClient() {
+  const { user } = useAuth();
   const [category, setCategory] = React.useState<string | undefined>(undefined);
   const documentsQuery = useGetDocuments({ category });
   const pinMutation = useUpdateDocumentPin(category);
+  const canManageDocuments = user?.role === 'Admin' || user?.role === 'BranchManager';
+
+  const handleDownload = React.useCallback(async (documentId: string) => {
+    const response = await api.get(`/documents/${documentId}/download`);
+    const downloadUrl = response.data?.downloadUrl as string;
+    window.open(downloadUrl, '_blank', 'noopener,noreferrer');
+  }, []);
 
   if (documentsQuery.isPending) {
     return <LoadingSkeleton rows={4} columns={4} />;
@@ -116,25 +126,27 @@ export function DocumentsPageClient() {
                     <CardDescription>{document.category}</CardDescription>
                     <CardTitle className="mt-2 text-xl">{document.fileName}</CardTitle>
                   </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={document.isPinned ? 'Unpin document' : 'Pin document'}
-                    onClick={() =>
-                      pinMutation.mutate({
-                        documentId: document.id,
-                        isPinned: !document.isPinned,
-                      })
-                    }
-                    disabled={pinMutation.isPending}
-                  >
-                    {document.isPinned ? (
-                      <PinOff className="h-4 w-4 text-brand" />
-                    ) : (
-                      <Pin className="h-4 w-4 text-muted-foreground" />
-                    )}
-                  </Button>
+                  {canManageDocuments ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={document.isPinned ? 'Unpin document' : 'Pin document'}
+                      onClick={() =>
+                        pinMutation.mutate({
+                          documentId: document.id,
+                          isPinned: !document.isPinned,
+                        })
+                      }
+                      disabled={pinMutation.isPending}
+                    >
+                      {document.isPinned ? (
+                        <PinOff className="h-4 w-4 text-brand" />
+                      ) : (
+                        <Pin className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                  ) : null}
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -162,6 +174,10 @@ export function DocumentsPageClient() {
                   Added {formatCreatedAt(document.createdAtUtc)}
                   {document.isPinned ? ' and currently pinned for quick access.' : '.'}
                 </p>
+                <Button type="button" variant="outline" size="sm" onClick={() => handleDownload(document.id)}>
+                  <Download className="h-4 w-4" />
+                  Download
+                </Button>
               </CardContent>
             </Card>
           ))}

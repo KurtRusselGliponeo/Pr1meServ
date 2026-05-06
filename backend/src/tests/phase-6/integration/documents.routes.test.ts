@@ -13,6 +13,7 @@ const {
   getDownloadUrlMock,
   updateMetadataMock,
   archiveDocumentMock,
+  permanentlyDeleteDocumentMock,
 } = vi.hoisted(() => ({
   fetchDocumentsMock: vi.fn(),
   getDocumentHistoryMock: vi.fn(),
@@ -21,6 +22,7 @@ const {
   getDownloadUrlMock: vi.fn(),
   updateMetadataMock: vi.fn(),
   archiveDocumentMock: vi.fn(),
+  permanentlyDeleteDocumentMock: vi.fn(),
 }));
 
 vi.mock('@/features/phase-2-bm-workflow/documents/documents.service', () => ({
@@ -32,6 +34,7 @@ vi.mock('@/features/phase-2-bm-workflow/documents/documents.service', () => ({
     getDownloadUrl: getDownloadUrlMock,
     updateMetadata: updateMetadataMock,
     archiveDocument: archiveDocumentMock,
+    permanentlyDeleteDocument: permanentlyDeleteDocumentMock,
     uploadDocument: vi.fn(),
     uploadClientDocument: vi.fn(),
   },
@@ -95,6 +98,7 @@ vi.mock('@/db/client', () => ({
   },
   dbClient: {},
   assertDatabaseConnection: vi.fn().mockResolvedValue(undefined),
+  assertRequiredDatabaseSchema: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@/db/migrations/validation', () => ({
@@ -130,6 +134,7 @@ describe('documents.routes', () => {
     getDownloadUrlMock.mockReset();
     updateMetadataMock.mockReset();
     archiveDocumentMock.mockReset();
+    permanentlyDeleteDocumentMock.mockReset();
   });
 
   it('allows authenticated Agents to read the document library', async () => {
@@ -181,6 +186,45 @@ describe('documents.routes', () => {
     await app.close();
   });
 
+  it('denies Agents from document management actions', async () => {
+    const app = await buildApp();
+    const token = await app.jwt.sign({
+      id: 'agent-id',
+      sub: 'agent-id',
+      role: 'Agent',
+      agentId: 'agent-profile-id',
+      agentCode: 'AG-001',
+      tokenType: 'access',
+    });
+    const documentUrl = '/api/v1/documents/7f5e658f-9b80-4c98-a7ca-53d08b2b4ad2';
+    const headers = { authorization: `Bearer ${token}` };
+
+    const responses = await Promise.all([
+      app.inject({ method: 'GET', url: `${documentUrl}/history`, headers }),
+      app.inject({
+        method: 'PATCH',
+        url: `${documentUrl}/metadata`,
+        headers,
+        payload: { fileName: 'updated.pdf' },
+      }),
+      app.inject({
+        method: 'POST',
+        url: `${documentUrl}/archive`,
+        headers,
+        payload: { reason: 'old version' },
+      }),
+      app.inject({ method: 'DELETE', url: documentUrl, headers }),
+    ]);
+
+    expect(responses.map((response) => response.statusCode)).toEqual([403, 403, 403, 403]);
+    expect(getDocumentHistoryMock).not.toHaveBeenCalled();
+    expect(updateMetadataMock).not.toHaveBeenCalled();
+    expect(archiveDocumentMock).not.toHaveBeenCalled();
+    expect(permanentlyDeleteDocumentMock).not.toHaveBeenCalled();
+
+    await app.close();
+  });
+
   it('allows Admin to request a document download URL', async () => {
     getDownloadUrlMock.mockResolvedValue({
       downloadUrl: 'https://storage.local/download',
@@ -205,6 +249,35 @@ describe('documents.routes', () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json().downloadUrl).toContain('storage.local');
+
+    await app.close();
+  });
+
+  it('allows Admin to permanently delete a document', async () => {
+    permanentlyDeleteDocumentMock.mockResolvedValue({ success: true });
+
+    const app = await buildApp();
+    const token = await app.jwt.sign({
+      id: 'admin-id',
+      sub: 'admin-id',
+      role: 'Admin',
+      agentId: null,
+      agentCode: null,
+      tokenType: 'access',
+    });
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: '/api/v1/documents/7f5e658f-9b80-4c98-a7ca-53d08b2b4ad2',
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ success: true });
+    expect(permanentlyDeleteDocumentMock).toHaveBeenCalledWith(
+      '7f5e658f-9b80-4c98-a7ca-53d08b2b4ad2',
+      expect.objectContaining({ role: 'Admin' }),
+    );
 
     await app.close();
   });

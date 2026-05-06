@@ -57,6 +57,15 @@ export class GoogleDriveService {
       throw new Error('Google Drive upload failed');
     }
   }
+
+  async deleteFile(fileId: string) {
+    try {
+      await this.drive.files.delete({ fileId });
+    } catch (error) {
+      logger.error({ err: error, fileId }, 'Failed to delete file from Google Drive');
+      throw new Error('Google Drive delete failed');
+    }
+  }
 }
 
 export const gdriveService = new GoogleDriveService();

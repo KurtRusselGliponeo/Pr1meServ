@@ -471,6 +471,35 @@ export class DocumentsService {
     return this.mapDocument(updated);
   }
 
+  async permanentlyDeleteDocument(documentId: string, actorUser: AuthTokenPayload) {
+    const existing = await this.findDocumentOrThrow(documentId);
+    await this.assertCanManageDocument(existing, actorUser);
+
+    await documentStorageService.delete(
+      existing.storageProvider as DocumentLibraryItem['storageProvider'],
+      existing.storageKey ?? existing.fileUrl,
+    );
+
+    await db.delete(documentLibrary).where(eq(documentLibrary.id, documentId));
+
+    await logSystemAudit({
+      action: 'document.permanently-deleted',
+      userId: actorUser.sub,
+      entityName: 'DocumentLibrary',
+      resourceId: documentId,
+      oldValue: {
+        category: existing.category,
+        branchCode: existing.branchCode,
+        fileName: existing.fileName,
+        originalFileName: existing.originalFileName,
+        storageProvider: existing.storageProvider,
+        version: existing.version,
+      },
+    });
+
+    return { success: true };
+  }
+
   async getDocumentHistory(documentId: string, actorUser: AuthTokenPayload) {
     const selected = await this.findDocumentOrThrow(documentId);
     const actorBranchCode = await this.resolveActorBranchCode(actorUser);

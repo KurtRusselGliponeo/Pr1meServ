@@ -110,7 +110,7 @@ export const documentsRoutes: FastifyPluginAsync = async (app) => {
   });
 
   app.get('/documents/:id/history', {
-    preHandler: [app.authenticate]
+    preHandler: [app.authenticate, requireRole(['Admin', 'BranchManager'])]
   }, async (request, reply) => {
     const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
     const history = await documentsService.getDocumentHistory(id, request.authUser);
@@ -149,6 +149,14 @@ export const documentsRoutes: FastifyPluginAsync = async (app) => {
     const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
     const body = archiveDocumentRequestSchema.parse(request.body);
     const result = await documentsService.archiveDocument(id, body, request.authUser);
+    return reply.code(200).send(result);
+  });
+
+  app.delete('/documents/:id', {
+    preHandler: [app.authenticate, requireRole(['Admin', 'BranchManager'])]
+  }, async (request, reply) => {
+    const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
+    const result = await documentsService.permanentlyDeleteDocument(id, request.authUser);
     return reply.code(200).send(result);
   });
 
