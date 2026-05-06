@@ -1,39 +1,48 @@
 'use client';
 
 import * as React from 'react';
-import { ChevronLeft, ChevronRight, FileSpreadsheet, Search } from 'lucide-react';
+import { FileSpreadsheet, Search } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
 import { useAuth } from '@/features/identity/context/auth-context';
 import api from '@/services/api-client';
 
-interface PolicyInventoryRecord {
+interface PolicyListItem {
   id: string;
-  agentId: string | null;
-  agentName: string;
-  agentCode: string;
-  clientName: string;
-  policyNumber: string;
-  productType: string | null;
-  planCode: string | null;
-  modalPremium: string;
-  api: string;
-  sumAssured: string;
-  commissionAmount: string;
-  caseStatus: string;
-  policyStatus: string;
-  dateIssued: string | null;
-  dateClosed: string | null;
+  assignedAgentId: string | null;
+  agentCode: string | null;
+  agentName: string | null;
   branchCode: string;
-  updatedAt: string;
+  policyNumber: string;
+  policyOwnerName: string | null;
+  lifeInsuredName: string | null;
+  planCode: string | null;
+  planName: string | null;
+  currency: string;
+  firstIssueDate: string | null;
+  mode: string | null;
+  modalPremium: string;
+  sumAssured: string;
+  api: string;
+  policyStatus: string;
+  notes: string | null;
+  updatedAtUtc: string;
+  validationIssues: string[];
 }
 
-interface PoliciesResponse {
-  data: PolicyInventoryRecord[];
+interface PolicyListResponse {
+  data: PolicyListItem[];
   meta: {
     total: number;
     page: number;
@@ -44,32 +53,117 @@ interface PoliciesResponse {
   };
 }
 
-const PAGE_SIZE = 15;
-
-function formatCurrency(value: string) {
-  return new Intl.NumberFormat('en-PH', {
-    style: 'currency',
-    currency: 'PHP',
-    maximumFractionDigits: 0,
-  }).format(Number(value));
+interface PolicyDetailResponse extends PolicyListItem {
+  timeline: {
+    statusHistory: Array<{
+      id: string;
+      previousStatus: string | null;
+      nextStatus: string;
+      effectiveAtUtc: string;
+      reason: string | null;
+      notes: string | null;
+      changedByName: string | null;
+    }>;
+  };
 }
 
-function getVisiblePages(currentPage: number, totalPages: number) {
-  const pages = new Set([1, totalPages]);
+function formatCurrency(value: string, currency: string) {
+  return new Intl.NumberFormat('en-PH', {
+    style: 'currency',
+    currency: currency || 'PHP',
+    maximumFractionDigits: 0,
+  }).format(Number(value || 0));
+}
 
-  for (let page = currentPage - 2; page <= currentPage + 2; page += 1) {
-    if (page >= 1 && page <= totalPages) {
-      pages.add(page);
-    }
+function statusClassName(status: string) {
+  if (status === 'Active' || status === 'Reinstated') {
+    return 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300';
   }
+  if (status === 'Pending' || status === 'At Risk') {
+    return 'bg-amber-500/10 text-amber-700 dark:text-amber-300';
+  }
+  return 'bg-rose-500/10 text-rose-700 dark:text-rose-300';
+}
 
-  return [...pages].sort((left, right) => left - right);
+function PolicyDetailDialog({
+  policyId,
+  open,
+  onOpenChange,
+}: {
+  policyId: string | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const detailQuery = useQuery({
+    queryKey: ['policy-detail', policyId],
+    enabled: open && Boolean(policyId),
+    queryFn: async () => {
+      const { data } = await api.get<PolicyDetailResponse>(`/policies/${policyId}`);
+      return data;
+    },
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>Policy detail</DialogTitle>
+          <DialogDescription>Review issued business details and policy status history.</DialogDescription>
+        </DialogHeader>
+
+        {detailQuery.isPending ? (
+          <LoadingSkeleton rows={4} columns={2} />
+        ) : detailQuery.data ? (
+          <div className="space-y-6">
+            <div className="grid gap-4 md:grid-cols-3">
+              {[
+                ['Policy number', detailQuery.data.policyNumber],
+                ['Policy owner', detailQuery.data.policyOwnerName ?? '-'],
+                ['Life insured', detailQuery.data.lifeInsuredName ?? '-'],
+                ['Assigned agent', detailQuery.data.agentName ?? '-'],
+                ['Branch', detailQuery.data.branchCode],
+                ['Plan', detailQuery.data.planCode ? `${detailQuery.data.planCode} - ${detailQuery.data.planName ?? ''}` : '-'],
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-md border border-border p-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">{label}</p>
+                  <p className="mt-2 text-sm">{value}</p>
+                </div>
+              ))}
+            </div>
+            <div className="grid gap-3 md:grid-cols-3">
+              <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">Modal Premium</p><p className="mt-2 text-xl font-semibold">{formatCurrency(detailQuery.data.modalPremium, detailQuery.data.currency)}</p></CardContent></Card>
+              <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">Sum Assured</p><p className="mt-2 text-xl font-semibold">{formatCurrency(detailQuery.data.sumAssured, detailQuery.data.currency)}</p></CardContent></Card>
+              <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">API</p><p className="mt-2 text-xl font-semibold">{formatCurrency(detailQuery.data.api, detailQuery.data.currency)}</p></CardContent></Card>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold">Status history</h3>
+              <div className="mt-3 space-y-3">
+                {detailQuery.data.timeline.statusHistory.map((item) => (
+                  <div key={item.id} className="rounded-md border border-border p-3">
+                    <p className="font-medium">{item.previousStatus ? `${item.previousStatus} -> ${item.nextStatus}` : item.nextStatus}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {new Date(item.effectiveAtUtc).toLocaleString()}
+                      {item.changedByName ? ` by ${item.changedByName}` : ''}
+                    </p>
+                    {item.reason ? <p className="mt-2 text-sm">{item.reason}</p> : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <EmptyState icon={FileSpreadsheet} title="Unable to load policy detail" description="Try again from the inventory list." />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 export function PolicyInventoryPageClient() {
   const { user } = useAuth();
   const [page, setPage] = React.useState(1);
   const [search, setSearch] = React.useState('');
+  const [detailPolicyId, setDetailPolicyId] = React.useState<string | null>(null);
   const deferredSearch = React.useDeferredValue(search.trim());
 
   React.useEffect(() => {
@@ -79,71 +173,52 @@ export function PolicyInventoryPageClient() {
   const policiesQuery = useQuery({
     queryKey: ['policy-inventory', page, deferredSearch],
     queryFn: async () => {
-      const response = await api.get<PoliciesResponse>('/policies', {
+      const { data } = await api.get<PolicyListResponse>('/policies', {
         params: {
           page,
-          pageSize: PAGE_SIZE,
+          pageSize: 15,
           search: deferredSearch || undefined,
         },
       });
 
-      return response.data;
+      return data;
     },
     staleTime: 5 * 60 * 1000,
   });
 
-  const data = policiesQuery.data;
-  const records = data?.data ?? [];
-  const meta = data?.meta;
-  const visiblePages = getVisiblePages(meta?.page ?? page, meta?.totalPages ?? 1);
-  const firstRow = meta ? (meta.page - 1) * meta.pageSize + 1 : 0;
-  const lastRow = meta ? Math.min(meta.page * meta.pageSize, meta.total) : 0;
+  const records = policiesQuery.data?.data ?? [];
+  const meta = policiesQuery.data?.meta;
   const scopeLabel =
     user?.role === 'Agent'
       ? 'Your assigned policies'
       : user?.role === 'BranchManager'
         ? 'Branch policies'
-        : 'All policy records';
+        : 'All issued policies';
 
   return (
     <div className="space-y-6">
       <section className="floating-card bg-white/72 p-6 sm:p-8 dark:bg-card/82">
-        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand/75">
-          Policy Inventory
-        </p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">
-          {scopeLabel}
-        </h1>
+        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand/75">Policy Inventory</p>
+        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">{scopeLabel}</h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-          Review the full policy list in your allowed scope with spreadsheet-style columns,
-          search, and 15 records per page.
+          Search and review issued business records in your allowed scope, including policy status and core financial values.
         </p>
       </section>
 
       <Card>
         <CardHeader>
           <CardTitle className="text-xl">Policies</CardTitle>
-          <CardDescription>
-            Search by client, policy number, product, or plan code.
-          </CardDescription>
+          <CardDescription>Search by policy number, client name, life insured, or assigned agent.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="relative w-full md:max-w-md">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                className="h-11 w-full rounded-md border border-input bg-background pl-9 pr-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
-                placeholder="Search policies"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-              />
-            </div>
-
-            {meta ? (
-              <p className="text-sm text-muted-foreground">
-                Showing {meta.total === 0 ? 0 : firstRow}-{lastRow} of {meta.total}
-              </p>
-            ) : null}
+          <div className="relative max-w-md">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              className="h-11 w-full rounded-md border border-input bg-background pl-9 pr-4 text-sm"
+              placeholder="Search policies"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
           </div>
 
           {policiesQuery.isPending ? (
@@ -157,62 +232,44 @@ export function PolicyInventoryPageClient() {
           ) : (
             <div className="overflow-hidden rounded-md border border-border bg-background">
               <div className="overflow-x-auto">
-                <table className="min-w-[1180px] w-full border-collapse text-left text-sm">
+                <table className="min-w-[1020px] w-full text-left text-sm">
                   <thead className="bg-muted/70 text-xs uppercase text-muted-foreground">
                     <tr>
-                      {[
-                        'Client',
-                        'Policy No.',
-                        'Agent',
-                        'Branch',
-                        'Product',
-                        'Plan',
-                        'Modal Premium',
-                        'API',
-                        'Sum Assured',
-                        'Case',
-                        'Policy',
-                        'Updated',
-                      ].map((header) => (
-                        <th key={header} className="border-b border-r border-border px-3 py-2 font-semibold last:border-r-0">
-                          {header}
-                        </th>
+                      {['Policy', 'Client', 'Agent', 'Plan', 'API', 'Status', 'Updated', 'Actions'].map((header) => (
+                        <th key={header} className="px-3 py-2 font-semibold">{header}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {records.map((policy) => (
-                      <tr key={policy.id} className="odd:bg-background even:bg-muted/20 hover:bg-brand/5">
-                        <td className="border-b border-r border-border px-3 py-2 font-medium text-foreground">
-                          {policy.clientName}
+                      <tr key={policy.id} className="border-t border-border">
+                        <td className="px-3 py-3">
+                          <p className="font-medium">{policy.policyNumber}</p>
+                          <p className="text-xs text-muted-foreground">{formatCurrency(policy.modalPremium, policy.currency)}</p>
                         </td>
-                        <td className="border-b border-r border-border px-3 py-2 text-foreground">
-                          {policy.policyNumber}
+                        <td className="px-3 py-3">
+                          <p className="font-medium">{policy.policyOwnerName ?? '-'}</p>
+                          <p className="text-xs text-muted-foreground">{policy.lifeInsuredName ?? '-'}</p>
                         </td>
-                        <td className="border-b border-r border-border px-3 py-2">
-                          <p className="font-medium text-foreground">{policy.agentName}</p>
-                          <p className="text-xs text-muted-foreground">{policy.agentCode}</p>
+                        <td className="px-3 py-3">
+                          <p className="font-medium">{policy.agentName ?? 'Unassigned'}</p>
+                          <p className="text-xs text-muted-foreground">{policy.agentCode ?? policy.branchCode}</p>
                         </td>
-                        <td className="border-b border-r border-border px-3 py-2">{policy.branchCode}</td>
-                        <td className="border-b border-r border-border px-3 py-2">
-                          {policy.productType ?? '-'}
+                        <td className="px-3 py-3">
+                          <p className="font-medium">{policy.planCode ?? '-'}</p>
+                          <p className="text-xs text-muted-foreground">{policy.planName ?? '-'}</p>
                         </td>
-                        <td className="border-b border-r border-border px-3 py-2">
-                          {policy.planCode ?? '-'}
+                        <td className="px-3 py-3">{formatCurrency(policy.api, policy.currency)}</td>
+                        <td className="px-3 py-3">
+                          <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${statusClassName(policy.policyStatus)}`}>
+                            {policy.policyStatus}
+                          </span>
                         </td>
-                        <td className="border-b border-r border-border px-3 py-2 tabular-nums">
-                          {formatCurrency(policy.modalPremium)}
-                        </td>
-                        <td className="border-b border-r border-border px-3 py-2 tabular-nums">
-                          {formatCurrency(policy.api)}
-                        </td>
-                        <td className="border-b border-r border-border px-3 py-2 tabular-nums">
-                          {formatCurrency(policy.sumAssured)}
-                        </td>
-                        <td className="border-b border-r border-border px-3 py-2">{policy.caseStatus}</td>
-                        <td className="border-b border-r border-border px-3 py-2">{policy.policyStatus}</td>
-                        <td className="border-b border-border px-3 py-2 text-xs text-muted-foreground">
-                          {new Date(policy.updatedAt).toLocaleDateString()}
+                        <td className="px-3 py-3 text-xs text-muted-foreground">{new Date(policy.updatedAtUtc).toLocaleDateString()}</td>
+                        <td className="px-3 py-3">
+                          <Button type="button" variant="outline" size="sm" onClick={() => setDetailPolicyId(policy.id)}>
+                            Detail
+                          </Button>
                         </td>
                       </tr>
                     ))}
@@ -221,61 +278,30 @@ export function PolicyInventoryPageClient() {
               </div>
 
               {meta && meta.totalPages > 1 ? (
-                <div className="flex flex-col gap-3 border-t border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-xs text-muted-foreground">
-                    Page {meta.page} of {meta.totalPages}
-                  </p>
-                  <div className="flex flex-wrap items-center gap-1">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={!meta.hasPreviousPage}
-                      onClick={() => setPage((current) => Math.max(1, current - 1))}
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                      Previous
-                    </Button>
-
-                    {visiblePages.map((visiblePage, index) => {
-                      const previousPage = visiblePages[index - 1];
-                      const showGap = previousPage && visiblePage - previousPage > 1;
-
-                      return (
-                        <React.Fragment key={visiblePage}>
-                          {showGap ? (
-                            <span className="px-2 text-sm text-muted-foreground">...</span>
-                          ) : null}
-                          <Button
-                            type="button"
-                            variant={visiblePage === meta.page ? 'default' : 'outline'}
-                            size="sm"
-                            className="min-w-9 px-3"
-                            onClick={() => setPage(visiblePage)}
-                          >
-                            {visiblePage}
-                          </Button>
-                        </React.Fragment>
-                      );
-                    })}
-
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={!meta.hasNextPage}
-                      onClick={() => setPage((current) => current + 1)}
-                    >
-                      Next
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
+                <div className="flex items-center justify-between border-t border-border px-4 py-3">
+                  <Button type="button" variant="outline" size="sm" disabled={!meta.hasPreviousPage} onClick={() => setPage((current) => current - 1)}>
+                    Previous
+                  </Button>
+                  <span className="text-sm text-muted-foreground">Page {meta.page} of {meta.totalPages}</span>
+                  <Button type="button" variant="outline" size="sm" disabled={!meta.hasNextPage} onClick={() => setPage((current) => current + 1)}>
+                    Next
+                  </Button>
                 </div>
               ) : null}
             </div>
           )}
         </CardContent>
       </Card>
+
+      <PolicyDetailDialog
+        policyId={detailPolicyId}
+        open={Boolean(detailPolicyId)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDetailPolicyId(null);
+          }
+        }}
+      />
     </div>
   );
 }

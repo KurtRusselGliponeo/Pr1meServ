@@ -10,15 +10,12 @@ export const policies = pgTable(
   'Policies',
   {
     id: uuid('Id').primaryKey().defaultRandom(),
-    clientProfileId: uuid('ClientProfileId')
-      .references(() => clientProfiles.id)
-      .notNull(),
+    clientProfileId: uuid('ClientProfileId').references(() => clientProfiles.id),
     assignedAgentId: uuid('AssignedAgentId').references(() => agentProfiles.id),
     policyNumber: varchar('PolicyNumber', { length: 50 }).notNull().unique(),
     branchCode: varchar('BranchCode', { length: 50 }).notNull(),
     policyOwnerName: varchar('PolicyOwnerName', { length: 255 }),
     lifeInsuredName: varchar('LifeInsuredName', { length: 255 }),
-    productType: varchar('ProductType', { length: 120 }),
     planCode: varchar('PlanCode', { length: 50 }).references(() => planCodes.planCode),
     planName: varchar('PlanName', { length: 255 }),
     currency: varchar('Currency', { length: 20 }).default('PHP').notNull(),

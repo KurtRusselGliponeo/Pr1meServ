@@ -158,6 +158,14 @@ export class LapsationService {
             )
             .orderBy(desc(policyTransactions.effectiveAtUtc), desc(policyTransactions.createdAtUtc));
 
+    const linkedTimelineRows = timelineRows.filter(
+      (
+        row,
+      ): row is typeof row & {
+        policyNumberId: string;
+      } => row.policyNumberId !== null,
+    );
+
     return {
       generatedAtUtc: new Date().toISOString(),
       thresholdDays: getAtRiskThresholdDays(),
@@ -178,7 +186,7 @@ export class LapsationService {
         ).length,
       },
       records: summaries,
-      timeline: timelineRows.map((row) => ({
+      timeline: linkedTimelineRows.map((row) => ({
         id: row.id,
         policyNumberId: row.policyNumberId,
         policyNumber: row.policyNumber,

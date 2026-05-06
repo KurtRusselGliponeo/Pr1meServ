@@ -47,13 +47,12 @@ export const policyModeSchema = z.enum(policyModes);
 export type PolicyMode = z.infer<typeof policyModeSchema>;
 
 export const manualPolicyInputSchema = z.object({
-  clientProfileId: z.string().uuid(),
+  clientProfileId: z.string().uuid().nullable().optional(),
   assignedAgentId: z.string().uuid().optional(),
   policyNumber: z.string().trim().min(1).max(50),
   branchCode: z.string().trim().min(1).max(50),
   policyOwnerName: z.string().trim().min(1).max(255).optional(),
   lifeInsuredName: z.string().trim().min(1).max(255).optional(),
-  productType: z.string().trim().min(1).max(120).optional(),
   planCode: z.string().trim().min(1).max(50).transform((value) => value.toUpperCase()).optional(),
   planName: z.string().trim().min(1).max(255).optional(),
   currency: z.string().trim().min(3).max(20).default('PHP'),
@@ -74,6 +73,8 @@ export const updateManualPolicySchema = manualPolicyInputSchema.partial().extend
 export type UpdateManualPolicy = z.infer<typeof updateManualPolicySchema>;
 
 export const listManualPoliciesQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(50).default(15),
   search: z.string().trim().min(1).max(100).optional(),
   agentId: z.string().uuid().optional(),
   branchCode: z.string().trim().min(1).max(50).optional(),
