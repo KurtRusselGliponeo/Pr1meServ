@@ -10,6 +10,7 @@ import {
   BriefcaseBusiness,
   FileSpreadsheet,
   Tags,
+  ReceiptText,
 } from 'lucide-react';
 import type { SystemRole } from '@a1prime/schemas';
 
@@ -77,6 +78,14 @@ export const dashboardNavigationItems: readonly NavigationItem[] = [
     description: 'Move agent leads across the pre-policy pipeline.',
     icon: BriefcaseBusiness,
     allowedRoles: ['Admin', 'BranchManager', 'Agent'],
+    matchMode: 'startsWith',
+  },
+  {
+    href: '/dashboard/admin/nap-transactions',
+    label: 'NAP Transactions',
+    description: 'Manage manual NAP transactions and policy effects.',
+    icon: ReceiptText,
+    allowedRoles: ['Admin'],
     matchMode: 'startsWith',
   },
   {

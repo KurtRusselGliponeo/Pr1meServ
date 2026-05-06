@@ -15,11 +15,13 @@ import {
   clientProfiles,
   lapsationRecords,
   nap,
+  napTransactions,
   performanceMetrics,
   policies,
   policyTransactions,
 } from '@/schema';
 import type { AuthTokenPayload } from '@/shared/lib/auth';
+import type { DbTransaction } from '@/db/client';
 
 function toNumber(value: string | number | null | undefined) {
   return new Decimal(value ?? 0).toNumber();
@@ -58,6 +60,8 @@ type PersistencySourceRow = {
   transactionType: string | null;
 };
 
+type MetricDatabase = typeof db | DbTransaction;
+
 function buildPersistencyByAgentCode(rows: PersistencySourceRow[]) {
   const totals = new Map<string, { collected: number; uncollected: number }>();
 
@@ -88,6 +92,10 @@ function buildPersistencyByAgentCode(rows: PersistencySourceRow[]) {
 }
 
 export class MetricsService {
+  private toRecordMonthFromDate(value: Date) {
+    return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, '0')}`;
+  }
+
   private async getActorBranchCode(actorUser: AuthTokenPayload): Promise<string | null> {
     if (!actorUser.agentId) {
       return null;
@@ -174,7 +182,7 @@ export class MetricsService {
       lapseConditions.push(eq(clientProfiles.branchCode, branchCode));
     }
 
-    const [lapsationRows, reinstatementRows, persistencyRows] = await Promise.all([
+    const [lapsationRows, reinstatementRows, importedPersistencyRows, manualPersistencyRows] = await Promise.all([
       db
         .select({
           agentId: clientProfiles.assignedAgentId,
@@ -234,6 +242,28 @@ export class MetricsService {
                 : eq(agentProfiles.branchCode, branchCode!),
           ),
         ),
+      db
+        .select({
+          agentCode: agentProfiles.agentCode,
+          api: napTransactions.api,
+          transactionType: napTransactions.transactionType,
+        })
+        .from(napTransactions)
+        .innerJoin(
+          agentProfiles,
+          and(eq(agentProfiles.id, napTransactions.agentId), isNull(agentProfiles.deletedAtUtc)),
+        )
+        .where(
+          and(
+            gte(napTransactions.transactionDate, persistencyStart),
+            lt(napTransactions.transactionDate, persistencyEnd),
+            actorUser.role === 'Admin'
+              ? undefined
+              : actorUser.role === 'Agent' && actorUser.agentId
+                ? eq(agentProfiles.id, actorUser.agentId)
+                : eq(agentProfiles.branchCode, branchCode!),
+          ),
+        ),
     ]);
 
     const lapsationCountByAgent = new Map(
@@ -242,7 +272,10 @@ export class MetricsService {
     const reinstatementCountByAgent = new Map(
       reinstatementRows.filter((row) => row.agentId).map((row) => [row.agentId as string, row.count]),
     );
-    const persistencyByAgentCode = buildPersistencyByAgentCode(persistencyRows);
+    const persistencyByAgentCode = buildPersistencyByAgentCode([
+      ...importedPersistencyRows,
+      ...manualPersistencyRows,
+    ]);
 
     return rows
       .map((row) => {
@@ -599,6 +632,48 @@ export class MetricsService {
     if (!existing) throw new NotFoundError('Performance entry not found.');
 
     await db.delete(performanceMetrics).where(eq(performanceMetrics.id, entryId));
+  }
+
+  async applyManualNapMetricDelta(
+    agentId: string,
+    transactionDate: Date,
+    deltaApi: number,
+    database: MetricDatabase = db,
+  ): Promise<void> {
+    const targetRecordMonth = this.toRecordMonthFromDate(transactionDate);
+    const [existingMetric] = await database
+      .select({
+        id: performanceMetrics.id,
+        api: performanceMetrics.api,
+      })
+      .from(performanceMetrics)
+      .where(
+        and(eq(performanceMetrics.agentId, agentId), eq(performanceMetrics.recordMonth, targetRecordMonth)),
+      )
+      .limit(1);
+
+    if (existingMetric) {
+      await database
+        .update(performanceMetrics)
+        .set({
+          api: (toNumber(existingMetric.api) + deltaApi).toFixed(4),
+          updatedAt: new Date(),
+        })
+        .where(eq(performanceMetrics.id, existingMetric.id));
+      return;
+    }
+
+    await database.insert(performanceMetrics).values({
+      agentId,
+      recordMonth: targetRecordMonth,
+      modalPremium: '0.0000',
+      api: Math.max(0, deltaApi).toFixed(4),
+      sumAssured: '0.0000',
+      commissionAmount: '0.0000',
+      recruitmentCount: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
   }
 }
 

@@ -88,6 +88,13 @@ export function AdminHome() {
           },
           {
             step: 'Quick action',
+            title: 'NAP transactions',
+            description: 'Create and update manual NAP entries that apply policy effects and refresh production metrics.',
+            href: '/dashboard/admin/nap-transactions',
+            cta: 'Open NAP management',
+          },
+          {
+            step: 'Quick action',
             title: 'Create account',
             description: 'Provision Admin, Branch Manager, and Agent accounts with the locked onboarding rules.',
             href: '/dashboard/admin/users',

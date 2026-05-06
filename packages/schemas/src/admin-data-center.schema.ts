@@ -110,7 +110,7 @@ export type NapTransactionType = z.infer<typeof napTransactionTypeSchema>;
 
 export const manualNapTransactionInputSchema = z.object({
   policyId: z.string().uuid().optional(),
-  agentId: z.string().uuid(),
+  agentId: z.string().uuid().optional(),
   policyNumber: z.string().trim().min(1).max(100),
   accountType: z.string().trim().min(1).max(100).optional(),
   contractTypeCode: z.string().trim().min(1).max(50).optional(),
@@ -133,6 +133,19 @@ export const updateManualNapTransactionSchema = manualNapTransactionInputSchema.
   transactionType: napTransactionTypeSchema.optional(),
 });
 export type UpdateManualNapTransaction = z.infer<typeof updateManualNapTransactionSchema>;
+
+export const listManualNapTransactionsQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(50).default(15),
+  search: z.string().trim().min(1).max(100).optional(),
+  agentId: z.string().uuid().optional(),
+  branchCode: z.string().trim().min(1).max(50).optional(),
+  transactionType: napTransactionTypeSchema.optional(),
+  creditStatus: z.string().trim().min(1).max(100).optional(),
+  dateFrom: dateStringSchema.optional(),
+  dateTo: dateStringSchema.optional(),
+});
+export type ListManualNapTransactionsQuery = z.infer<typeof listManualNapTransactionsQuerySchema>;
 
 export const recruitmentStatuses = ['Active', 'Terminated', 'Reinstated', 'Pending'] as const;
 export const recruitmentStatusSchema = z.enum(recruitmentStatuses);
