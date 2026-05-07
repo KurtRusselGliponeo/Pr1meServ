@@ -88,6 +88,13 @@ export function AdminHome() {
           },
           {
             step: 'Quick action',
+            title: 'Data Center',
+            description: 'Jump into the unified admin workspace for policies, NAP, recruitment, persistency, and reference operations.',
+            href: '/dashboard/admin/data-center',
+            cta: 'Open Data Center',
+          },
+          {
+            step: 'Quick action',
             title: 'Recruitments',
             description: 'Track recruit onboarding, recruiter hierarchy, and appointment lifecycle with metric-linked manual records.',
             href: '/dashboard/admin/recruitments',

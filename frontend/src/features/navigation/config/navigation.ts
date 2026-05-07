@@ -12,6 +12,7 @@ import {
   Tags,
   ReceiptText,
   UserRoundPlus,
+  Activity,
 } from 'lucide-react';
 import type { SystemRole } from '@a1prime/schemas';
 
@@ -79,6 +80,14 @@ export const dashboardNavigationItems: readonly NavigationItem[] = [
     description: 'Move agent leads across the pre-policy pipeline.',
     icon: BriefcaseBusiness,
     allowedRoles: ['Admin', 'BranchManager', 'Agent'],
+    matchMode: 'startsWith',
+  },
+  {
+    href: '/dashboard/admin/data-center',
+    label: 'Data Center',
+    description: 'Open the unified admin workspace for manual operations modules.',
+    icon: FileSpreadsheet,
+    allowedRoles: ['Admin'],
     matchMode: 'startsWith',
   },
   {

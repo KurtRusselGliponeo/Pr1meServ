@@ -20,6 +20,7 @@ import notificationsRoutes from './features/notifications/notifications.route';
 import usersRoutes from './features/users/users.route';
 import adminPolicyRoutes from './features/admin/admin-policy.route';
 import adminNapTransactionsRoutes from './features/admin/nap-transactions.route';
+import adminDataCenterRoutes from './features/admin/data-center.route';
 import adminRecruitmentRoutes from './features/admin/recruitment.route';
 import planCodesRoutes from './features/admin/plan-codes.route';
 import persistencyRoutes from './features/admin/persistency.route';
@@ -187,6 +188,7 @@ const buildApp = async () => {
   await app.register(usersRoutes, { prefix: '/api/v1' });
   await app.register(adminPolicyRoutes, { prefix: '/api/v1' });
   await app.register(adminNapTransactionsRoutes, { prefix: '/api/v1' });
+  await app.register(adminDataCenterRoutes, { prefix: '/api/v1' });
   await app.register(adminRecruitmentRoutes, { prefix: '/api/v1' });
   await app.register(planCodesRoutes, { prefix: '/api/v1' });
   await app.register(persistencyRoutes, { prefix: '/api/v1' });
