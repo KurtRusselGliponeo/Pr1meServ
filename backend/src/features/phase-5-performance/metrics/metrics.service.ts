@@ -16,6 +16,7 @@ import {
   lapsationRecords,
   nap,
   napTransactions,
+  perPerformance,
   performanceMetrics,
   policies,
   policyTransactions,
@@ -182,7 +183,13 @@ export class MetricsService {
       lapseConditions.push(eq(clientProfiles.branchCode, branchCode));
     }
 
-    const [lapsationRows, reinstatementRows, importedPersistencyRows, manualPersistencyRows] = await Promise.all([
+    const [
+      lapsationRows,
+      reinstatementRows,
+      importedPersistencyRows,
+      manualPersistencyRows,
+      monthlyPersistencyRows,
+    ] = await Promise.all([
       db
         .select({
           agentId: clientProfiles.assignedAgentId,
@@ -264,6 +271,26 @@ export class MetricsService {
                 : eq(agentProfiles.branchCode, branchCode!),
           ),
         ),
+      db
+        .select({
+          agentId: perPerformance.agentId,
+          personalPersistency: perPerformance.personalPersistency,
+        })
+        .from(perPerformance)
+        .innerJoin(
+          agentProfiles,
+          and(eq(agentProfiles.id, perPerformance.agentId), isNull(agentProfiles.deletedAtUtc)),
+        )
+        .where(
+          and(
+            eq(perPerformance.recordMonth, selectedMonth),
+            actorUser.role === 'Admin'
+              ? undefined
+              : actorUser.role === 'Agent' && actorUser.agentId
+                ? eq(perPerformance.agentId, actorUser.agentId)
+                : eq(agentProfiles.branchCode, branchCode!),
+          ),
+        ),
     ]);
 
     const lapsationCountByAgent = new Map(
@@ -276,6 +303,9 @@ export class MetricsService {
       ...importedPersistencyRows,
       ...manualPersistencyRows,
     ]);
+    const manualPersistencyByAgentId = new Map(
+      monthlyPersistencyRows.map((row) => [row.agentId, toNumber(row.personalPersistency)]),
+    );
 
     return rows
       .map((row) => {
@@ -286,7 +316,10 @@ export class MetricsService {
         const reinstatementCount = reinstatementCountByAgent.get(row.agentId) ?? 0;
         const recruitmentCount = row.recruitmentCount ?? 0;
         const lapsationRate = modalPremium > 0 ? lapsationCount / modalPremium : 0;
-        const persistencyRate = persistencyByAgentCode.get(row.agentCode) ?? 100;
+        const persistencyRate =
+          manualPersistencyByAgentId.get(row.agentId) ??
+          persistencyByAgentCode.get(row.agentCode) ??
+          100;
 
         const score =
           api +

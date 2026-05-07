@@ -22,6 +22,7 @@ import adminPolicyRoutes from './features/admin/admin-policy.route';
 import adminNapTransactionsRoutes from './features/admin/nap-transactions.route';
 import adminRecruitmentRoutes from './features/admin/recruitment.route';
 import planCodesRoutes from './features/admin/plan-codes.route';
+import persistencyRoutes from './features/admin/persistency.route';
 import policiesRoutes from './features/policies/policies.route';
 import { assertRedisConnection, isRedisEnabled, redis } from './lib/redis';
 import { logger } from './lib/logger';
@@ -188,6 +189,7 @@ const buildApp = async () => {
   await app.register(adminNapTransactionsRoutes, { prefix: '/api/v1' });
   await app.register(adminRecruitmentRoutes, { prefix: '/api/v1' });
   await app.register(planCodesRoutes, { prefix: '/api/v1' });
+  await app.register(persistencyRoutes, { prefix: '/api/v1' });
   await app.register(policiesRoutes, { prefix: '/api/v1' });
   await app.register(agentsRoutes, { prefix: '/api/v1' });
   await app.register(prospectsRoutes, { prefix: '/api/v1' });
