@@ -177,6 +177,24 @@ export const updateManualRecruitmentSchema = manualRecruitmentInputSchema.partia
 });
 export type UpdateManualRecruitment = z.infer<typeof updateManualRecruitmentSchema>;
 
+export const listManualRecruitmentsQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(50).default(15),
+  search: z.string().trim().min(1).max(100).optional(),
+  recruiter: z.string().trim().min(1).max(255).optional(),
+  team: z.string().trim().min(1).max(120).optional(),
+  status: recruitmentStatusSchema.optional(),
+  appointedFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  appointedTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+});
+export type ListManualRecruitmentsQuery = z.infer<typeof listManualRecruitmentsQuerySchema>;
+
+export const recruitmentStatusActionSchema = z.object({
+  dateTerminated: z.string().datetime().optional(),
+  notes: z.string().trim().max(2000).nullable().optional(),
+});
+export type RecruitmentStatusAction = z.infer<typeof recruitmentStatusActionSchema>;
+
 export const manualPersistencyInputSchema = z.object({
   agentId: z.string().uuid(),
   recordMonth: recordMonthSchema,

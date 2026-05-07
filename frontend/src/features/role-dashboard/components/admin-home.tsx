@@ -88,6 +88,13 @@ export function AdminHome() {
           },
           {
             step: 'Quick action',
+            title: 'Recruitments',
+            description: 'Track recruit onboarding, recruiter hierarchy, and appointment lifecycle with metric-linked manual records.',
+            href: '/dashboard/admin/recruitments',
+            cta: 'Open recruitment management',
+          },
+          {
+            step: 'Quick action',
             title: 'NAP transactions',
             description: 'Create and update manual NAP entries that apply policy effects and refresh production metrics.',
             href: '/dashboard/admin/nap-transactions',

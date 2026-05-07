@@ -675,6 +675,48 @@ export class MetricsService {
       updatedAt: new Date(),
     });
   }
+
+  async applyManualRecruitmentMetricDelta(
+    agentId: string,
+    appointedAt: Date,
+    deltaCount: number,
+    database: MetricDatabase = db,
+  ): Promise<void> {
+    const targetRecordMonth = this.toRecordMonthFromDate(appointedAt);
+    const [existingMetric] = await database
+      .select({
+        id: performanceMetrics.id,
+        recruitmentCount: performanceMetrics.recruitmentCount,
+      })
+      .from(performanceMetrics)
+      .where(
+        and(eq(performanceMetrics.agentId, agentId), eq(performanceMetrics.recordMonth, targetRecordMonth)),
+      )
+      .limit(1);
+
+    if (existingMetric) {
+      await database
+        .update(performanceMetrics)
+        .set({
+          recruitmentCount: Math.max(0, (existingMetric.recruitmentCount ?? 0) + deltaCount),
+          updatedAt: new Date(),
+        })
+        .where(eq(performanceMetrics.id, existingMetric.id));
+      return;
+    }
+
+    await database.insert(performanceMetrics).values({
+      agentId,
+      recordMonth: targetRecordMonth,
+      modalPremium: '0.0000',
+      api: '0.0000',
+      sumAssured: '0.0000',
+      commissionAmount: '0.0000',
+      recruitmentCount: Math.max(0, deltaCount),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  }
 }
 
 export const metricsService = new MetricsService();
