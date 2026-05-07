@@ -266,3 +266,47 @@ export const updateDataValidationIssueSchema = z.object({
   recommendedFix: z.string().trim().max(4000).nullable().optional(),
 });
 export type UpdateDataValidationIssue = z.infer<typeof updateDataValidationIssueSchema>;
+
+export const listDataValidationIssuesQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(25),
+  module: dataValidationModuleSchema.optional(),
+  severity: dataValidationSeveritySchema.optional(),
+  status: dataValidationStatusSchema.optional(),
+  entityName: z.string().trim().min(1).max(100).optional(),
+  entityId: z.string().uuid().optional(),
+  dateFrom: dateStringSchema.optional(),
+  dateTo: dateStringSchema.optional(),
+});
+export type ListDataValidationIssuesQuery = z.infer<typeof listDataValidationIssuesQuerySchema>;
+
+export const listAuditFeedQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(25),
+  entityName: z.string().trim().min(1).max(100).optional(),
+  entityId: z.string().uuid().optional(),
+  dateFrom: dateStringSchema.optional(),
+  dateTo: dateStringSchema.optional(),
+});
+export type ListAuditFeedQuery = z.infer<typeof listAuditFeedQuerySchema>;
+
+export const reportTypes = [
+  'policy-list',
+  'nap-transactions',
+  'recruitment',
+  'persistency',
+  'lapsed-at-risk-policies',
+  'agent-leaderboard',
+  'branch-summary',
+] as const;
+export const reportTypeSchema = z.enum(reportTypes);
+export type ReportType = z.infer<typeof reportTypeSchema>;
+
+export const exportReportQuerySchema = z.object({
+  reportType: reportTypeSchema,
+  dateFrom: dateStringSchema.optional(),
+  dateTo: dateStringSchema.optional(),
+  recordMonth: recordMonthSchema.optional(),
+  branchCode: z.string().trim().min(1).max(50).optional(),
+});
+export type ExportReportQuery = z.infer<typeof exportReportQuerySchema>;

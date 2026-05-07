@@ -26,9 +26,9 @@ vi.mock('@/features/admin/components/plan-codes-page-client', () => ({
   PlanCodesPageClient: () => <div>Plan code module stub</div>,
 }));
 
-vi.mock('@/services/api-client', () => ({
-  default: {
-    get: vi.fn().mockResolvedValue({
+const getMock = vi.fn(async (url: string) => {
+  if (url === '/admin/data-center/summary') {
+    return {
       data: {
         generatedAtUtc: new Date().toISOString(),
         cards: {
@@ -40,12 +40,105 @@ vi.mock('@/services/api-client', () => ({
           recruitmentCount: 8,
         },
       },
-    }),
+    };
+  }
+
+  if (url.startsWith('/admin/data-center/validation-issues')) {
+    return {
+      data: {
+        data: [
+          {
+            id: 'issue-1',
+            module: 'Policy',
+            entityName: 'Policy',
+            entityId: 'entity-1',
+            issueCode: 'POLICY_PLAN_MISMATCH',
+            severity: 'error',
+            status: 'Open',
+            details: 'Plan code does not match the stored plan name.',
+            recommendedFix: 'Review the policy plan code.',
+            createdAtUtc: new Date().toISOString(),
+            updatedAtUtc: new Date().toISOString(),
+            resolvedAtUtc: null,
+            createdByName: 'Admin User',
+          },
+        ],
+        meta: {
+          total: 1,
+          page: 1,
+          pageSize: 50,
+          totalPages: 1,
+          hasNextPage: false,
+          hasPreviousPage: false,
+        },
+      },
+    };
+  }
+
+  if (url.startsWith('/admin/data-center/audit-feed?')) {
+    return {
+      data: {
+        data: [
+          {
+            id: 'audit-1',
+            action: 'policy.status-change',
+            entityName: 'Policy',
+            entityId: 'entity-1',
+            oldValue: { status: 'Active' },
+            newValue: { status: 'At Risk' },
+            createdAtUtc: new Date().toISOString(),
+            actorName: 'Admin User',
+          },
+        ],
+        meta: {
+          total: 1,
+          page: 1,
+          pageSize: 30,
+          totalPages: 1,
+          hasNextPage: false,
+          hasPreviousPage: false,
+        },
+      },
+    };
+  }
+
+  if (url.startsWith('/admin/data-center/reports/export?reportType=')) {
+    return { data: 'header\nrow' };
+  }
+
+  if (url.startsWith('/admin/data-center/audit-feed/Policy/entity-1')) {
+    return {
+      data: {
+        data: [
+          {
+            id: 'audit-1',
+            action: 'policy.status-change',
+            entityName: 'Policy',
+            entityId: 'entity-1',
+            oldValue: { status: 'Active' },
+            newValue: { status: 'At Risk' },
+            createdAtUtc: new Date().toISOString(),
+            actorName: 'Admin User',
+          },
+        ],
+      },
+    };
+  }
+
+  throw new Error(`Unhandled GET ${url}`);
+});
+
+const patchMock = vi.fn().mockResolvedValue({ data: {} });
+
+vi.mock('@/services/api-client', () => ({
+  default: {
+    get: getMock,
+    patch: patchMock,
   },
 }));
 
 describe('AdminDataCenterClient', () => {
-  it('renders main tabs and switches modules', async () => {
+  it('renders main tabs, validation issues, and audit feed modules', async () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
@@ -57,20 +150,17 @@ describe('AdminDataCenterClient', () => {
     );
 
     expect(await screen.findByText(/unified operational workspace/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Overview$/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Policies$/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^NAP Transactions$/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Recruitment$/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Persistency$/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Plan Codes$/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Policy Status$/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Validation Issues$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Policy Status$/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Reports$/i })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /Policies/i }));
-    expect(await screen.findByText(/Policies module stub/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^Validation Issues$/i }));
+    expect(await screen.findByText(/POLICY_PLAN_MISMATCH/i)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /Recruitment/i }));
-    expect(await screen.findByText(/Recruitment module stub/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^Policy Status$/i }));
+    expect(await screen.findByText(/policy\.status-change/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /^Policies$/i }));
+    expect(await screen.findByText(/Policies module stub/i)).toBeInTheDocument();
   });
 });
