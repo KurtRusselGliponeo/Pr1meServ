@@ -338,6 +338,11 @@ export class AdminRecruitmentService {
         .returning({ id: recRecruitment.id });
 
       await metricsService.applyManualRecruitmentMetricDelta(agent.id, dateAppointed, 1, tx);
+      await metricsService.recalculateManualMetricsForAgentMonth(
+        agent.id,
+        dateAppointed.toISOString().slice(0, 7),
+        tx,
+      );
 
       await logSystemAudit(
         {
@@ -420,6 +425,17 @@ export class AdminRecruitmentService {
         await metricsService.applyManualRecruitmentMetricDelta(nextAgentId, nextDateAppointed, 1, tx);
       }
 
+      await metricsService.recalculateManualMetricsForAgentMonth(
+        existing.agentId,
+        existing.dateAppointed.toISOString().slice(0, 7),
+        tx,
+      );
+      await metricsService.recalculateManualMetricsForAgentMonth(
+        nextAgentId,
+        nextDateAppointed.toISOString().slice(0, 7),
+        tx,
+      );
+
       await logSystemAudit(
         {
           action: 'recruitment.update',
@@ -437,6 +453,12 @@ export class AdminRecruitmentService {
             status: input.status ?? existing.status,
           },
         },
+        tx,
+      );
+
+      await metricsService.recalculateManualMetricsForAgentMonth(
+        existing.agentId,
+        existing.dateAppointed.toISOString().slice(0, 7),
         tx,
       );
     });
@@ -485,6 +507,12 @@ export class AdminRecruitmentService {
             dateTerminated: dateTerminated.toISOString(),
           },
         },
+        tx,
+      );
+
+      await metricsService.recalculateManualMetricsForAgentMonth(
+        existing.agentId,
+        existing.dateAppointed.toISOString().slice(0, 7),
         tx,
       );
     });

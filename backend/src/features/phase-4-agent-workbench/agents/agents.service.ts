@@ -24,6 +24,7 @@ import {
   cosafApprovals,
   lapsationRecords,
   nap,
+  perPerformance,
   performanceMetrics,
   prospects,
   systemAuditLogs,
@@ -201,7 +202,7 @@ export class AgentsService {
       throw new NotFoundError('Agent profile was not found.');
     }
 
-    const [clients, atRiskRows, performanceRows, historyRows, prospectRows] = await Promise.all([
+    const [clients, atRiskRows, performanceRows, persistencyRows, historyRows, prospectRows] = await Promise.all([
       db
         .select({
           id: clientProfiles.id,
@@ -251,6 +252,14 @@ export class AgentsService {
         .orderBy(desc(performanceMetrics.recordMonth)),
       db
         .select({
+          personalPersistency: perPerformance.personalPersistency,
+        })
+        .from(perPerformance)
+        .where(eq(perPerformance.agentId, actorUser.agentId))
+        .orderBy(desc(perPerformance.recordMonth))
+        .limit(1),
+      db
+        .select({
           id: clientAssignmentHistory.id,
           reason: clientAssignmentHistory.reason,
           createdAtUtc: clientAssignmentHistory.createdAtUtc,
@@ -277,7 +286,13 @@ export class AgentsService {
     const recruitmentCount = performanceRows.reduce((sum, row) => sum + (row.recruitmentCount ?? 0), 0);
     const policyCount = clients.length;
     const activePolicies = clients.filter((row) => row.status !== 'Done').length;
-    const persistency = policyCount > 0 ? Math.max(0, Math.round(((policyCount - atRiskRows.length) / policyCount) * 100)) : 100;
+    const manualPersistency = persistencyRows[0]?.personalPersistency;
+    const persistency =
+      manualPersistency !== undefined
+        ? Math.round(toNumber(manualPersistency))
+        : policyCount > 0
+          ? Math.max(0, Math.round(((policyCount - atRiskRows.length) / policyCount) * 100))
+          : 100;
 
     const atRiskPolicies = atRiskRows.map((row) => {
       const daysSinceLapse = Math.max(0, Math.floor((Date.now() - row.lapseDateUtc.getTime()) / 86400000));

@@ -20,6 +20,7 @@ import {
   performanceMetrics,
   policies,
   policyTransactions,
+  recRecruitment,
 } from '@/schema';
 import type { AuthTokenPayload } from '@/shared/lib/auth';
 import type { DbTransaction } from '@/db/client';
@@ -32,10 +33,24 @@ function recordMonth(month: number, year: number) {
   return `${year}-${String(month).padStart(2, '0')}`;
 }
 
+function nextRecordMonth(value: string) {
+  const year = Number.parseInt(value.slice(0, 4), 10);
+  const month = Number.parseInt(value.slice(5, 7), 10);
+  return month === 12 ? `${year + 1}-01` : `${year}-${String(month + 1).padStart(2, '0')}`;
+}
+
 function monthLabel(value: string) {
   return new Intl.DateTimeFormat('en', { month: 'short' }).format(
     new Date(`${value}-01T00:00:00.000Z`),
   );
+}
+
+function monthDateRange(value: string) {
+  const year = Number.parseInt(value.slice(0, 4), 10);
+  const month = Number.parseInt(value.slice(5, 7), 10);
+  const start = new Date(Date.UTC(year, month - 1, 1));
+  const end = new Date(Date.UTC(month === 12 ? year + 1 : year, month === 12 ? 0 : month, 1));
+  return { start, end };
 }
 
 function persistencyWindowStart(year: number, month: number) {
@@ -109,6 +124,18 @@ export class MetricsService {
       .limit(1);
 
     return actorProfile?.branchCode ?? null;
+  }
+
+  private toRecordMonthFromDateOnly(value: string | Date | null | undefined) {
+    if (!value) {
+      return null;
+    }
+
+    if (typeof value === 'string') {
+      return value.slice(0, 7);
+    }
+
+    return this.toRecordMonthFromDate(value);
   }
 
   private async getScopedAgentIds(actorUser: AuthTokenPayload) {
@@ -665,6 +692,116 @@ export class MetricsService {
     if (!existing) throw new NotFoundError('Performance entry not found.');
 
     await db.delete(performanceMetrics).where(eq(performanceMetrics.id, entryId));
+  }
+
+  async recalculateManualMetricsForAgentMonth(
+    agentId: string,
+    targetRecordMonth: string,
+    database: MetricDatabase = db,
+  ): Promise<{ id: string; created: boolean }> {
+    const { start, end } = monthDateRange(targetRecordMonth);
+
+    const [policyRows, napRows, recruitmentRows, existingRows] = await Promise.all([
+      database
+        .select({
+          modalPremium: sql<string>`coalesce(sum(${policies.modalPremium}), 0)::text`,
+          api: sql<string>`coalesce(sum(${policies.api}), 0)::text`,
+          sumAssured: sql<string>`coalesce(sum(${policies.sumAssured}), 0)::text`,
+          caseCount: sql<number>`count(*)::int`,
+        })
+        .from(policies)
+        .where(
+          and(
+            eq(policies.assignedAgentId, agentId),
+            gte(policies.firstIssueDate, targetRecordMonth),
+            lt(policies.firstIssueDate, nextRecordMonth(targetRecordMonth)),
+          ),
+        ),
+      database
+        .select({
+          api: sql<string>`coalesce(sum(${napTransactions.api}), 0)::text`,
+        })
+        .from(napTransactions)
+        .where(
+          and(
+            eq(napTransactions.agentId, agentId),
+            gte(napTransactions.transactionDate, start),
+            lt(napTransactions.transactionDate, end),
+          ),
+        ),
+      database
+        .select({
+          count: sql<number>`count(*) filter (where ${recRecruitment.status} in ('Active', 'Reinstated', 'Pending'))::int`,
+        })
+        .from(recRecruitment)
+        .where(
+          and(
+            eq(recRecruitment.agentId, agentId),
+            gte(recRecruitment.dateAppointed, start),
+            lt(recRecruitment.dateAppointed, end),
+          ),
+        ),
+      database
+        .select({ id: performanceMetrics.id })
+        .from(performanceMetrics)
+        .where(and(eq(performanceMetrics.agentId, agentId), eq(performanceMetrics.recordMonth, targetRecordMonth)))
+        .limit(1),
+    ]);
+
+    const policyMetrics = policyRows[0];
+    const napMetrics = napRows[0];
+    const recruitmentMetrics = recruitmentRows[0];
+    const api = toNumber(napMetrics?.api) > 0 ? toNumber(napMetrics?.api) : toNumber(policyMetrics?.api);
+    const values = {
+      modalPremium: toNumber(policyMetrics?.modalPremium).toFixed(4),
+      api: api.toFixed(4),
+      sumAssured: toNumber(policyMetrics?.sumAssured).toFixed(4),
+      commissionAmount: '0.0000',
+      recruitmentCount: recruitmentMetrics?.count ?? 0,
+      updatedAt: new Date(),
+    };
+
+    const existing = existingRows[0];
+    if (existing) {
+      await database.update(performanceMetrics).set(values).where(eq(performanceMetrics.id, existing.id));
+      return { id: existing.id, created: false };
+    }
+
+    const [inserted] = await database
+      .insert(performanceMetrics)
+      .values({
+        agentId,
+        recordMonth: targetRecordMonth,
+        ...values,
+        createdAt: new Date(),
+      })
+      .returning({ id: performanceMetrics.id });
+
+    return { id: inserted.id, created: true };
+  }
+
+  async recalculateManualMetricsForPolicyChange(
+    next: { agentId: string | null | undefined; firstIssueDate: string | Date | null | undefined },
+    previous?: { agentId: string | null | undefined; firstIssueDate: string | Date | null | undefined },
+    database: MetricDatabase = db,
+  ): Promise<void> {
+    const targets = new Map<string, { agentId: string; recordMonth: string }>();
+
+    for (const item of [next, previous]) {
+      const recordMonthValue = this.toRecordMonthFromDateOnly(item?.firstIssueDate);
+      if (item?.agentId && recordMonthValue) {
+        targets.set(`${item.agentId}:${recordMonthValue}`, {
+          agentId: item.agentId,
+          recordMonth: recordMonthValue,
+        });
+      }
+    }
+
+    await Promise.all(
+      [...targets.values()].map((target) =>
+        this.recalculateManualMetricsForAgentMonth(target.agentId, target.recordMonth, database),
+      ),
+    );
   }
 
   async applyManualNapMetricDelta(

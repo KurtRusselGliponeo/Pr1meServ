@@ -24,6 +24,7 @@ import {
 } from '@/schema';
 import { logSystemAudit } from '@/shared/lib/audit';
 import type { AuthTokenPayload } from '@/shared/lib/auth';
+import { metricsService } from '@/features/phase-5-performance/metrics/metrics.service';
 
 interface PolicyListRow {
   id: string;
@@ -563,6 +564,15 @@ export class PoliciesService {
         tx,
       );
 
+      await metricsService.recalculateManualMetricsForPolicyChange(
+        {
+          agentId: input.assignedAgentId ?? null,
+          firstIssueDate: input.firstIssueDate ?? null,
+        },
+        undefined,
+        tx,
+      );
+
       return created.id;
     });
 
@@ -663,6 +673,18 @@ export class PoliciesService {
             branchCode: input.branchCode ?? agent?.branchCode ?? existing.branchCode,
             policyStatus: nextStatus,
           },
+        },
+        tx,
+      );
+
+      await metricsService.recalculateManualMetricsForPolicyChange(
+        {
+          agentId: nextAgentId ?? null,
+          firstIssueDate: input.firstIssueDate !== undefined ? input.firstIssueDate ?? null : existing.firstIssueDate,
+        },
+        {
+          agentId: existing.assignedAgentId,
+          firstIssueDate: existing.firstIssueDate,
         },
         tx,
       );

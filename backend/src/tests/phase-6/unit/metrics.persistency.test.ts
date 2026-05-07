@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { dbMock } = vi.hoisted(() => ({
-  dbMock: { select: vi.fn() },
+  dbMock: { select: vi.fn(), update: vi.fn(), insert: vi.fn() },
 }));
 
 vi.mock('@/db/client', () => ({
@@ -28,6 +28,8 @@ function queryResult<T>(result: T[]) {
 describe('metricsService persistency integration', () => {
   beforeEach(() => {
     dbMock.select.mockReset();
+    dbMock.update.mockReset();
+    dbMock.insert.mockReset();
   });
 
   it('uses manual monthly persistency records in leaderboard rows', async () => {
@@ -73,5 +75,37 @@ describe('metricsService persistency integration', () => {
     );
 
     expect(rows[0]?.persistencyRate).toBe(82.5);
+  });
+
+  it('recalculates manual monthly metrics from source totals without inflating existing rows', async () => {
+    const setMock = vi.fn(() => ({ where: vi.fn().mockResolvedValue(undefined) }));
+    dbMock.update.mockReturnValue({ set: setMock });
+    dbMock.select
+      .mockReturnValueOnce(
+        queryResult([
+          {
+            modalPremium: '2500.00',
+            api: '2000.00',
+            sumAssured: '100000.00',
+            caseCount: 2,
+          },
+        ]),
+      )
+      .mockReturnValueOnce(queryResult([{ api: '1500.00' }]))
+      .mockReturnValueOnce(queryResult([{ count: 3 }]))
+      .mockReturnValueOnce(queryResult([{ id: 'metric-id' }]));
+
+    const result = await metricsService.recalculateManualMetricsForAgentMonth('agent-id', '2026-03');
+
+    expect(result).toEqual({ id: 'metric-id', created: false });
+    expect(setMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        modalPremium: '2500.0000',
+        api: '1500.0000',
+        sumAssured: '100000.0000',
+        commissionAmount: '0.0000',
+        recruitmentCount: 3,
+      }),
+    );
   });
 });

@@ -592,6 +592,11 @@ export class AdminNapTransactionsService {
       });
 
       await metricsService.applyManualNapMetricDelta(agent.id, transactionDate, Number(api), tx);
+      await metricsService.recalculateManualMetricsForAgentMonth(
+        agent.id,
+        transactionDate.toISOString().slice(0, 7),
+        tx,
+      );
 
       await logSystemAudit(
         {
@@ -703,6 +708,17 @@ export class AdminNapTransactionsService {
       } else if (oldApi !== nextApi) {
         await metricsService.applyManualNapMetricDelta(agent.id, transactionDate, nextApi - oldApi, tx);
       }
+
+      await metricsService.recalculateManualMetricsForAgentMonth(
+        existing.agentId,
+        oldDate.toISOString().slice(0, 7),
+        tx,
+      );
+      await metricsService.recalculateManualMetricsForAgentMonth(
+        agent.id,
+        transactionDate.toISOString().slice(0, 7),
+        tx,
+      );
 
       await logSystemAudit(
         {
