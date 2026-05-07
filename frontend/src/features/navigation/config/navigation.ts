@@ -98,6 +98,14 @@ export const dashboardNavigationItems: readonly NavigationItem[] = [
     matchMode: 'startsWith',
   },
   {
+    href: '/dashboard/admin/data-center/persistency',
+    label: 'Persistency',
+    description: 'Manage manual monthly persistency.',
+    icon: Activity,
+    allowedRoles: ['Admin'],
+    matchMode: 'startsWith',
+  },
+  {
     href: '/dashboard/admin/data-center/plan-codes',
     label: 'Plan Codes',
     description: 'Maintain manual plan code reference data.',

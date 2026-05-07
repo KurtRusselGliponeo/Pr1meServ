@@ -214,6 +214,21 @@ export const updateManualPersistencySchema = manualPersistencyInputSchema.partia
 });
 export type UpdateManualPersistency = z.infer<typeof updateManualPersistencySchema>;
 
+export const listManualPersistencyQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(25),
+  search: z.string().trim().min(1).max(100).optional(),
+  recordMonth: recordMonthSchema.optional(),
+  fromMonth: recordMonthSchema.optional(),
+  toMonth: recordMonthSchema.optional(),
+  agentId: z.string().uuid().optional(),
+  branchCode: z.string().trim().min(1).max(50).optional(),
+  agentType: z.string().trim().min(1).max(50).optional(),
+  team: z.string().trim().min(1).max(120).optional(),
+  lowOnly: z.coerce.boolean().default(false),
+});
+export type ListManualPersistencyQuery = z.infer<typeof listManualPersistencyQuerySchema>;
+
 export const dataValidationModules = [
   'Policy',
   'PlanCode',
