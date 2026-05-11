@@ -69,6 +69,7 @@ vi.mock('@/db/client', () => ({
   dbClient: {},
   withDbTransaction: vi.fn(),
   assertDatabaseConnection: vi.fn().mockResolvedValue(undefined),
+  assertRequiredDatabaseSchema: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@/lib/redis', () => ({

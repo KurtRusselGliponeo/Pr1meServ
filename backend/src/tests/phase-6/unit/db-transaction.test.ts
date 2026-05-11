@@ -1,12 +1,21 @@
-jest.mock('../../../db/client', () => ({
-  db: {
-    transaction: jest.fn(),
-  },
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const { transactionMock, loggerErrorMock } = vi.hoisted(() => ({
+  transactionMock: vi.fn(),
+  loggerErrorMock: vi.fn(),
 }));
 
-jest.mock('../../../lib/logger', () => ({
+vi.mock('../../../db/client', () => ({
+  db: {
+    transaction: transactionMock,
+  },
+  withDbTransaction: async (_name: string, callback: (tx: unknown) => Promise<unknown>) =>
+    transactionMock(callback),
+}));
+
+vi.mock('../../../lib/logger', () => ({
   logger: {
-    error: jest.fn(),
+    error: loggerErrorMock,
   },
 }));
 
@@ -15,11 +24,14 @@ import { logger } from '../../../lib/logger';
 import { withDbTransaction } from '../../../lib/db-transaction';
 
 describe('withDbTransaction', () => {
+  beforeEach(() => {
+    transactionMock.mockReset();
+    loggerErrorMock.mockReset();
+  });
+
   it('delegates to drizzle transaction and returns the callback result', async () => {
-    const callback = jest.fn().mockResolvedValue({ ok: true });
-    (db.transaction as jest.Mock).mockImplementation(async (handler: typeof callback) =>
-      handler({}),
-    );
+    const callback = vi.fn().mockResolvedValue({ ok: true });
+    transactionMock.mockImplementation(async (handler: typeof callback) => handler({}));
 
     const result = await withDbTransaction<{ ok: boolean }>('multi-table-operation', callback);
 
@@ -29,9 +41,9 @@ describe('withDbTransaction', () => {
 
   it('logs and rethrows transaction failures', async () => {
     const error = new Error('transaction failed');
-    (db.transaction as jest.Mock).mockRejectedValue(error);
+    transactionMock.mockRejectedValue(error);
 
-    await expect(withDbTransaction('multi-table-operation', jest.fn())).rejects.toThrow(
+    await expect(withDbTransaction('multi-table-operation', vi.fn())).rejects.toThrow(
       'transaction failed',
     );
     expect(logger.error).toHaveBeenCalledWith(

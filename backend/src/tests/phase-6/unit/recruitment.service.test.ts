@@ -5,11 +5,13 @@ const {
   withDbTransactionMock,
   logSystemAuditMock,
   applyManualRecruitmentMetricDeltaMock,
+  recalculateManualMetricsForAgentMonthMock,
 } = vi.hoisted(() => ({
   selectMock: vi.fn(),
   withDbTransactionMock: vi.fn(),
   logSystemAuditMock: vi.fn(),
   applyManualRecruitmentMetricDeltaMock: vi.fn(),
+  recalculateManualMetricsForAgentMonthMock: vi.fn(),
 }));
 
 vi.mock('@/db/client', () => ({
@@ -26,6 +28,7 @@ vi.mock('@/shared/lib/audit', () => ({
 vi.mock('@/features/phase-5-performance/metrics/metrics.service', () => ({
   metricsService: {
     applyManualRecruitmentMetricDelta: applyManualRecruitmentMetricDeltaMock,
+    recalculateManualMetricsForAgentMonth: recalculateManualMetricsForAgentMonthMock,
   },
 }));
 
@@ -63,6 +66,7 @@ describe('adminRecruitmentService', () => {
     withDbTransactionMock.mockReset();
     logSystemAuditMock.mockReset();
     applyManualRecruitmentMetricDeltaMock.mockReset();
+    recalculateManualMetricsForAgentMonthMock.mockReset();
     vi.spyOn(adminRecruitmentService, 'getRecruitmentDetail').mockResolvedValue({
       id: 'recruitment-id',
       agentId: 'agent-id',

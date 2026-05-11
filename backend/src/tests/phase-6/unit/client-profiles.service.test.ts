@@ -94,8 +94,10 @@ function createRowsBuilder(result: unknown[]) {
   return {
     from: vi.fn(() => ({
       where: vi.fn(() => ({
-        limit: vi.fn(() => ({
-          offset: vi.fn().mockResolvedValue(result),
+        orderBy: vi.fn(() => ({
+          limit: vi.fn(() => ({
+            offset: vi.fn().mockResolvedValue(result),
+          })),
         })),
       })),
     })),
@@ -305,19 +307,28 @@ describe('ClientProfilesService', () => {
   });
 
   it('reassigns all requested client profiles in one transaction', async () => {
+    // preflightReassignment uses outer db.select() for agent lookups + client profiles
+    selectMock
+      .mockReturnValueOnce(createTxAgentBuilder([{ id: '10b9407f-c35f-4c6a-9f84-c6cb74197d9d', displayName: 'Source', branchCode: 'BR-01', encryptedEmail: 'enc' }]))
+      .mockReturnValueOnce(createTxAgentBuilder([{ id: 'a39106e2-d93b-4d26-a230-cfd529e77a19', displayName: 'Dest', branchCode: 'BR-01', encryptedEmail: 'enc' }]))
+      .mockReturnValueOnce(createTxClientProfilesBuilder([
+        { id: '53e2d073-c2f4-4509-8064-dfbf9f163159', assignedAgentId: '10b9407f-c35f-4c6a-9f84-c6cb74197d9d', branchCode: 'BR-01', caseStatus: 'Uncontacted' },
+        { id: 'a8b3f7bd-54ce-4b9c-98c2-457278c2c7de', assignedAgentId: '10b9407f-c35f-4c6a-9f84-c6cb74197d9d', branchCode: 'BR-01', caseStatus: 'Contacted' },
+      ]));
+    // inside transaction: findActiveAgent(tx, source), findActiveAgent(tx, dest), select client rows, select history rows
     txSelectMock
-      .mockReturnValueOnce(createTxAgentBuilder([{ id: '10b9407f-c35f-4c6a-9f84-c6cb74197d9d' }]))
-      .mockReturnValueOnce(createTxAgentBuilder([{ id: 'a39106e2-d93b-4d26-a230-cfd529e77a19' }]))
+      .mockReturnValueOnce(createTxAgentBuilder([{ id: '10b9407f-c35f-4c6a-9f84-c6cb74197d9d', displayName: 'Source', branchCode: 'BR-01', encryptedEmail: 'enc' }]))
+      .mockReturnValueOnce(createTxAgentBuilder([{ id: 'a39106e2-d93b-4d26-a230-cfd529e77a19', displayName: 'Dest', branchCode: 'BR-01', encryptedEmail: 'enc' }]))
       .mockReturnValueOnce(
         createTxClientProfilesBuilder([
-          {
-            id: '53e2d073-c2f4-4509-8064-dfbf9f163159',
-            assignedAgentId: '10b9407f-c35f-4c6a-9f84-c6cb74197d9d',
-          },
-          {
-            id: 'a8b3f7bd-54ce-4b9c-98c2-457278c2c7de',
-            assignedAgentId: '10b9407f-c35f-4c6a-9f84-c6cb74197d9d',
-          },
+          { id: '53e2d073-c2f4-4509-8064-dfbf9f163159', assignedAgentId: '10b9407f-c35f-4c6a-9f84-c6cb74197d9d', branchCode: 'BR-01' },
+          { id: 'a8b3f7bd-54ce-4b9c-98c2-457278c2c7de', assignedAgentId: '10b9407f-c35f-4c6a-9f84-c6cb74197d9d', branchCode: 'BR-01' },
+        ]),
+      )
+      .mockReturnValueOnce(
+        createTxClientProfilesBuilder([
+          { id: '53e2d073-c2f4-4509-8064-dfbf9f163159', branchCode: 'BR-01' },
+          { id: 'a8b3f7bd-54ce-4b9c-98c2-457278c2c7de', branchCode: 'BR-01' },
         ]),
       );
 
@@ -346,9 +357,11 @@ describe('ClientProfilesService', () => {
   });
 
   it('throws when the source agent does not exist', async () => {
-    txSelectMock
+    // preflightReassignment: source agent not found, dest agent found, then client profiles check
+    selectMock
       .mockReturnValueOnce(createTxAgentBuilder([]))
-      .mockReturnValueOnce(createTxAgentBuilder([{ id: 'a39106e2-d93b-4d26-a230-cfd529e77a19' }]));
+      .mockReturnValueOnce(createTxAgentBuilder([{ id: 'a39106e2-d93b-4d26-a230-cfd529e77a19', displayName: 'Dest', branchCode: 'BR-01', encryptedEmail: 'enc' }]))
+      .mockReturnValueOnce(createTxClientProfilesBuilder([{ id: '53e2d073-c2f4-4509-8064-dfbf9f163159', assignedAgentId: '10b9407f-c35f-4c6a-9f84-c6cb74197d9d', branchCode: 'BR-01', caseStatus: 'Uncontacted' }]));
 
     const service = new ClientProfilesService();
 
@@ -370,9 +383,11 @@ describe('ClientProfilesService', () => {
   });
 
   it('throws when the destination agent does not exist', async () => {
-    txSelectMock
-      .mockReturnValueOnce(createTxAgentBuilder([{ id: '10b9407f-c35f-4c6a-9f84-c6cb74197d9d' }]))
-      .mockReturnValueOnce(createTxAgentBuilder([]));
+    // preflightReassignment: source found, dest not found
+    selectMock
+      .mockReturnValueOnce(createTxAgentBuilder([{ id: '10b9407f-c35f-4c6a-9f84-c6cb74197d9d', displayName: 'Source', branchCode: 'BR-01', encryptedEmail: 'enc' }]))
+      .mockReturnValueOnce(createTxAgentBuilder([]))
+      .mockReturnValueOnce(createTxClientProfilesBuilder([{ id: '53e2d073-c2f4-4509-8064-dfbf9f163159', assignedAgentId: '10b9407f-c35f-4c6a-9f84-c6cb74197d9d', branchCode: 'BR-01', caseStatus: 'Uncontacted' }]));
 
     const service = new ClientProfilesService();
 
@@ -394,16 +409,22 @@ describe('ClientProfilesService', () => {
   });
 
   it('rolls back the reassignment transaction when a downstream write fails', async () => {
+    // preflightReassignment uses outer db.select()
+    selectMock
+      .mockReturnValueOnce(createTxAgentBuilder([{ id: '10b9407f-c35f-4c6a-9f84-c6cb74197d9d', displayName: 'Source', branchCode: 'BR-01', encryptedEmail: 'enc' }]))
+      .mockReturnValueOnce(createTxAgentBuilder([{ id: 'a39106e2-d93b-4d26-a230-cfd529e77a19', displayName: 'Dest', branchCode: 'BR-01', encryptedEmail: 'enc' }]))
+      .mockReturnValueOnce(createTxClientProfilesBuilder([{ id: '53e2d073-c2f4-4509-8064-dfbf9f163159', assignedAgentId: '10b9407f-c35f-4c6a-9f84-c6cb74197d9d', branchCode: 'BR-01', caseStatus: 'Uncontacted' }]));
+    // inside transaction
     txSelectMock
-      .mockReturnValueOnce(createTxAgentBuilder([{ id: '10b9407f-c35f-4c6a-9f84-c6cb74197d9d' }]))
-      .mockReturnValueOnce(createTxAgentBuilder([{ id: 'a39106e2-d93b-4d26-a230-cfd529e77a19' }]))
+      .mockReturnValueOnce(createTxAgentBuilder([{ id: '10b9407f-c35f-4c6a-9f84-c6cb74197d9d', displayName: 'Source', branchCode: 'BR-01', encryptedEmail: 'enc' }]))
+      .mockReturnValueOnce(createTxAgentBuilder([{ id: 'a39106e2-d93b-4d26-a230-cfd529e77a19', displayName: 'Dest', branchCode: 'BR-01', encryptedEmail: 'enc' }]))
       .mockReturnValueOnce(
         createTxClientProfilesBuilder([
-          {
-            id: '53e2d073-c2f4-4509-8064-dfbf9f163159',
-            assignedAgentId: '10b9407f-c35f-4c6a-9f84-c6cb74197d9d',
-          },
+          { id: '53e2d073-c2f4-4509-8064-dfbf9f163159', assignedAgentId: '10b9407f-c35f-4c6a-9f84-c6cb74197d9d', branchCode: 'BR-01' },
         ]),
+      )
+      .mockReturnValueOnce(
+        createTxClientProfilesBuilder([{ id: '53e2d073-c2f4-4509-8064-dfbf9f163159', branchCode: 'BR-01' }]),
       );
     txInsertMock.mockReturnValueOnce({
       values: vi.fn().mockRejectedValue(new Error('audit insert failed')),

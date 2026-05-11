@@ -32,9 +32,15 @@ const { selectMock, updateWhereMock, updateSetMock, updateMock, withDbTransactio
 vi.mock('@/db/client', () => ({
   db: {
     select: selectMock,
+    insert: vi.fn(() => ({ values: vi.fn().mockResolvedValue(undefined) })),
   },
   withDbTransaction: withDbTransactionMock,
 }));
+
+vi.mock('@/shared/lib/audit', () => ({
+  logSystemAudit: vi.fn().mockResolvedValue(undefined),
+}));
+
 
 import { UnauthorizedError } from '@/lib/errors';
 import { hashPassword } from '@/shared/lib/auth';

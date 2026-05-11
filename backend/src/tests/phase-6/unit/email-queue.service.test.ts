@@ -1,21 +1,44 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { queueAddMock, sendQueuedEmailMock } = vi.hoisted(() => ({
+const { queueAddMock, sendQueuedEmailMock, dbInsertMock } = vi.hoisted(() => ({
   queueAddMock: vi.fn().mockResolvedValue(undefined),
   sendQueuedEmailMock: vi.fn().mockResolvedValue({ messageId: 'msg-1' }),
+  dbInsertMock: vi.fn(() => ({ values: vi.fn().mockResolvedValue(undefined) })),
 }));
 
 vi.mock('@/queues/notification.queue', () => ({
   notificationQueue: {
     add: queueAddMock,
   },
+  createNotificationQueue: () => ({
+    add: queueAddMock,
+  }),
 }));
 
 vi.mock('@/shared/mail/mailer', () => ({
   sendQueuedEmail: sendQueuedEmailMock,
 }));
 
+vi.mock('@/lib/redis', () => ({
+  isRedisEnabled: true,
+}));
+
+vi.mock('@/db/client', () => ({
+  db: {
+    insert: dbInsertMock,
+  },
+}));
+
+vi.mock('@/schema', () => ({
+  notifications: {},
+}));
+
+vi.mock('@/shared/lib/audit', () => ({
+  logSystemAudit: vi.fn().mockResolvedValue(undefined),
+}));
+
 import { EmailQueueService } from '@/features/notifications/email-queue.service';
+
 
 describe('EmailQueueService', () => {
   beforeEach(() => {

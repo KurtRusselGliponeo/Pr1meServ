@@ -5,11 +5,13 @@ const {
   withDbTransactionMock,
   logSystemAuditMock,
   applyManualNapMetricDeltaMock,
+  recalculateManualMetricsForAgentMonthMock,
 } = vi.hoisted(() => ({
   selectMock: vi.fn(),
   withDbTransactionMock: vi.fn(),
   logSystemAuditMock: vi.fn(),
   applyManualNapMetricDeltaMock: vi.fn(),
+  recalculateManualMetricsForAgentMonthMock: vi.fn(),
 }));
 
 vi.mock('@/db/client', () => ({
@@ -26,6 +28,7 @@ vi.mock('@/shared/lib/audit', () => ({
 vi.mock('@/features/phase-5-performance/metrics/metrics.service', () => ({
   metricsService: {
     applyManualNapMetricDelta: applyManualNapMetricDeltaMock,
+    recalculateManualMetricsForAgentMonth: recalculateManualMetricsForAgentMonthMock,
   },
 }));
 
@@ -77,6 +80,7 @@ describe('adminNapTransactionsService', () => {
     withDbTransactionMock.mockReset();
     logSystemAuditMock.mockReset();
     applyManualNapMetricDeltaMock.mockReset();
+    recalculateManualMetricsForAgentMonthMock.mockReset();
     vi.spyOn(adminNapTransactionsService, 'getTransactionDetail').mockResolvedValue({
       id: 'nap-id',
       policyId: 'policy-id',
