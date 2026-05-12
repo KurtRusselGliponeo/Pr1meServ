@@ -4,7 +4,16 @@ import * as React from 'react';
 import Link from 'next/link';
 import type { Route } from 'next';
 import { useRouter } from 'next/navigation';
-import { CheckCircle2, Command as CommandIcon, Search, ShieldCheck, Users } from 'lucide-react';
+import {
+  ClipboardList,
+  FileSpreadsheet,
+  KeyRound,
+  RotateCcw,
+  Search,
+  ShieldCheck,
+  UserPlus,
+  Users,
+} from 'lucide-react';
 import { Command } from 'cmdk';
 
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
@@ -21,6 +30,55 @@ function formatDate(value: string) {
     timeStyle: 'short',
   }).format(new Date(value));
 }
+
+const ADMIN_PRIMARY_ACTIONS = [
+  {
+    title: 'Create account',
+    description: 'Add Admin, Branch Manager, or Agent access with the required onboarding rules.',
+    href: '/dashboard/admin/users',
+    cta: 'Manage users',
+    icon: UserPlus,
+  },
+  {
+    title: 'Reset password',
+    description: 'Issue a temporary credential and keep the access-change event auditable.',
+    href: '/dashboard/admin/users',
+    cta: 'Open password controls',
+    icon: KeyRound,
+  },
+  {
+    title: 'Delist agent',
+    description: 'Move clients into orphan handling, then reassign without losing history.',
+    href: '/dashboard/cosaf/reassign',
+    cta: 'Open reassignment',
+    icon: RotateCcw,
+  },
+  {
+    title: 'Review logs',
+    description: 'Check uploads, returns, approvals, reassignments, and notifications.',
+    href: '/dashboard/admin/notifications',
+    cta: 'Open logs',
+    icon: ClipboardList,
+  },
+] as const;
+
+const ADMIN_WORK_AREAS = [
+  {
+    title: 'User Management',
+    description: 'Create, edit, archive, restore, and reset user accounts.',
+    href: '/dashboard/admin/users',
+  },
+  {
+    title: 'Data Center',
+    description: 'Policies, NAP, recruitment, persistency, plan codes, validation, and reports.',
+    href: '/dashboard/admin/data-center',
+  },
+  {
+    title: 'System Logs',
+    description: 'Notification and operational activity review.',
+    href: '/dashboard/admin/notifications',
+  },
+] as const;
 
 function useCommandPalette(open: boolean, onOpenChange: (next: boolean) => void) {
   React.useEffect(() => {
@@ -53,112 +111,61 @@ export function AdminHome() {
       <section className="floating-card bg-white/72 p-6 sm:p-8 dark:bg-card/82">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand/75">
-              Admin
-            </p>
+            <p className="text-xs font-semibold uppercase text-brand/75">Admin</p>
             <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">
-              System governance and global search
+              Admin quick actions
             </h1>
             <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              Search across agents and clients instantly, then review the latest platform activity and control surfaces.
+              Find common admin work fast: user access, password resets, agent delisting, global
+              search, logs, and Data Center tables.
             </p>
           </div>
           <button
             type="button"
             onClick={() => setIsCommandOpen(true)}
-            className="inline-flex min-h-12 items-center rounded-full border border-white/50 bg-background/85 px-5 text-sm font-medium text-foreground shadow-soft dark:border-white/10 dark:bg-white/[0.04]"
+            className="inline-flex min-h-12 items-center rounded-md border border-white/50 bg-background/85 px-5 text-sm font-medium text-foreground shadow-soft dark:border-white/10 dark:bg-white/[0.04]"
           >
             <Search className="mr-3 h-4 w-4 text-muted-foreground" />
-            Global search
-            <span className="ml-4 inline-flex items-center rounded-full border border-white/50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground dark:border-white/10">
+            Search agents and clients
+            <span className="ml-4 inline-flex items-center rounded-md border border-white/50 px-3 py-1 text-xs font-semibold uppercase text-muted-foreground dark:border-white/10">
               Ctrl+K
             </span>
           </button>
         </div>
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-3">
-        {[
-          {
-            step: 'Quick action',
-            title: 'Policy records',
-            description: 'View, manually add, and edit per-policy closed deal records for any agent.',
-            href: '/dashboard/admin/policies',
-            cta: 'Open policy records',
-          },
-          {
-            step: 'Quick action',
-            title: 'Data Center',
-            description: 'Jump into the unified admin workspace for policies, NAP, recruitment, persistency, and reference operations.',
-            href: '/dashboard/admin/data-center',
-            cta: 'Open Data Center',
-          },
-          {
-            step: 'Quick action',
-            title: 'Recruitments',
-            description: 'Track recruit onboarding, recruiter hierarchy, and appointment lifecycle with metric-linked manual records.',
-            href: '/dashboard/admin/recruitments',
-            cta: 'Open recruitment management',
-          },
-          {
-            step: 'Quick action',
-            title: 'NAP transactions',
-            description: 'Create and update manual NAP entries that apply policy effects and refresh production metrics.',
-            href: '/dashboard/admin/nap-transactions',
-            cta: 'Open NAP management',
-          },
-          {
-            step: 'Quick action',
-            title: 'Create account',
-            description: 'Provision Admin, Branch Manager, and Agent accounts with the locked onboarding rules.',
-            href: '/dashboard/admin/users',
-            cta: 'Create and manage users',
-          },
-          {
-            step: 'Quick action',
-            title: 'Reset password',
-            description: 'Force a secure temporary credential and preserve the reset event in the audit trail.',
-            href: '/dashboard/admin/users',
-            cta: 'Open password controls',
-          },
-          {
-            step: 'Quick action',
-            title: 'Delist agent',
-            description: 'Move active portfolios into the orphan queue, then reassign cleanly without losing history.',
-            href: '/dashboard/cosaf/reassign',
-            cta: 'Open orphan reassignment',
-          },
-          {
-            step: 'Quick action',
-            title: 'Review logs',
-            description: 'Inspect uploads, returns, approvals, notifications, and reassignment events from one feed.',
-            href: '/dashboard/admin/notifications',
-            cta: 'Open recent logs',
-          },
-          {
-            step: 'Quick action',
-            title: 'Search agents and clients',
-            description: 'Jump directly into operational records with live suggestions across agents and client cases.',
-            href: '/dashboard/admin',
-            cta: 'Use global search',
-          },
-        ].map((item) => (
-          <Card key={item.title}>
-            <CardHeader>
-              <CardDescription>{item.step}</CardDescription>
-              <CardTitle className="text-xl">{item.title}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">{item.description}</p>
-              <Link
-                href={item.href as Route}
-                className="mt-4 inline-flex min-h-11 items-center rounded-full border border-white/50 px-4 text-sm font-medium shadow-soft dark:border-white/10"
-              >
-                {item.cta}
-              </Link>
-            </CardContent>
-          </Card>
-        ))}
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-xl font-semibold tracking-tight text-foreground">Quick actions</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Open the most common admin tasks without hunting through menus.
+          </p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {ADMIN_PRIMARY_ACTIONS.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Card key={item.title}>
+                <CardHeader>
+                  <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-md bg-brand-gradient-soft">
+                    <Icon className="h-5 w-5 text-brand" />
+                  </div>
+                  <CardDescription>Quick action</CardDescription>
+                  <CardTitle className="text-lg">{item.title}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">{item.description}</p>
+                  <Link
+                    href={item.href as Route}
+                    className="mt-4 inline-flex min-h-11 items-center rounded-md border border-white/50 px-4 text-sm font-medium shadow-soft dark:border-white/10"
+                  >
+                    {item.cta}
+                  </Link>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -181,60 +188,47 @@ export function AdminHome() {
         ) : null}
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+      <div className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
         <Card>
           <CardHeader>
             <div className="flex items-center gap-3">
-              <div className="rounded-2xl bg-brand-gradient-soft p-3">
-                <CommandIcon className="h-5 w-5 text-brand" />
+              <div className="rounded-md bg-brand-gradient-soft p-3">
+                <FileSpreadsheet className="h-5 w-5 text-brand" />
               </div>
               <div>
-                <CardTitle className="text-xl">Global system search</CardTitle>
-                <CardDescription>Find agents and client profiles from one command surface.</CardDescription>
+                <CardTitle className="text-xl">Main admin work areas</CardTitle>
+                <CardDescription>Three places cover the Phase 6 admin responsibilities.</CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent className="grid gap-3">
+            {ADMIN_WORK_AREAS.map((item) => (
+              <Link
+                key={item.title}
+                href={item.href as Route}
+                className="rounded-md border border-white/40 bg-background/75 p-4 text-left shadow-soft dark:border-white/10"
+              >
+                <p className="font-semibold text-foreground">{item.title}</p>
+                <p className="mt-2 text-sm text-muted-foreground">{item.description}</p>
+              </Link>
+            ))}
             <button
               type="button"
               onClick={() => setIsCommandOpen(true)}
-              className="rounded-[24px] border border-white/40 bg-background/75 p-4 text-left shadow-soft dark:border-white/10"
+              className="rounded-md border border-white/40 bg-brand-gradient-soft p-4 text-left shadow-soft dark:border-white/10"
             >
-              <p className="font-semibold text-foreground">Open command menu</p>
+              <p className="font-semibold text-foreground">Search agents and clients</p>
               <p className="mt-2 text-sm text-muted-foreground">
-                Search agents by code or name, and jump directly into client and operational views.
+                Use this when you already know the person, agent code, client, or case you need.
               </p>
             </button>
-            <Link href="/dashboard/admin/users" className="rounded-[24px] border border-white/40 bg-background/75 p-4 text-left shadow-soft dark:border-white/10">
-              <p className="font-semibold text-foreground">User lifecycle controls</p>
-              <p className="mt-2 text-sm text-muted-foreground">Manage users, reset credentials, and restore archived access.</p>
-            </Link>
-            <Link href="/dashboard/cosaf/reassign" className="rounded-[24px] border border-white/40 bg-background/75 p-4 text-left shadow-soft dark:border-white/10">
-              <p className="font-semibold text-foreground">Branch oversight</p>
-              <p className="mt-2 text-sm text-muted-foreground">Review orphan queues, reassignment activity, and live client workflow across branches.</p>
-            </Link>
-            <Link href="/dashboard/admin/notifications" className="rounded-[24px] border border-white/40 bg-background/75 p-4 text-left shadow-soft dark:border-white/10">
-              <p className="font-semibold text-foreground">System logs</p>
-              <p className="mt-2 text-sm text-muted-foreground">Review policy, upload, return, approval, reassignment, and notification activity.</p>
-            </Link>
-            <div className="rounded-[24px] border border-white/40 bg-brand-gradient-soft p-4 shadow-soft dark:border-white/10">
-              <div className="flex items-start gap-3">
-                <CheckCircle2 className="mt-0.5 h-5 w-5 text-brand" />
-                <div>
-                  <p className="font-semibold text-foreground">Recommended admin flow</p>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    1. Check logs. 2. Fix user access. 3. Search impacted agents or clients. 4. Review operational pages.
-                  </p>
-                </div>
-              </div>
-            </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
             <div className="flex items-center gap-3">
-              <div className="rounded-2xl bg-brand-gradient-soft p-3">
+              <div className="rounded-md bg-brand-gradient-soft p-3">
                 <ShieldCheck className="h-5 w-5 text-brand" />
               </div>
               <div>
@@ -314,7 +308,7 @@ export function AdminHome() {
                   >
                     <div>
                       <p className="font-semibold text-foreground">{agent.title}</p>
-                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                      <p className="text-xs uppercase text-muted-foreground">
                         {agent.subtitle}
                       </p>
                     </div>
@@ -338,7 +332,7 @@ export function AdminHome() {
                   >
                     <div>
                       <p className="font-semibold text-foreground">{client.title}</p>
-                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                      <p className="text-xs uppercase text-muted-foreground">
                         {client.subtitle}
                       </p>
                     </div>

@@ -9,10 +9,6 @@ import {
   Library,
   BriefcaseBusiness,
   FileSpreadsheet,
-  Tags,
-  ReceiptText,
-  UserRoundPlus,
-  Activity,
 } from 'lucide-react';
 import type { SystemRole } from '@a1prime/schemas';
 
@@ -28,8 +24,8 @@ export interface NavigationItem {
 export const dashboardNavigationItems: readonly NavigationItem[] = [
   {
     href: '/dashboard',
-    label: 'Overview',
-    description: 'Branch snapshot and urgent tasks.',
+    label: 'Quick Actions',
+    description: 'Find common tasks, queues, and reports fast.',
     icon: LayoutDashboard,
     allowedRoles: ['Admin', 'BranchManager', 'Agent'],
     matchMode: 'exact',
@@ -85,40 +81,8 @@ export const dashboardNavigationItems: readonly NavigationItem[] = [
   {
     href: '/dashboard/admin/data-center',
     label: 'Data Center',
-    description: 'Open the unified admin workspace for manual operations modules.',
+    description: 'Manage policies, NAP, recruitment, persistency, plan codes, validation, and reports.',
     icon: FileSpreadsheet,
-    allowedRoles: ['Admin'],
-    matchMode: 'startsWith',
-  },
-  {
-    href: '/dashboard/admin/recruitments',
-    label: 'Recruitments',
-    description: 'Track manual recruitment records and lifecycle changes.',
-    icon: UserRoundPlus,
-    allowedRoles: ['Admin'],
-    matchMode: 'startsWith',
-  },
-  {
-    href: '/dashboard/admin/nap-transactions',
-    label: 'NAP Transactions',
-    description: 'Manage manual NAP transactions and policy effects.',
-    icon: ReceiptText,
-    allowedRoles: ['Admin'],
-    matchMode: 'startsWith',
-  },
-  {
-    href: '/dashboard/admin/data-center/persistency',
-    label: 'Persistency',
-    description: 'Manage manual monthly persistency.',
-    icon: Activity,
-    allowedRoles: ['Admin'],
-    matchMode: 'startsWith',
-  },
-  {
-    href: '/dashboard/admin/data-center/plan-codes',
-    label: 'Plan Codes',
-    description: 'Maintain manual plan code reference data.',
-    icon: Tags,
     allowedRoles: ['Admin'],
     matchMode: 'startsWith',
   },

@@ -8,8 +8,13 @@ describe('getNavigationItemsForRole', () => {
     const branchManagerItems = getNavigationItemsForRole('BranchManager').map((item) => item.href);
     const agentItems = getNavigationItemsForRole('Agent').map((item) => item.href);
 
+    expect(adminItems).toContain('/dashboard/admin/data-center');
     expect(adminItems).toContain('/dashboard/admin/users');
     expect(adminItems).toContain('/dashboard/admin/notifications');
+    expect(adminItems).not.toContain('/dashboard/admin/recruitments');
+    expect(adminItems).not.toContain('/dashboard/admin/nap-transactions');
+    expect(adminItems).not.toContain('/dashboard/admin/data-center/persistency');
+    expect(adminItems).not.toContain('/dashboard/admin/data-center/plan-codes');
     expect(branchManagerItems).not.toContain('/dashboard/admin/users');
     expect(branchManagerItems).not.toContain('/dashboard/admin/notifications');
     expect(agentItems).not.toContain('/dashboard/admin/users');

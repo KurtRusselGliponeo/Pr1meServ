@@ -24,6 +24,29 @@ const iconByAction = {
   'Open prospects': BriefcaseBusiness,
 } as const;
 
+const DEFAULT_AGENT_QUICK_ACTIONS = [
+  {
+    label: 'Update contact status',
+    description: 'Open assigned client cases and record the latest contact progress.',
+    href: '/dashboard/cosaf',
+  },
+  {
+    label: 'Upload COSAF docs',
+    description: 'Submit signed forms and supporting files for active reassignment cases.',
+    href: '/dashboard/cosaf',
+  },
+  {
+    label: 'Open at-risk queue',
+    description: 'Review warning, urgent, and lapsed policies that need follow-up.',
+    href: '/dashboard/lapsation',
+  },
+  {
+    label: 'Open prospects',
+    description: 'Move leads through your prospecting pipeline.',
+    href: '/dashboard/prospects',
+  },
+] as const;
+
 export function AgentHome() {
   const dashboardQuery = useGetAgentDashboard();
 
@@ -43,6 +66,8 @@ export function AgentHome() {
 
   const { agent, summary, assignedClients, recentHistory, atRiskPolicies, prospects, quickActions } =
     dashboardQuery.data;
+  const visibleQuickActions =
+    quickActions.length > 0 ? quickActions : DEFAULT_AGENT_QUICK_ACTIONS;
 
   return (
     <div className="space-y-6">
@@ -51,12 +76,41 @@ export function AgentHome() {
           Agent Workspace
         </p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">
-          {agent.displayName}
+          Quick actions for {agent.displayName}
         </h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-          Your homepage is scoped to branch {agent.branchCode}, your assigned clients, your ownership
-          history, and your warning, urgent, and lapsed policies.
+          Jump to the work you need most: client updates, COSAF uploads, at-risk policies, and
+          prospect follow-ups for branch {agent.branchCode}.
         </p>
+      </section>
+
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-xl font-semibold tracking-tight text-foreground">Quick actions</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Start here when you need to locate a task quickly.
+          </p>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-4">
+          {visibleQuickActions.map((action: (typeof visibleQuickActions)[number]) => {
+            const Icon = iconByAction[action.label as keyof typeof iconByAction] ?? Clock3;
+
+            return (
+              <Link key={action.label} href={action.href as Route} className="block">
+                <Card className="h-full transition-transform hover:-translate-y-0.5">
+                  <CardHeader>
+                    <Icon className="h-5 w-5 text-brand" />
+                    <CardDescription>Quick action</CardDescription>
+                    <CardTitle className="text-xl">{action.label}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground">{action.description}</p>
+                  </CardContent>
+                </Card>
+              </Link>
+            );
+          })}
+        </div>
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -81,26 +135,6 @@ export function AgentHome() {
             </CardHeader>
           </Card>
         ))}
-      </section>
-
-      <section className="grid gap-4 lg:grid-cols-4">
-        {quickActions.map((action: (typeof quickActions)[number]) => {
-          const Icon = iconByAction[action.label as keyof typeof iconByAction] ?? Clock3;
-
-          return (
-            <Link key={action.label} href={action.href as Route} className="block">
-              <Card className="h-full transition-transform hover:-translate-y-0.5">
-                <CardHeader>
-                  <Icon className="h-5 w-5 text-brand" />
-                  <CardTitle className="text-xl">{action.label}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">{action.description}</p>
-                </CardContent>
-              </Card>
-            </Link>
-          );
-        })}
       </section>
 
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">

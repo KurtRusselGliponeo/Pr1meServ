@@ -159,20 +159,6 @@ export function UsersPageClient() {
     [resetUserPasswordMutation, restoreUserMutation, softDeleteMutation, updateUserMutation],
   );
 
-  if (usersQuery.isPending) {
-    return <LoadingSkeleton rows={6} columns={4} />;
-  }
-
-  if (!usersQuery.data || usersQuery.errorMessage) {
-    return (
-      <EmptyState
-        icon={ShieldCheck}
-        title="User management is unavailable"
-        description={usersQuery.errorMessage ?? 'User records could not be loaded.'}
-      />
-    );
-  }
-
   return (
     <div className="space-y-6">
       <section className="floating-card bg-white/72 p-6 sm:p-8 dark:bg-card/82">
@@ -194,14 +180,26 @@ export function UsersPageClient() {
           }}
         />
         <div className="space-y-4">
-          <DataTable columns={columns} data={usersQuery.data.data} />
-          <ServerPaginationControls
-            page={usersQuery.data.meta.page}
-            pageSize={usersQuery.data.meta.pageSize}
-            total={usersQuery.data.meta.total}
-            hasNextPage={usersQuery.data.meta.hasNextPage}
-            onPageChange={setPage}
-          />
+          {usersQuery.isPending ? (
+            <LoadingSkeleton rows={6} columns={4} />
+          ) : !usersQuery.data || usersQuery.errorMessage ? (
+            <EmptyState
+              icon={ShieldCheck}
+              title="User records unavailable"
+              description={usersQuery.errorMessage ?? 'User records could not be loaded.'}
+            />
+          ) : (
+            <>
+              <DataTable columns={columns} data={usersQuery.data.data} />
+              <ServerPaginationControls
+                page={usersQuery.data.meta.page}
+                pageSize={usersQuery.data.meta.pageSize}
+                total={usersQuery.data.meta.total}
+                hasNextPage={usersQuery.data.meta.hasNextPage}
+                onPageChange={setPage}
+              />
+            </>
+          )}
         </div>
       </div>
     </div>

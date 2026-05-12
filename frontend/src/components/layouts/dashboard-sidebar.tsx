@@ -77,16 +77,18 @@ function NavigationList({
                 ? 'bg-primary text-primary-foreground shadow-md'
                 : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
               isPending && 'scale-[0.99] bg-accent text-accent-foreground shadow-soft',
-              collapsed && 'justify-center px-2 py-3',
+              collapsed && 'mx-auto h-11 w-11 justify-center gap-0 px-0 py-0',
             )}
             title={collapsed ? item.label : undefined}
           >
-            <span
-              className={cn(
-                'pointer-events-none absolute inset-y-1 left-1 w-1 rounded-full bg-primary transition-all duration-200',
-                isActive || isPending ? 'opacity-100' : 'opacity-0',
-              )}
-            />
+            {!collapsed ? (
+              <span
+                className={cn(
+                  'pointer-events-none absolute inset-y-1 left-1 w-1 rounded-full bg-primary transition-all duration-200',
+                  isActive || isPending ? 'opacity-100' : 'opacity-0',
+                )}
+              />
+            ) : null}
             <item.icon
               className={cn('h-5 w-5 shrink-0 transition-colors', isActive ? 'text-primary-foreground' : 'text-muted-foreground group-hover:text-foreground')}
               aria-hidden="true"
@@ -110,9 +112,14 @@ export { NavigationList };
 
 export function DashboardSidebar({ collapsed, onToggleCollapsed }: DashboardSidebarProps) {
   return (
-    <aside className="hidden lg:flex lg:w-[280px] lg:flex-col lg:border-r lg:bg-background/95 lg:backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex h-full flex-col gap-4 p-4">
-        <div className="flex h-[60px] items-center gap-3 px-2">
+    <aside
+      className={cn(
+        'hidden lg:sticky lg:top-0 lg:flex lg:h-screen lg:shrink-0 lg:flex-col lg:border-r lg:bg-background/95 lg:backdrop-blur lg:transition-[width] lg:duration-300 lg:ease-in-out supports-[backdrop-filter]:bg-background/60',
+        collapsed ? 'lg:w-20' : 'lg:w-[280px]',
+      )}
+    >
+      <div className={cn('flex h-full flex-col gap-4 p-4', collapsed && 'px-3')}>
+        <div className={cn('flex h-[60px] items-center gap-3 px-2', collapsed && 'justify-center px-0')}>
           <div className={cn('flex flex-col', collapsed && 'hidden')}>
             <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
               A1 Prime
@@ -124,7 +131,12 @@ export function DashboardSidebar({ collapsed, onToggleCollapsed }: DashboardSide
             variant="ghost"
             size="icon"
             onClick={onToggleCollapsed}
-            className="ml-auto h-8 w-8 text-muted-foreground hover:text-foreground"
+            className={cn(
+              'h-8 w-8 text-muted-foreground hover:text-foreground',
+              !collapsed && 'ml-auto',
+            )}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             <PanelLeftClose
               className={cn('h-4 w-4 transition-transform', collapsed && 'rotate-180')}
@@ -132,7 +144,7 @@ export function DashboardSidebar({ collapsed, onToggleCollapsed }: DashboardSide
           </Button>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className={cn('flex-1', collapsed ? 'overflow-hidden' : 'overflow-y-auto')}>
           <NavigationList collapsed={collapsed} />
         </div>
       </div>

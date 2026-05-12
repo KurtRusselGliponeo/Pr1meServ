@@ -71,12 +71,63 @@ export function BMHome() {
           Branch Manager Workspace
         </p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">
-          Branch {branch.branchCode} overview
+          Branch {branch.branchCode} quick actions
         </h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
-          This view rolls up branch-wide analytics across all agents in your branch, including orphan
-          handling, COSAF approvals, lapsation pressure, and current performer spread.
+          Use this page to find branch work quickly: orphan reassignment, COSAF approvals, delisting,
+          report filters, and performance queues.
         </p>
+      </section>
+
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-xl font-semibold tracking-tight text-foreground">Quick actions</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Jump straight to the branch queue or workflow you need.
+          </p>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-3">
+          <Link href="/dashboard/cosaf/reassign" className="block">
+            <Card className="h-full transition-transform hover:-translate-y-0.5">
+              <CardHeader>
+                <ArrowRightLeft className="h-5 w-5 text-brand" />
+                <CardDescription>Quick action</CardDescription>
+                <CardTitle className="text-xl">Orphan reassignment board</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Reassign orphaned clients to a new agent and remove them from the delisted portfolio.
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href="/dashboard/cosaf" className="block">
+            <Card className="h-full transition-transform hover:-translate-y-0.5">
+              <CardHeader>
+                <FileClock className="h-5 w-5 text-brand" />
+                <CardDescription>Quick action</CardDescription>
+                <CardTitle className="text-xl">Pending COSAF approvals</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Review submission queues, return incomplete cases, and release signed copies.
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+          <Card className="h-full">
+            <CardHeader>
+              <UserX className="h-5 w-5 text-brand" />
+              <CardDescription>Quick action</CardDescription>
+              <CardTitle className="text-xl">Delist agent workflow</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Search an agent, delist them, and move their portfolio into orphan handling.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -188,37 +239,11 @@ export function BMHome() {
         </CardContent>
       </Card>
 
-      <section className="grid gap-4 lg:grid-cols-3">
-        <Link href="/dashboard/cosaf/reassign" className="block">
-          <Card className="h-full transition-transform hover:-translate-y-0.5">
-            <CardHeader>
-              <ArrowRightLeft className="h-5 w-5 text-brand" />
-              <CardTitle className="text-xl">Orphan reassignment board</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Reassign orphaned clients to a new agent and remove them from the delisted portfolio.
-              </p>
-            </CardContent>
-          </Card>
-        </Link>
-        <Link href="/dashboard/cosaf" className="block">
-          <Card className="h-full transition-transform hover:-translate-y-0.5">
-            <CardHeader>
-              <FileClock className="h-5 w-5 text-brand" />
-              <CardTitle className="text-xl">Pending COSAF approvals</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Review submission queues, return incomplete cases, and release signed copies.
-              </p>
-            </CardContent>
-          </Card>
-        </Link>
+      <section>
         <Card className="h-full">
           <CardHeader>
             <UserX className="h-5 w-5 text-brand" />
-            <CardTitle className="text-xl">Delist agent workflow</CardTitle>
+            <CardTitle className="text-xl">Delist agent controls</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-sm text-muted-foreground">

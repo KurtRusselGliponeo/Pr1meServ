@@ -170,10 +170,12 @@ function PolicyFormDialog({
   const planCodesQuery = usePlanCodes({ search: '', classification: '', includeInactive: false });
   const [form, setForm] = React.useState<PolicyFormValues>(() => toFormValues(initialPolicy ?? undefined));
   const [validationIssues, setValidationIssues] = React.useState<string[]>([]);
+  const [activeStep, setActiveStep] = React.useState(0);
 
   React.useEffect(() => {
     setForm(toFormValues(initialPolicy ?? undefined));
     setValidationIssues([]);
+    setActiveStep(0);
   }, [initialPolicy, open]);
 
   const planCodes = planCodesQuery.data ?? [];
@@ -230,203 +232,274 @@ function PolicyFormDialog({
     },
   });
 
+  const steps = [
+    {
+      title: 'Client',
+      description: 'Agent, client, branch, and policy number',
+    },
+    {
+      title: 'Plan',
+      description: 'Plan code, plan name, issue date, and payment mode',
+    },
+    {
+      title: 'Premiums',
+      description: 'Currency, premium, sum assured, and API',
+    },
+    {
+      title: 'Status',
+      description: 'Policy status, notes, and final review',
+    },
+  ] as const;
+  const isFirstStep = activeStep === 0;
+  const isLastStep = activeStep === steps.length - 1;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl">
+      <DialogContent className="max-h-[92vh] max-w-4xl gap-0 overflow-hidden p-0">
         <DialogHeader>
-          <DialogTitle>{initialPolicy ? 'Edit policy' : 'Add issued policy'}</DialogTitle>
-          <DialogDescription>
-            Admin manually enters issued business data. Plan and agent selections are validated before save.
-          </DialogDescription>
+          <div className="border-b border-border px-6 py-5 pr-12">
+            <DialogTitle>{initialPolicy ? 'Edit policy' : 'Add issued policy'}</DialogTitle>
+            <DialogDescription>
+              Enter policy details one step at a time. Plan and agent selections are validated before save.
+            </DialogDescription>
+          </div>
         </DialogHeader>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <label className="space-y-2 text-sm">
-            <span className="font-medium">Assigned agent</span>
-            <select
-              className="h-11 w-full rounded-md border border-input bg-background px-3"
-              value={form.assignedAgentId}
-              onChange={(event) => setForm((current) => ({ ...current, assignedAgentId: event.target.value }))}
-            >
-              <option value="">Select agent</option>
-              {agents.map((agent) => (
-                <option key={agent.id} value={agent.id}>
-                  {agent.displayName} ({agent.agentCode})
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="space-y-2 text-sm">
-            <span className="font-medium">Policy number</span>
-            <input
-              className="h-11 w-full rounded-md border border-input bg-background px-3"
-              value={form.policyNumber}
-              onChange={(event) => setForm((current) => ({ ...current, policyNumber: event.target.value }))}
-            />
-          </label>
-
-          <label className="space-y-2 text-sm">
-            <span className="font-medium">Policy owner / client name</span>
-            <input
-              className="h-11 w-full rounded-md border border-input bg-background px-3"
-              value={form.policyOwnerName}
-              onChange={(event) => setForm((current) => ({ ...current, policyOwnerName: event.target.value }))}
-            />
-          </label>
-
-          <label className="space-y-2 text-sm">
-            <span className="font-medium">Life insured</span>
-            <input
-              className="h-11 w-full rounded-md border border-input bg-background px-3"
-              value={form.lifeInsuredName}
-              onChange={(event) => setForm((current) => ({ ...current, lifeInsuredName: event.target.value }))}
-            />
-          </label>
-
-          <label className="space-y-2 text-sm">
-            <span className="font-medium">Branch code</span>
-            <input
-              className="h-11 w-full rounded-md border border-input bg-background px-3"
-              value={form.branchCode}
-              onChange={(event) => setForm((current) => ({ ...current, branchCode: event.target.value }))}
-            />
-          </label>
-
-          <label className="space-y-2 text-sm">
-            <span className="font-medium">Plan code</span>
-            <select
-              className="h-11 w-full rounded-md border border-input bg-background px-3"
-              value={form.planCode}
-              onChange={(event) => setForm((current) => ({ ...current, planCode: event.target.value }))}
-            >
-              <option value="">Select plan code</option>
-              {planCodes.map((plan) => (
-                <option key={plan.id} value={plan.planCode}>
-                  {plan.planCode} - {plan.planName}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="space-y-2 text-sm">
-            <span className="font-medium">Plan name</span>
-            <input
-              className="h-11 w-full rounded-md border border-input bg-muted px-3"
-              value={form.planName}
-              onChange={(event) => setForm((current) => ({ ...current, planName: event.target.value }))}
-            />
-          </label>
-
-          <label className="space-y-2 text-sm">
-            <span className="font-medium">Currency</span>
-            <input
-              className="h-11 w-full rounded-md border border-input bg-background px-3"
-              value={form.currency}
-              onChange={(event) => setForm((current) => ({ ...current, currency: event.target.value.toUpperCase() }))}
-            />
-          </label>
-
-          <label className="space-y-2 text-sm">
-            <span className="font-medium">First issue date</span>
-            <input
-              type="date"
-              className="h-11 w-full rounded-md border border-input bg-background px-3"
-              value={form.firstIssueDate}
-              onChange={(event) => setForm((current) => ({ ...current, firstIssueDate: event.target.value }))}
-            />
-          </label>
-
-          <label className="space-y-2 text-sm">
-            <span className="font-medium">Mode</span>
-            <select
-              className="h-11 w-full rounded-md border border-input bg-background px-3"
-              value={form.mode}
-              onChange={(event) => setForm((current) => ({ ...current, mode: event.target.value as PolicyMode }))}
-            >
-              {POLICY_MODES.map((mode) => (
-                <option key={mode} value={mode}>
-                  {mode}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="space-y-2 text-sm">
-            <span className="font-medium">Modal premium</span>
-            <input
-              type="number"
-              min="0"
-              className="h-11 w-full rounded-md border border-input bg-background px-3"
-              value={form.modalPremium}
-              onChange={(event) => setForm((current) => ({ ...current, modalPremium: event.target.value }))}
-            />
-          </label>
-
-          <label className="space-y-2 text-sm">
-            <span className="font-medium">Sum assured</span>
-            <input
-              type="number"
-              min="0"
-              className="h-11 w-full rounded-md border border-input bg-background px-3"
-              value={form.sumAssured}
-              onChange={(event) => setForm((current) => ({ ...current, sumAssured: event.target.value }))}
-            />
-          </label>
-
-          <label className="space-y-2 text-sm">
-            <span className="font-medium">API</span>
-            <input
-              type="number"
-              min="0"
-              className="h-11 w-full rounded-md border border-input bg-background px-3"
-              value={form.api}
-              onChange={(event) => setForm((current) => ({ ...current, api: event.target.value }))}
-            />
-          </label>
-
-          <label className="space-y-2 text-sm">
-            <span className="font-medium">Policy status</span>
-            <select
-              className="h-11 w-full rounded-md border border-input bg-background px-3"
-              value={form.policyStatus}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, policyStatus: event.target.value as PolicyStatus }))
-              }
-            >
-              {POLICY_STATUSES.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-
-        <label className="space-y-2 text-sm">
-          <span className="font-medium">Notes</span>
-          <textarea
-            className="min-h-24 w-full rounded-md border border-input bg-background px-3 py-2"
-            value={form.notes}
-            onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))}
-          />
-        </label>
-
-        {validationIssues.length > 0 ? (
-          <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
-            {validationIssues.map((issue) => (
-              <p key={issue}>{issue}</p>
+        <div className="overflow-y-auto px-6 py-5">
+          <div className="grid gap-2 sm:grid-cols-4">
+            {steps.map((step, index) => (
+              <button
+                key={step.title}
+                type="button"
+                onClick={() => setActiveStep(index)}
+                className={`rounded-md border px-3 py-3 text-left transition-colors ${
+                  activeStep === index
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'border-border bg-background hover:bg-accent'
+                }`}
+              >
+                <span className="text-xs font-semibold uppercase">Step {index + 1}</span>
+                <span className="mt-1 block text-sm font-semibold">{step.title}</span>
+              </button>
             ))}
           </div>
-        ) : null}
 
-        <DialogFooter>
+          <div className="mt-5 rounded-md border border-border bg-muted/20 p-4">
+            <p className="text-sm font-semibold text-foreground">{steps[activeStep].title}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{steps[activeStep].description}</p>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            {activeStep === 0 ? (
+              <>
+                <label className="space-y-2 text-sm">
+                  <span className="font-medium">Assigned agent</span>
+                  <select
+                    className="h-11 w-full rounded-md border border-input bg-background px-3"
+                    value={form.assignedAgentId}
+                    onChange={(event) => setForm((current) => ({ ...current, assignedAgentId: event.target.value }))}
+                  >
+                    <option value="">Select agent</option>
+                    {agents.map((agent) => (
+                      <option key={agent.id} value={agent.id}>
+                        {agent.displayName} ({agent.agentCode})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="space-y-2 text-sm">
+                  <span className="font-medium">Policy number</span>
+                  <input
+                    className="h-11 w-full rounded-md border border-input bg-background px-3"
+                    value={form.policyNumber}
+                    onChange={(event) => setForm((current) => ({ ...current, policyNumber: event.target.value }))}
+                  />
+                </label>
+                <label className="space-y-2 text-sm">
+                  <span className="font-medium">Policy owner / client name</span>
+                  <input
+                    className="h-11 w-full rounded-md border border-input bg-background px-3"
+                    value={form.policyOwnerName}
+                    onChange={(event) => setForm((current) => ({ ...current, policyOwnerName: event.target.value }))}
+                  />
+                </label>
+                <label className="space-y-2 text-sm">
+                  <span className="font-medium">Life insured</span>
+                  <input
+                    className="h-11 w-full rounded-md border border-input bg-background px-3"
+                    value={form.lifeInsuredName}
+                    onChange={(event) => setForm((current) => ({ ...current, lifeInsuredName: event.target.value }))}
+                  />
+                </label>
+                <label className="space-y-2 text-sm">
+                  <span className="font-medium">Branch code</span>
+                  <input
+                    className="h-11 w-full rounded-md border border-input bg-background px-3"
+                    value={form.branchCode}
+                    onChange={(event) => setForm((current) => ({ ...current, branchCode: event.target.value }))}
+                  />
+                </label>
+              </>
+            ) : null}
+
+            {activeStep === 1 ? (
+              <>
+                <label className="space-y-2 text-sm">
+                  <span className="font-medium">Plan code</span>
+                  <select
+                    className="h-11 w-full rounded-md border border-input bg-background px-3"
+                    value={form.planCode}
+                    onChange={(event) => setForm((current) => ({ ...current, planCode: event.target.value }))}
+                  >
+                    <option value="">Select plan code</option>
+                    {planCodes.map((plan) => (
+                      <option key={plan.id} value={plan.planCode}>
+                        {plan.planCode} - {plan.planName}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="space-y-2 text-sm">
+                  <span className="font-medium">Plan name</span>
+                  <input
+                    className="h-11 w-full rounded-md border border-input bg-muted px-3"
+                    value={form.planName}
+                    onChange={(event) => setForm((current) => ({ ...current, planName: event.target.value }))}
+                  />
+                </label>
+                <label className="space-y-2 text-sm">
+                  <span className="font-medium">First issue date</span>
+                  <input
+                    type="date"
+                    className="h-11 w-full rounded-md border border-input bg-background px-3"
+                    value={form.firstIssueDate}
+                    onChange={(event) => setForm((current) => ({ ...current, firstIssueDate: event.target.value }))}
+                  />
+                </label>
+                <label className="space-y-2 text-sm">
+                  <span className="font-medium">Mode</span>
+                  <select
+                    className="h-11 w-full rounded-md border border-input bg-background px-3"
+                    value={form.mode}
+                    onChange={(event) => setForm((current) => ({ ...current, mode: event.target.value as PolicyMode }))}
+                  >
+                    {POLICY_MODES.map((mode) => (
+                      <option key={mode} value={mode}>
+                        {mode}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </>
+            ) : null}
+
+            {activeStep === 2 ? (
+              <>
+                <label className="space-y-2 text-sm">
+                  <span className="font-medium">Currency</span>
+                  <input
+                    className="h-11 w-full rounded-md border border-input bg-background px-3"
+                    value={form.currency}
+                    onChange={(event) => setForm((current) => ({ ...current, currency: event.target.value.toUpperCase() }))}
+                  />
+                </label>
+                <label className="space-y-2 text-sm">
+                  <span className="font-medium">Modal premium</span>
+                  <input
+                    type="number"
+                    min="0"
+                    className="h-11 w-full rounded-md border border-input bg-background px-3"
+                    value={form.modalPremium}
+                    onChange={(event) => setForm((current) => ({ ...current, modalPremium: event.target.value }))}
+                  />
+                </label>
+                <label className="space-y-2 text-sm">
+                  <span className="font-medium">Sum assured</span>
+                  <input
+                    type="number"
+                    min="0"
+                    className="h-11 w-full rounded-md border border-input bg-background px-3"
+                    value={form.sumAssured}
+                    onChange={(event) => setForm((current) => ({ ...current, sumAssured: event.target.value }))}
+                  />
+                </label>
+                <label className="space-y-2 text-sm">
+                  <span className="font-medium">API</span>
+                  <input
+                    type="number"
+                    min="0"
+                    className="h-11 w-full rounded-md border border-input bg-background px-3"
+                    value={form.api}
+                    onChange={(event) => setForm((current) => ({ ...current, api: event.target.value }))}
+                  />
+                </label>
+              </>
+            ) : null}
+
+            {activeStep === 3 ? (
+              <>
+                <label className="space-y-2 text-sm">
+                  <span className="font-medium">Policy status</span>
+                  <select
+                    className="h-11 w-full rounded-md border border-input bg-background px-3"
+                    value={form.policyStatus}
+                    onChange={(event) =>
+                      setForm((current) => ({ ...current, policyStatus: event.target.value as PolicyStatus }))
+                    }
+                  >
+                    {POLICY_STATUSES.map((status) => (
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="space-y-2 text-sm md:col-span-2">
+                  <span className="font-medium">Notes</span>
+                  <textarea
+                    className="min-h-28 w-full rounded-md border border-input bg-background px-3 py-2"
+                    value={form.notes}
+                    onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))}
+                  />
+                </label>
+              </>
+            ) : null}
+          </div>
+
+          {validationIssues.length > 0 ? (
+            <div className="mt-5 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+              {validationIssues.map((issue) => (
+                <p key={issue}>{issue}</p>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
+        <DialogFooter className="border-t border-border bg-background px-6 py-4">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button type="button" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
-            {saveMutation.isPending ? 'Saving...' : initialPolicy ? 'Save changes' : 'Create policy'}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setActiveStep((current) => Math.max(0, current - 1))}
+            disabled={isFirstStep || saveMutation.isPending}
+          >
+            Back
           </Button>
+          {isLastStep ? (
+            <Button type="button" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+              {saveMutation.isPending ? 'Saving...' : initialPolicy ? 'Save changes' : 'Create policy'}
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              onClick={() => setActiveStep((current) => Math.min(steps.length - 1, current + 1))}
+              disabled={saveMutation.isPending}
+            >
+              Continue
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

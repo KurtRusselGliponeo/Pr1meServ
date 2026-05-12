@@ -38,6 +38,35 @@ vi.mock('@/features/admin/hooks/use-get-notification-logs', () => ({
   }),
 }));
 
+vi.mock('@/features/admin/hooks/use-admin-search', () => ({
+  useAdminSearch: () => ({
+    data: { data: [] },
+  }),
+}));
+
+vi.mock('@/features/admin/hooks/use-get-admin-overview', () => ({
+  useGetAdminOverview: () => ({
+    isPending: false,
+    errorMessage: null,
+    data: {
+      totals: {
+        activeUsers: 1,
+        activeAgents: 1,
+        orphanClients: 0,
+        pendingApprovals: 0,
+      },
+    },
+  }),
+}));
+
+vi.mock('@/features/admin/hooks/use-get-admin-system-logs', () => ({
+  useGetAdminSystemLogs: () => ({
+    isPending: false,
+    errorMessage: null,
+    data: { data: [] },
+  }),
+}));
+
 vi.mock('@/features/phase-3-reassignment/hooks/use-get-agents', () => ({
   useGetAgents: () => ({
     data: { data: [] },
@@ -185,8 +214,8 @@ describe('role home guided workflows', () => {
   it('renders step-by-step guidance for Admin', () => {
     renderWithProviders(<AdminHome />);
 
-    expect(screen.getByText(/system governance and global search/i)).toBeInTheDocument();
-    expect(screen.getByText(/global system search/i)).toBeInTheDocument();
-    expect(screen.getByText(/recommended admin flow/i)).toBeInTheDocument();
+    expect(screen.getByText(/admin quick actions/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/search agents and clients/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/main admin work areas/i)).toBeInTheDocument();
   });
 });

@@ -12,7 +12,7 @@ import { AdminHome } from './admin-home';
 export function DashboardRoleHome() {
   const { user, isHydrated, isRestoringSession } = useAuth();
 
-  if (!isHydrated || isRestoringSession) {
+  if (!isHydrated || (isRestoringSession && !user)) {
     return <LoadingSkeleton rows={5} columns={4} />;
   }
 
